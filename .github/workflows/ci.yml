@@ -27,3 +27,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm run pack:check
+      - run: npm run distributions:check
+      - run: npm run mcpb:check

@@ -1,0 +1,7 @@
+.test-dist/
+artifacts/
+plugins/
+scripts/
+src/
+tests/
+tsconfig*.json

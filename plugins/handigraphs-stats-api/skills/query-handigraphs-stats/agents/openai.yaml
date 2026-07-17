@@ -1,0 +1,4 @@
+interface:
+  display_name: "Query Handigraphs Stats"
+  short_description: "Discover and query live MLB and NHL stats"
+  default_prompt: "Use $query-handigraphs-stats to compare today’s MLB starters using live Handigraphs data."

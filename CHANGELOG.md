@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 - 2026-07-17
+
+- Add a public Codex marketplace plugin backed by the existing local stdio package.
+- Add a Claude Code marketplace plugin with sensitive key configuration.
+- Add a public, user-facing skill for resource discovery, focused queries, pagination, and safe result interpretation.
+- Add a self-contained Claude Desktop MCPB manifest plus reproducible validation and packaging scripts.
+- Build and attach the MCPB artifact during tagged GitHub releases.
+
 ## 0.1.0 - 2026-07-17
 
 - Publish the stdio MCP package with live resource discovery under Apache-2.0.
