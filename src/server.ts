@@ -44,7 +44,7 @@ export interface ServerDependencies {
 export function createServer(config: Config, dependencies: ServerDependencies = {}): McpServer {
   const http = new StatsApiHttpClient(config, dependencies.fetchImpl);
   const discovery = new DiscoveryClient(http, config.discoveryTtlMs, dependencies.now);
-  const server = new McpServer({ name: "handigraphs-stats-api", version: "0.1.0" });
+  const server = new McpServer({ name: "handigraphs-stats-api", version: "0.2.0" });
 
   server.registerTool("list_resources", {
     title: "List Handigraphs Stats API resources",

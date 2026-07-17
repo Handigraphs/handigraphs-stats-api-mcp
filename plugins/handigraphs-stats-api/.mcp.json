@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "handigraphs-stats": {
+      "command": "npx",
+      "args": ["-y", "@handigraphs/stats-api-mcp"]
+    }
+  }
+}

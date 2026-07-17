@@ -1,6 +1,6 @@
 # Handigraphs Stats API MCP
 
-Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.1.0 uses stdio only and exposes three tools:
+Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.0 uses stdio only and exposes three tools:
 
 - `list_resources({ sport? })` discovers sports and resources.
 - `describe_resource({ sport, resource })` discovers metrics, canonical units, splits, and supported filters.
@@ -8,9 +8,43 @@ Public MCP server for read-only access to the Handigraphs Stats API v1. Version 
 
 Sports, resources, metrics, and splits are never compiled into this package. Public discovery remains authoritative.
 
-## Install
+## Credentials
 
-Node.js 22 or newer is required. Create a reveal-once Stats API key at [handigraphs.com/account/api](https://handigraphs.com/account/api), then add this server to an MCP client:
+Create a reveal-once Stats API key at [handigraphs.com/account/api](https://handigraphs.com/account/api). Never paste a real key into a repository, issue, prompt, or committed client configuration.
+
+## Install with the Handigraphs plugin
+
+### Codex
+
+Node.js 22 or newer is required. Add the public Handigraphs marketplace and install the plugin:
+
+```bash
+codex plugin marketplace add Handigraphs/handigraphs-stats-api-mcp
+codex plugin add handigraphs-stats-api@handigraphs
+```
+
+Set `HANDIGRAPHS_API_KEY` in the environment that launches Codex, then start a new session. The plugin adds the local MCP server and a `query-handigraphs-stats` skill.
+
+### Claude Code
+
+Node.js 22 or newer is required. Add the same repository as a Claude marketplace and install the plugin:
+
+```bash
+claude plugin marketplace add Handigraphs/handigraphs-stats-api-mcp
+claude plugin install handigraphs-stats-api@handigraphs
+```
+
+In Claude Code, run `/plugin configure handigraphs-stats-api@handigraphs` and enter the Stats API key as sensitive plugin configuration. Then run `/reload-plugins` or start a new session.
+
+### Claude Desktop extension
+
+Download `handigraphs-stats-api-mcp-<version>.mcpb` from the matching GitHub release. In Claude Desktop, open **Settings → Extensions → Advanced settings → Install Extension**, select the file, and enter the Stats API key when prompted. The bundle includes the compiled server and its production dependencies; a separate Node.js installation is not required by the extension.
+
+These are local distributions. They do not create a hosted connector for Claude.ai, Claude Cowork, mobile clients, or ChatGPT web.
+
+## Configure another MCP client
+
+Node.js 22 or newer is required. Add the published npm package to any client that supports local stdio MCP servers:
 
 ```json
 {
@@ -74,9 +108,17 @@ npm test
 npm run typecheck
 npm run build
 npm run pack:check
+npm run distributions:check
+npm run mcpb:check
 ```
 
 Tests use local mocked HTTP servers and the official MCP client, including an end-to-end stdio process. No live Handigraphs key or external service is required.
+
+Build a local Claude Desktop artifact in `artifacts/` with:
+
+```bash
+npm run mcpb:pack
+```
 
 ## License
 

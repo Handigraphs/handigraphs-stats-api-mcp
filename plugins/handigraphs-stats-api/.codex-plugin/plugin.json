@@ -1,0 +1,32 @@
+{
+  "name": "handigraphs-stats-api",
+  "version": "0.2.0",
+  "description": "Discover and query live Handigraphs MLB and NHL statistics through a read-only local MCP server.",
+  "author": {
+    "name": "Handigraphs",
+    "email": "support@handigraphs.com",
+    "url": "https://handigraphs.com"
+  },
+  "homepage": "https://handigraphs.com/developers#mcp",
+  "repository": "https://github.com/Handigraphs/handigraphs-stats-api-mcp",
+  "license": "Apache-2.0",
+  "keywords": ["sports-analytics", "mlb", "nhl", "stats", "mcp"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Handigraphs Stats API",
+    "shortDescription": "Query live MLB and NHL analytics",
+    "longDescription": "Use a read-only local MCP server to discover Handigraphs resources, inspect live metrics and splits, and query MLB or NHL statistics.",
+    "developerName": "Handigraphs",
+    "category": "Data",
+    "capabilities": ["Read"],
+    "websiteURL": "https://handigraphs.com/developers#mcp",
+    "privacyPolicyURL": "https://handigraphs.com/privacy",
+    "termsOfServiceURL": "https://handigraphs.com/terms",
+    "defaultPrompt": [
+      "Compare today's MLB starters using live Handigraphs data.",
+      "Find the strongest NHL goalie matchups available today.",
+      "Show which Handigraphs stats and splits are available."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

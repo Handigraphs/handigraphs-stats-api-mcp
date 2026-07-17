@@ -1,0 +1,19 @@
+{
+  "name": "handigraphs",
+  "owner": {
+    "name": "Handigraphs",
+    "email": "support@handigraphs.com"
+  },
+  "description": "Official Handigraphs plugins for sports analytics.",
+  "plugins": [
+    {
+      "name": "handigraphs-stats-api",
+      "source": "./plugins/handigraphs-stats-api",
+      "description": "Discover and query live MLB and NHL statistics through a read-only local MCP server.",
+      "version": "0.2.0",
+      "author": {
+        "name": "Handigraphs"
+      }
+    }
+  ]
+}

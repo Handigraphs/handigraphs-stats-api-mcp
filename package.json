@@ -1,6 +1,6 @@
 {
   "name": "@handigraphs/stats-api-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Read-only MCP server for the Handigraphs Stats API v1",
   "license": "Apache-2.0",
   "repository": {
@@ -41,6 +41,10 @@
     "build:test": "tsc -p tsconfig.test.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "npm run build:test && node --test .test-dist/tests/*.test.js",
+    "distributions:check": "node scripts/check-distributions.mjs",
+    "mcpb:validate": "mcpb validate mcpb/manifest.json",
+    "mcpb:pack": "npm run build && node scripts/build-mcpb.mjs",
+    "mcpb:check": "npm run build && node scripts/build-mcpb.mjs --check",
     "pack:check": "npm run build && node scripts/check-pack.mjs",
     "prepack": "npm run build"
   },
@@ -49,7 +53,11 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@anthropic-ai/mcpb": "2.1.2",
     "@types/node": "22.19.11",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "tmp": "0.2.7"
   }
 }
