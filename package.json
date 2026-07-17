@@ -1,0 +1,55 @@
+{
+  "name": "@handigraphs/stats-api-mcp",
+  "version": "0.1.0",
+  "description": "Read-only MCP server for the Handigraphs Stats API v1",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Handigraphs/handigraphs-stats-api-mcp.git"
+  },
+  "homepage": "https://handigraphs.com/developers#mcp",
+  "bugs": {
+    "url": "https://github.com/Handigraphs/handigraphs-stats-api-mcp/issues"
+  },
+  "keywords": [
+    "handigraphs",
+    "mcp",
+    "model-context-protocol",
+    "mlb",
+    "nhl",
+    "sports-analytics"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "handigraphs-stats-api-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "npm run build:test && node --test .test-dist/tests/*.test.js",
+    "pack:check": "npm run build && node scripts/check-pack.mjs",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.11",
+    "typescript": "5.9.3"
+  }
+}
