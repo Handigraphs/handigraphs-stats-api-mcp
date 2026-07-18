@@ -16,29 +16,43 @@ Create a reveal-once Stats API key at [handigraphs.com/account/api](https://hand
 
 ### Codex
 
-Node.js 22 or newer is required. Add the public Handigraphs marketplace and install the plugin:
+1. Install Node.js 22 or newer.
+2. [Create a named Stats API key](https://handigraphs.com/account/api) and copy it when it is revealed.
+3. Open Terminal and run these commands in order:
 
 ```bash
 codex plugin marketplace add Handigraphs/handigraphs-stats-api-mcp
 codex plugin add handigraphs-stats-api@handigraphs
 ```
 
-Set `HANDIGRAPHS_API_KEY` in the environment that launches Codex, then start a new session. The plugin adds the local MCP server and a `query-handigraphs-stats` skill.
+4. Set `HANDIGRAPHS_API_KEY` in the same shell or environment used to launch Codex. Keep the value out of source control and prompts.
+5. Launch or fully restart Codex. The plugin adds the local MCP server and a `query-handigraphs-stats` skill.
 
 ### Claude Code
 
-Node.js 22 or newer is required. Add the same repository as a Claude marketplace and install the plugin:
+1. Install Node.js 22 or newer.
+2. [Create a named Stats API key](https://handigraphs.com/account/api) and copy it when it is revealed.
+3. Open Terminal and run these commands in order:
 
 ```bash
 claude plugin marketplace add Handigraphs/handigraphs-stats-api-mcp
 claude plugin install handigraphs-stats-api@handigraphs
 ```
 
-In Claude Code, run `/plugin configure handigraphs-stats-api@handigraphs` and enter the Stats API key as sensitive plugin configuration. Then run `/reload-plugins` or start a new session.
+4. Inside Claude Code, run `/plugin configure handigraphs-stats-api@handigraphs`, paste the key into the sensitive setting, and save it.
+5. Run `/reload-plugins` or start a new Claude Code session.
 
 ### Claude Desktop extension
 
-Download `handigraphs-stats-api-mcp-<version>.mcpb` from the matching GitHub release. In Claude Desktop, open **Settings → Extensions → Advanced settings → Install Extension**, select the file, and enter the Stats API key when prompted. The bundle includes the compiled server and its production dependencies; a separate Node.js installation is not required by the extension.
+1. [Create a named Stats API key](https://handigraphs.com/account/api) and copy it when it is revealed.
+2. Download `handigraphs-stats-api-mcp-<version>.mcpb` from the matching [GitHub release](https://github.com/Handigraphs/handigraphs-stats-api-mcp/releases).
+3. Double-click the downloaded file to open it in Claude Desktop. If it does not open, drag the file onto the Claude Desktop window.
+4. Review the extension, select **Install**, and enter the Stats API key when prompted.
+5. Start a new conversation. Select **+** in the message box, then **Connectors**, and confirm **Handigraphs Stats API** appears.
+
+Manual fallback: in Claude Desktop, use **File → Developer → Extensions → Install Extension** and select the downloaded `.mcpb` file.
+
+The bundle includes the compiled server and its production dependencies; a separate Node.js installation is not required by the extension.
 
 These are local distributions. They do not create a hosted connector for Claude.ai, Claude Cowork, mobile clients, or ChatGPT web.
 
