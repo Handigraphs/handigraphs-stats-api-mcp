@@ -50,8 +50,6 @@ claude plugin install handigraphs-stats-api@handigraphs
 4. Review the extension, select **Install**, and enter the Stats API key when prompted.
 5. Start a new conversation. Select **+** in the message box, then **Connectors**, and confirm **Handigraphs Stats API** appears.
 
-Manual fallback: in Claude Desktop, use **File → Developer → Extensions → Install Extension** and select the downloaded `.mcpb` file.
-
 The bundle includes the compiled server and its production dependencies; a separate Node.js installation is not required by the extension.
 
 These are local distributions. They do not create a hosted connector for Claude.ai, Claude Cowork, mobile clients, or ChatGPT web.
