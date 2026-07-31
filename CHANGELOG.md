@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Make npm package and MCPB validation portable across Linux and Windows, and run both
+  platforms in CI.
+
 ## 0.2.0 - 2026-07-17
 
 - Add a public Codex marketplace plugin backed by the existing local stdio package.
