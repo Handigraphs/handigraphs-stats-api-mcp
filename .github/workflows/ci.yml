@@ -14,7 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-build-pack:
+  platform-validation:
+    name: platform-validation (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -33,3 +34,14 @@ jobs:
       - run: npm run pack:check
       - run: npm run distributions:check
       - run: npm run mcpb:check
+
+  test-build-pack:
+    name: test-build-pack
+    if: ${{ always() }}
+    needs: platform-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every platform validation to pass
+        env:
+          PLATFORM_VALIDATION_RESULT: ${{ needs.platform-validation.result }}
+        run: test "$PLATFORM_VALIDATION_RESULT" = "success"
