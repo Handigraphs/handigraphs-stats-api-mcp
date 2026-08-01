@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -12,9 +12,9 @@ const bundleManifest = JSON.parse(await readFile(join(root, "mcpb", "manifest.js
 
 assert.equal(bundleManifest.version, packageManifest.version, "MCPB and npm package versions must match");
 
-function run(command, args, cwd) {
+function run(label, command, args, cwd) {
   const result = spawnSync(command, args, { cwd, encoding: "utf8", stdio: "inherit" });
-  assert.equal(result.status, 0, `${basename(command)} ${args.join(" ")} failed`);
+  assert.equal(result.status, 0, result.error?.message || `${label} failed`);
 }
 
 const temporaryDirectory = await mkdtemp(join(tmpdir(), "handigraphs-mcpb-"));
@@ -22,7 +22,9 @@ const stagingDirectory = join(temporaryDirectory, "bundle");
 const artifactName = `handigraphs-stats-api-mcp-${packageManifest.version}.mcpb`;
 const outputDirectory = checkOnly ? temporaryDirectory : join(root, "artifacts");
 const outputPath = join(outputDirectory, artifactName);
-const mcpbExecutable = join(root, "node_modules", ".bin", process.platform === "win32" ? "mcpb.cmd" : "mcpb");
+const npmCli = (process.env.npm_execpath || "").trim();
+assert.ok(npmCli, "npm_execpath is required; run this script through an npm MCPB command");
+const mcpbCli = join(root, "node_modules", "@anthropic-ai", "mcpb", "dist", "cli", "cli.js");
 
 try {
   await mkdir(stagingDirectory, { recursive: true });
@@ -34,10 +36,15 @@ try {
     await cp(join(root, file), join(stagingDirectory, file));
   }
 
-  run("npm", ["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"], stagingDirectory);
-  run(mcpbExecutable, ["validate", stagingDirectory], root);
-  run(mcpbExecutable, ["pack", stagingDirectory, outputPath], root);
-  run(mcpbExecutable, ["info", outputPath], root);
+  run(
+    "npm ci --omit=dev --ignore-scripts --no-audit --no-fund",
+    process.execPath,
+    [npmCli, "ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"],
+    stagingDirectory,
+  );
+  run("mcpb validate", process.execPath, [mcpbCli, "validate", stagingDirectory], root);
+  run("mcpb pack", process.execPath, [mcpbCli, "pack", stagingDirectory, outputPath], root);
+  run("mcpb info", process.execPath, [mcpbCli, "info", outputPath], root);
 
   const artifact = await stat(outputPath);
   assert.ok(artifact.size > 0, "MCPB artifact must not be empty");

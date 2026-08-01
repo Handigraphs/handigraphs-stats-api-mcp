@@ -14,8 +14,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-build-pack:
-    runs-on: ubuntu-latest
+  platform-validation:
+    name: platform-validation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,9 +28,21 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run audit:prod
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
       - run: npm run pack:check
       - run: npm run distributions:check
       - run: npm run mcpb:check
+
+  test-build-pack:
+    name: test-build-pack
+    if: ${{ always() }}
+    needs: platform-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every platform validation to pass
+        env:
+          PLATFORM_VALIDATION_RESULT: ${{ needs.platform-validation.result }}
+        run: test "$PLATFORM_VALIDATION_RESULT" = "success"

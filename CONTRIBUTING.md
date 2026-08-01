@@ -8,6 +8,7 @@ Use Node.js 22 or newer, then install and validate the package:
 
 ```bash
 npm ci
+npm run audit:prod
 npm test
 npm run typecheck
 npm run build

@@ -6,8 +6,14 @@ import { spawnSync } from "node:child_process";
 
 const directory = await mkdtemp(join(tmpdir(), "handigraphs-mcp-pack-"));
 try {
-  const result = spawnSync("npm", ["pack", "--dry-run", "--json", "--pack-destination", directory, "--ignore-scripts"], { encoding: "utf8" });
-  assert.equal(result.status, 0, result.stderr);
+  const npmCli = (process.env.npm_execpath || "").trim();
+  assert.ok(npmCli, "npm_execpath is required; run this check through npm run pack:check");
+  const result = spawnSync(
+    process.execPath,
+    [npmCli, "pack", "--dry-run", "--json", "--pack-destination", directory, "--ignore-scripts"],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.error?.message || result.stderr);
   const report = JSON.parse(result.stdout)[0];
   const files = report.files.map((item) => item.path).sort();
   for (const required of ["CHANGELOG.md", "LICENSE", "README.md", "SECURITY.md", "dist/index.js", "package.json"]) assert.ok(files.includes(required), `missing ${required}`);
