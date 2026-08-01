@@ -4,6 +4,8 @@
 
 - Make npm package and MCPB validation portable across Linux and Windows, and run both
   platforms in CI.
+- Resolve the transitive Hono static-serving advisory in the locked production tree and
+  gate CI on a clean production dependency audit.
 
 ## 0.2.0 - 2026-07-17
 
