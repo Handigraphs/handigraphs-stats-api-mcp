@@ -16,7 +16,7 @@ try {
   assert.equal(result.status, 0, result.error?.message || result.stderr);
   const report = JSON.parse(result.stdout)[0];
   const files = report.files.map((item) => item.path).sort();
-  for (const required of ["CHANGELOG.md", "LICENSE", "README.md", "SECURITY.md", "dist/index.js", "package.json", "runtime/configure-windows.ps1"]) assert.ok(files.includes(required), `missing ${required}`);
+  for (const required of ["CHANGELOG.md", "LICENSE", "README.md", "SECURITY.md", "dist/index.js", "package.json", "runtime/configure-macos.mjs", "runtime/configure-windows.ps1"]) assert.ok(files.includes(required), `missing ${required}`);
   assert.equal(files.some((file) => file.startsWith("src/") || file.startsWith("tests/") || file === ".env"), false, `unexpected pack content: ${files.join(", ")}`);
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   assert.notEqual(manifest.private, true);
