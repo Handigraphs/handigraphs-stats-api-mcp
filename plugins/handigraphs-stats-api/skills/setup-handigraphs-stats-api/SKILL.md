@@ -18,7 +18,7 @@ Configure the local plugin without exposing the reveal-once key to the model or 
 
 1. Call the plugin MCP tool `configure_api_key` immediately. It takes no arguments and launches the bundled password-masked local setup window.
 2. Do not generate or show PowerShell code unless that MCP tool is unavailable in the installed plugin version.
-3. Tell the user to finish the steps in the setup window and fully quit and reopen Codex. The already-running Codex process cannot inherit a user environment variable written after it started.
+3. The helper selects the sandbox API for an `hg_test_` key and production for an `hg_live_` key. Tell the user to finish the steps in the setup window and fully quit and reopen Codex. The already-running Codex process cannot inherit user environment variables written after it started.
 
 If `configure_api_key` is unavailable, explain that the installed plugin is outdated and direct the user to update Codex and reinstall the latest Handigraphs plugin. The bundled `../../scripts/configure-windows.ps1` helper is a last-resort local fallback, not the normal user flow.
 
@@ -26,7 +26,7 @@ Do not claim authentication is verified in the current task. After restart, a no
 
 ## macOS and Linux
 
-Codex does not currently expose an install-time secret field for local stdio plugins. Do not collect the key through the agent as a workaround. Direct the user to set `HANDIGRAPHS_API_KEY` in the environment that launches Codex, keeping the key out of shell history, and then fully restart Codex. If their desktop environment does not inherit shell variables, direct them to their operating system's user-environment or secret-manager documentation rather than inventing a credential store.
+Codex does not currently expose an install-time secret field for local stdio plugins. Do not collect the key through the agent as a workaround. Direct the user to set `HANDIGRAPHS_API_KEY` in the environment that launches Codex, keeping the key out of shell history, and then fully restart Codex. The MCP package selects sandbox for an `hg_test_` key and production for an `hg_live_` key unless `HANDIGRAPHS_API_BASE_URL` is explicitly set. If their desktop environment does not inherit shell variables, direct them to their operating system's user-environment or secret-manager documentation rather than inventing a credential store.
 
 ## Rotation
 

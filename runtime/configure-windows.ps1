@@ -80,14 +80,22 @@ $form.Controls.Add($cancelButton)
 
 $saveButton.Add_Click({
     $candidate = $keyBox.Text.Trim()
-    if (-not $candidate.StartsWith("hg_live_") -or $candidate.Length -le 16) {
-        $status.Text = "Enter a valid production key beginning with hg_live_."
+    $hasSupportedPrefix = $candidate.StartsWith("hg_test_") -or $candidate.StartsWith("hg_live_")
+    if (-not $hasSupportedPrefix -or $candidate.Length -le 16) {
+        $status.Text = "Enter a valid key beginning with hg_test_ or hg_live_."
         return
     }
 
+    $apiBaseUrl = if ($candidate.StartsWith("hg_test_")) {
+        "https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com/api/v1"
+    } else {
+        $null
+    }
+    [Environment]::SetEnvironmentVariable("HANDIGRAPHS_API_BASE_URL", $apiBaseUrl, "User")
     [Environment]::SetEnvironmentVariable("HANDIGRAPHS_API_KEY", $candidate, "User")
     $keyBox.Clear()
     $candidate = $null
+    $apiBaseUrl = $null
     $form.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $form.Close()
 })
@@ -114,7 +122,7 @@ $broadcastResult = [UIntPtr]::Zero
 ) | Out-Null
 
 [System.Windows.Forms.MessageBox]::Show(
-    "Your API key is saved. Fully quit and reopen Codex, then start a new task.",
+    "Your API key and matching API environment are saved. Fully quit and reopen Codex, then start a new task.",
     "Handigraphs connected",
     [System.Windows.Forms.MessageBoxButtons]::OK,
     [System.Windows.Forms.MessageBoxIcon]::Information

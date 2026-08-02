@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Start the Codex MCP server in setup-only mode when its key is missing and expose an argument-free `configure_api_key` tool that launches the password-masked Windows setup window.
+- Accept both `hg_test_` rollout keys and `hg_live_` production keys in the masked Windows setup window.
+- Route `hg_test_` keys to the sandbox Stats API automatically while keeping `hg_live_` keys on production.
 - Add a dedicated Codex setup skill, expose **Connect my Handigraphs account** as a starter prompt, and explicitly forward `HANDIGRAPHS_API_KEY` to the plugin MCP process.
 - Add a user-focused Codex setup guide covering install, update, rotation, and troubleshooting without requiring users to write PowerShell or edit Codex configuration.
 - Require and document the latest Codex CLI before marketplace installation, with platform-specific credential guidance and restart behavior.

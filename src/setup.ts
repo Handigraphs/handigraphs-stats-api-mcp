@@ -34,7 +34,8 @@ export async function launchLocalApiKeySetup(): Promise<SetupLaunchResult> {
     ], {
       detached: true,
       stdio: "ignore",
-      windowsHide: true,
+      // Hiding the PowerShell process also hides its WinForms setup dialog.
+      windowsHide: false,
     });
     child.once("error", reject);
     child.once("spawn", () => {
@@ -45,7 +46,7 @@ export async function launchLocalApiKeySetup(): Promise<SetupLaunchResult> {
 
   return {
     status: "launched",
-    message: "A secure Handigraphs setup window opened. Create or copy your key there, paste it into the masked field, save it, then fully quit and reopen Codex.",
+    message: "A secure Handigraphs setup window opened. Create or copy your key there, paste it into the masked field, and save it. Test keys use the sandbox API; live keys use production. Then fully quit and reopen Codex.",
   };
 }
 
