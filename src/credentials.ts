@@ -8,6 +8,11 @@ const SUPPORTED_KEY_PATTERN = /^hg_(?:test|live)_[A-Za-z0-9_-]{9,}$/;
 
 export type MacosKeychainReader = () => Promise<string | undefined>;
 
+export interface MacosKeychainLocation {
+  account?: string;
+  service?: string;
+}
+
 export interface ResolveApiKeyOptions {
   env?: NodeJS.ProcessEnv;
   platform?: NodeJS.Platform;
@@ -18,14 +23,16 @@ export function isSupportedApiKey(value: string): boolean {
   return SUPPORTED_KEY_PATTERN.test(value);
 }
 
-export async function readMacosKeychainApiKey(): Promise<string | undefined> {
+export async function readMacosKeychainApiKey(location: MacosKeychainLocation = {}): Promise<string | undefined> {
+  const account = location.account ?? MACOS_KEYCHAIN_ACCOUNT;
+  const service = location.service ?? MACOS_KEYCHAIN_SERVICE;
   return await new Promise<string | undefined>((resolve, reject) => {
     const child = spawn("/usr/bin/security", [
       "find-generic-password",
       "-a",
-      MACOS_KEYCHAIN_ACCOUNT,
+      account,
       "-s",
-      MACOS_KEYCHAIN_SERVICE,
+      service,
       "-w",
     ], {
       stdio: ["ignore", "pipe", "pipe"],
