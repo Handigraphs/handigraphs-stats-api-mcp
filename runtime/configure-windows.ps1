@@ -80,8 +80,9 @@ $form.Controls.Add($cancelButton)
 
 $saveButton.Add_Click({
     $candidate = $keyBox.Text.Trim()
-    if (-not $candidate.StartsWith("hg_live_") -or $candidate.Length -le 16) {
-        $status.Text = "Enter a valid production key beginning with hg_live_."
+    $hasSupportedPrefix = $candidate.StartsWith("hg_test_") -or $candidate.StartsWith("hg_live_")
+    if (-not $hasSupportedPrefix -or $candidate.Length -le 16) {
+        $status.Text = "Enter a valid key beginning with hg_test_ or hg_live_."
         return
     }
 

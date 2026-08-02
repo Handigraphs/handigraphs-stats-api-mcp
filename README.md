@@ -10,7 +10,7 @@ Sports, resources, metrics, and splits are never compiled into this package. Pub
 
 ## Credentials
 
-Create a reveal-once Stats API key at [handigraphs.com/account/api](https://handigraphs.com/account/api). Never paste a real key into a repository, issue, prompt, or committed client configuration.
+Create a reveal-once Stats API key at [handigraphs.com/account/api](https://handigraphs.com/account/api). During rollout testing, keys beginning with `hg_test_` and production keys beginning with `hg_live_` are both supported by the Codex setup helper. Never paste a real key into a repository, issue, prompt, or committed client configuration.
 
 ## Install with the Handigraphs plugin
 

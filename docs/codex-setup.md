@@ -20,7 +20,7 @@ The normal Windows setup requires one Codex starter and one masked paste. You do
    ```
 
 4. Start a new Codex task with the Handigraphs plugin and select **Connect my Handigraphs account**.
-5. In the local setup window, open the Handigraphs API key page, create or copy your reveal-once key, paste it into the masked field, and select **Save**.
+5. In the local setup window, open the Handigraphs API key page, create or copy your reveal-once key, paste it into the masked field, and select **Save**. The helper accepts both test keys beginning with `hg_test_` and production keys beginning with `hg_live_`.
 6. Fully quit and reopen Codex. Start a new task and ask a Handigraphs stats question.
 
 The plugin starts safely even when the key is absent. In that state it exposes only `configure_api_key`, an argument-free tool that opens the setup window. The API key is never included in the tool call or Codex conversation.
@@ -48,5 +48,5 @@ Codex does not currently provide an install-time secret field for local stdio pl
 
 - If Codex writes out PowerShell instructions instead of opening a setup window, the installed plugin is outdated. Update Codex, reinstall the plugin, and start a new task.
 - If stats tools are unavailable immediately after saving, fully quit Codex rather than only closing the task window, then reopen it.
-- If the setup window reports an invalid key, use the production reveal-once key beginning with `hg_live_` from [handigraphs.com/account/api](https://handigraphs.com/account/api).
+- If the setup window reports an invalid key, use a reveal-once key beginning with `hg_test_` or `hg_live_` from [handigraphs.com/account/api](https://handigraphs.com/account/api).
 - Never paste a real key into a conversation, issue, screenshot, committed configuration file, or support log.
