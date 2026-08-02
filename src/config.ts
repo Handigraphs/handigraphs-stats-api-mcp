@@ -6,7 +6,8 @@ export interface Config {
   maxResponseBytes: number;
 }
 
-const DEFAULT_BASE_URL = "https://handigraphs.com/api/v1";
+const PRODUCTION_BASE_URL = "https://handigraphs.com/api/v1";
+const SANDBOX_BASE_URL = "https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com/api/v1";
 
 function positiveInteger(raw: string | undefined, fallback: number, name: string): number {
   if (raw === undefined || raw === "") return fallback;
@@ -49,9 +50,10 @@ export function validateBaseUrl(raw: string): URL {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const apiKey = env.HANDIGRAPHS_API_KEY?.trim();
   if (!apiKey) throw new Error("HANDIGRAPHS_API_KEY is required.");
+  const inferredBaseUrl = apiKey.startsWith("hg_test_") ? SANDBOX_BASE_URL : PRODUCTION_BASE_URL;
   return {
     apiKey,
-    baseUrl: validateBaseUrl(env.HANDIGRAPHS_API_BASE_URL ?? DEFAULT_BASE_URL),
+    baseUrl: validateBaseUrl(env.HANDIGRAPHS_API_BASE_URL ?? inferredBaseUrl),
     discoveryTtlMs: positiveInteger(env.HANDIGRAPHS_DISCOVERY_TTL_SECONDS, 300, "HANDIGRAPHS_DISCOVERY_TTL_SECONDS") * 1000,
     timeoutMs: positiveInteger(env.HANDIGRAPHS_HTTP_TIMEOUT_MS, 10_000, "HANDIGRAPHS_HTTP_TIMEOUT_MS"),
     maxResponseBytes: positiveInteger(env.HANDIGRAPHS_MAX_RESPONSE_BYTES, 5 * 1024 * 1024, "HANDIGRAPHS_MAX_RESPONSE_BYTES"),

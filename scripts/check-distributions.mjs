@@ -39,7 +39,7 @@ for (const config of [codexMcp, claudeMcp]) {
   assert.equal(server?.command, "npx");
   assert.deepEqual(server?.args, ["-y", "@handigraphs/stats-api-mcp"]);
 }
-assert.deepEqual(codexMcp.mcpServers["handigraphs-stats"].env_vars, ["HANDIGRAPHS_API_KEY"]);
+assert.deepEqual(codexMcp.mcpServers["handigraphs-stats"].env_vars, ["HANDIGRAPHS_API_KEY", "HANDIGRAPHS_API_BASE_URL"]);
 assert.equal(codexMcp.mcpServers["handigraphs-stats"].env.HANDIGRAPHS_CODEX_SETUP, "1");
 
 assert.equal(claudeManifest.userConfig?.api_key?.sensitive, true);
@@ -63,6 +63,8 @@ assert.match(windowsSetup, /UseSystemPasswordChar\s*=\s*\$true/);
 assert.match(windowsSetup, /StartsWith\("hg_test_"\)/);
 assert.match(windowsSetup, /StartsWith\("hg_live_"\)/);
 assert.match(windowsSetup, /hg_test_ or hg_live_/);
+assert.match(windowsSetup, /handigraphs-sandbox-web-49829810d1bb\.herokuapp\.com\/api\/v1/);
+assert.match(windowsSetup, /SetEnvironmentVariable\("HANDIGRAPHS_API_BASE_URL", \$apiBaseUrl, "User"\)/);
 assert.match(windowsSetup, /SetEnvironmentVariable\("HANDIGRAPHS_API_KEY", \$candidate, "User"\)/);
 assert.match(windowsSetup, /SendMessageTimeout/);
 assert.doesNotMatch(windowsSetup, /Write-(?:Host|Output).*\$(?:candidate|apiKey|keyBox)/i);

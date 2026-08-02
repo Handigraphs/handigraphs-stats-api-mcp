@@ -86,9 +86,16 @@ $saveButton.Add_Click({
         return
     }
 
+    $apiBaseUrl = if ($candidate.StartsWith("hg_test_")) {
+        "https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com/api/v1"
+    } else {
+        $null
+    }
+    [Environment]::SetEnvironmentVariable("HANDIGRAPHS_API_BASE_URL", $apiBaseUrl, "User")
     [Environment]::SetEnvironmentVariable("HANDIGRAPHS_API_KEY", $candidate, "User")
     $keyBox.Clear()
     $candidate = $null
+    $apiBaseUrl = $null
     $form.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $form.Close()
 })
@@ -115,7 +122,7 @@ $broadcastResult = [UIntPtr]::Zero
 ) | Out-Null
 
 [System.Windows.Forms.MessageBox]::Show(
-    "Your API key is saved. Fully quit and reopen Codex, then start a new task.",
+    "Your API key and matching API environment are saved. Fully quit and reopen Codex, then start a new task.",
     "Handigraphs connected",
     [System.Windows.Forms.MessageBoxButtons]::OK,
     [System.Windows.Forms.MessageBoxIcon]::Information

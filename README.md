@@ -10,7 +10,7 @@ Sports, resources, metrics, and splits are never compiled into this package. Pub
 
 ## Credentials
 
-Create a reveal-once Stats API key at [handigraphs.com/account/api](https://handigraphs.com/account/api). During rollout testing, keys beginning with `hg_test_` and production keys beginning with `hg_live_` are both supported by the Codex setup helper. Never paste a real key into a repository, issue, prompt, or committed client configuration.
+Create a reveal-once Stats API key at [handigraphs.com/account/api](https://handigraphs.com/account/api). During rollout testing, keys beginning with `hg_test_` automatically use the sandbox API; production keys beginning with `hg_live_` use production. Never paste a real key into a repository, issue, prompt, or committed client configuration.
 
 ## Install with the Handigraphs plugin
 
@@ -81,7 +81,7 @@ Node.js 22 or newer is required. Add the published npm package to any client tha
 
 Restart the MCP client after saving its configuration. Do not commit the configuration when it contains a real key.
 
-For sandbox testing, also set `HANDIGRAPHS_API_BASE_URL` to the sandbox origin's `/api/v1` path and use a sandbox key.
+An `hg_test_` key selects `https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com/api/v1` automatically. `HANDIGRAPHS_API_BASE_URL` remains available as an explicit override for local development or another approved environment.
 
 ## Configuration
 
@@ -90,12 +90,12 @@ Environment variables:
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `HANDIGRAPHS_API_KEY` | Yes | none | Bearer key for protected data. It is never accepted as a tool argument. |
-| `HANDIGRAPHS_API_BASE_URL` | No | `https://handigraphs.com/api/v1` | API v1 root. HTTPS is mandatory except loopback HTTP used by tests. |
+| `HANDIGRAPHS_API_BASE_URL` | No | Inferred from key prefix | API v1 root. `hg_test_` uses sandbox and other keys use `https://handigraphs.com/api/v1`; HTTPS is mandatory except loopback HTTP used by tests. |
 | `HANDIGRAPHS_DISCOVERY_TTL_SECONDS` | No | `300` | In-process public-discovery cache TTL. |
 | `HANDIGRAPHS_HTTP_TIMEOUT_MS` | No | `10000` | Upstream request timeout. |
 | `HANDIGRAPHS_MAX_RESPONSE_BYTES` | No | `5242880` | Maximum declared or streamed upstream JSON response size. |
 
-The Codex plugin never accepts the key as a skill or MCP tool argument. Its `configure_api_key` tool takes no arguments and launches a separate Windows setup process. The helper does not print the key or put it on a command line; it writes the value only to the current user's environment configuration.
+The Codex plugin never accepts the key as a skill or MCP tool argument. Its `configure_api_key` tool takes no arguments and launches a separate Windows setup process. The helper does not print the key or put it on a command line; it writes the value and its matching API environment only to the current user's environment configuration.
 
 ## Query model
 
