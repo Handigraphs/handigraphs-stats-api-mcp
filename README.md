@@ -1,6 +1,6 @@
 # Handigraphs Stats API MCP
 
-Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.0 uses stdio only and exposes three tools:
+Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.1 uses stdio only. The normal authenticated server exposes three stats tools:
 
 - `list_resources({ sport? })` discovers sports and resources.
 - `describe_resource({ sport, resource })` discovers metrics, canonical units, splits, and supported filters.
@@ -17,7 +17,13 @@ Create a reveal-once Stats API key at [handigraphs.com/account/api](https://hand
 ### Codex
 
 1. Install Node.js 22 or newer.
-2. [Create a named Stats API key](https://handigraphs.com/account/api) and copy it when it is revealed.
+2. Install the latest Codex CLI and confirm the version before adding the plugin:
+
+```bash
+npm install --global @openai/codex@latest
+codex --version
+```
+
 3. Open Terminal and run these commands in order:
 
 ```bash
@@ -25,8 +31,11 @@ codex plugin marketplace add Handigraphs/handigraphs-stats-api-mcp
 codex plugin add handigraphs-stats-api@handigraphs
 ```
 
-4. Set `HANDIGRAPHS_API_KEY` in the same shell or environment used to launch Codex. Keep the value out of source control and prompts.
-5. Launch or fully restart Codex. The plugin adds the local MCP server and a `query-handigraphs-stats` skill.
+4. In Codex, select the plugin starter **Connect my Handigraphs account**.
+5. Codex opens the plugin's secure local setup window. Use its link to create a named Stats API key, paste the reveal-once key into the masked field, and select **Save**. Never paste the key into the Codex conversation.
+6. Fully quit and reopen Codex, then start a new task. The plugin will load the saved key automatically.
+
+When no key is configured, the plugin intentionally starts in setup-only mode and exposes only the argument-free `configure_api_key` tool. On Windows, that tool opens the bundled password-masked setup window; Codex never receives the key. See the [Codex setup guide](docs/codex-setup.md) for updating, key rotation, troubleshooting, and the macOS/Linux fallback.
 
 ### Claude Code
 
@@ -85,6 +94,8 @@ Environment variables:
 | `HANDIGRAPHS_DISCOVERY_TTL_SECONDS` | No | `300` | In-process public-discovery cache TTL. |
 | `HANDIGRAPHS_HTTP_TIMEOUT_MS` | No | `10000` | Upstream request timeout. |
 | `HANDIGRAPHS_MAX_RESPONSE_BYTES` | No | `5242880` | Maximum declared or streamed upstream JSON response size. |
+
+The Codex plugin never accepts the key as a skill or MCP tool argument. Its `configure_api_key` tool takes no arguments and launches a separate Windows setup process. The helper does not print the key or put it on a command line; it writes the value only to the current user's environment configuration.
 
 ## Query model
 

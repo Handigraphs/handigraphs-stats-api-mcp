@@ -36,6 +36,30 @@ test("all three tools are exposed and query defaults compact, forwards paginatio
   assert.equal(second.isError, undefined);
 });
 
+test("configured Codex mode keeps query tools and adds secure key rotation", async (t) => {
+  const api = await startMockApi(); t.after(() => api.close());
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  let launches = 0;
+  const server = createServer(config(api.baseUrl), {
+    enableLocalSetup: true,
+    setupLauncher: async () => {
+      launches += 1;
+      return { status: "launched", message: "Secure setup window opened." };
+    },
+  });
+  const client = new Client({ name: "rotation-test", version: "1.0.0" });
+  t.after(async () => { await client.close(); await server.close(); });
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+  assert.deepEqual(
+    (await client.listTools()).tools.map((tool) => tool.name),
+    ["list_resources", "describe_resource", "query_stats", "configure_api_key"],
+  );
+  const result = await client.callTool({ name: "configure_api_key", arguments: {} });
+  assert.equal(result.isError, undefined);
+  assert.equal(launches, 1);
+});
+
 test("live validation rejects proportion misuse with guidance and limits filters", async (t) => {
   const api = await startMockApi(); t.after(() => api.close());
   const connection = await connectedClient(api.baseUrl); t.after(() => connection.close());

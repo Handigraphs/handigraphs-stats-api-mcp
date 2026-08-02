@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set Up Handigraphs Stats API"
+  short_description: "Securely configure the local API key"
+  default_prompt: "Use $setup-handigraphs-stats-api to connect my Handigraphs account without putting my API key in chat."

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Start the Codex MCP server in setup-only mode when its key is missing and expose an argument-free `configure_api_key` tool that launches the password-masked Windows setup window.
+- Add a dedicated Codex setup skill, expose **Connect my Handigraphs account** as a starter prompt, and explicitly forward `HANDIGRAPHS_API_KEY` to the plugin MCP process.
+- Add a user-focused Codex setup guide covering install, update, rotation, and troubleshooting without requiring users to write PowerShell or edit Codex configuration.
+- Require and document the latest Codex CLI before marketplace installation, with platform-specific credential guidance and restart behavior.
 - Make npm package and MCPB validation portable across Linux and Windows, and run both
   platforms in CI.
 - Resolve the transitive Hono static-serving advisory in the locked production tree and
