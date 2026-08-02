@@ -7,6 +7,7 @@ import { ToolInputError, UpstreamError, type SafeProblem } from "./errors.js";
 import { StatsApiHttpClient } from "./http.js";
 import { FILTER_OPERATORS, validateAndBuildQuery, type QueryInput } from "./query.js";
 import { redact, safeStderr } from "./redaction.js";
+import { registerApiKeySetupTool, type SetupLauncher } from "./setup.js";
 
 const sportSchema = z.string().trim().min(1).max(32);
 const resourceSchema = z.string().trim().min(1).max(64);
@@ -39,12 +40,14 @@ function handler(config: Config, callback: () => Promise<CallToolResult>): Promi
 export interface ServerDependencies {
   fetchImpl?: typeof fetch;
   now?: () => number;
+  enableLocalSetup?: boolean;
+  setupLauncher?: SetupLauncher;
 }
 
 export function createServer(config: Config, dependencies: ServerDependencies = {}): McpServer {
   const http = new StatsApiHttpClient(config, dependencies.fetchImpl);
   const discovery = new DiscoveryClient(http, config.discoveryTtlMs, dependencies.now);
-  const server = new McpServer({ name: "handigraphs-stats-api", version: "0.2.0" });
+  const server = new McpServer({ name: "handigraphs-stats-api", version: "0.2.1" });
 
   server.registerTool("list_resources", {
     title: "List Handigraphs Stats API resources",
@@ -115,6 +118,10 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     if ("notModified" in response) throw new Error("Protected data unexpectedly returned 304.");
     return success(response.json, response.metadata);
   }));
+
+  if (dependencies.enableLocalSetup) {
+    registerApiKeySetupTool(server, dependencies.setupLauncher);
+  }
 
   return server;
 }

@@ -8,6 +8,8 @@ Do not open a public issue containing credentials, exploit details, subscriber d
 
 - Supply the key only through `HANDIGRAPHS_API_KEY` in the MCP process environment.
 - Never put a real key in tool arguments, source files, committed MCP configuration, screenshots, or support logs.
+- When the Codex plugin has no key, its local MCP server exposes only the argument-free `configure_api_key` setup tool. That tool launches a detached Windows helper and never receives the key.
+- The Windows helper accepts the key only in a password-masked local dialog, never prints it or places it on a command line, and saves it as the current user's `HANDIGRAPHS_API_KEY` environment variable.
 - The server sends the key only as a Bearer credential to same-origin protected paths under the configured `/api/v1` root.
 - Public discovery requests never receive Authorization.
 - Rotate or revoke a key immediately from `/account/api` if exposure is suspected.

@@ -15,6 +15,9 @@ const codexMcp = await json(`${pluginRoot}/.mcp.json`);
 const claudeMcp = await json(`${pluginRoot}/mcp.claude.json`);
 const bundleManifest = await json("mcpb/manifest.json");
 const skill = await readFile(`${pluginRoot}/skills/query-handigraphs-stats/SKILL.md`, "utf8");
+const setupSkill = await readFile(`${pluginRoot}/skills/setup-handigraphs-stats-api/SKILL.md`, "utf8");
+const windowsSetup = await readFile(`${pluginRoot}/scripts/configure-windows.ps1`, "utf8");
+const runtimeWindowsSetup = await readFile("runtime/configure-windows.ps1", "utf8");
 
 for (const manifest of [codexManifest, claudeManifest, bundleManifest]) {
   assert.equal(manifest.name, "handigraphs-stats-api");
@@ -35,6 +38,8 @@ for (const config of [codexMcp, claudeMcp]) {
   assert.equal(server?.command, "npx");
   assert.deepEqual(server?.args, ["-y", "@handigraphs/stats-api-mcp"]);
 }
+assert.deepEqual(codexMcp.mcpServers["handigraphs-stats"].env_vars, ["HANDIGRAPHS_API_KEY"]);
+assert.equal(codexMcp.mcpServers["handigraphs-stats"].env.HANDIGRAPHS_CODEX_SETUP, "1");
 
 assert.equal(claudeManifest.userConfig?.api_key?.sensitive, true);
 assert.equal(claudeManifest.userConfig?.api_key?.required, true);
@@ -47,6 +52,18 @@ assert.deepEqual(bundleManifest.tools.map(({ name }) => name).sort(), ["describe
 assert.doesNotMatch(skill, /\[TODO|STATS_API_KEY_PEPPER|STATS_API_MODE|public\.api_keys|web\/backend/);
 assert.match(skill, /^name: query-handigraphs-stats$/m);
 assert.match(skill, /Never ask for or repeat a Stats API key in chat/);
+assert.match(skill, /setup-handigraphs-stats-api/);
+assert.match(setupSkill, /^name: setup-handigraphs-stats-api$/m);
+assert.match(setupSkill, /Never ask the user to paste, type, upload, or repeat the API key in chat/);
+assert.match(setupSkill, /configure-windows\.ps1/);
+assert.match(setupSkill, /Call the plugin MCP tool `configure_api_key` immediately/);
+assert.match(setupSkill, /Do not generate or show PowerShell code/);
+assert.match(windowsSetup, /UseSystemPasswordChar\s*=\s*\$true/);
+assert.match(windowsSetup, /SetEnvironmentVariable\("HANDIGRAPHS_API_KEY", \$candidate, "User"\)/);
+assert.match(windowsSetup, /SendMessageTimeout/);
+assert.doesNotMatch(windowsSetup, /Write-(?:Host|Output).*\$(?:candidate|apiKey|keyBox)/i);
+assert.equal(runtimeWindowsSetup, windowsSetup);
+assert.equal(codexManifest.interface.defaultPrompt[0], "Connect my Handigraphs account.");
 
 const serialized = JSON.stringify({ codexMarketplace, claudeMarketplace, codexManifest, claudeManifest, codexMcp, claudeMcp, bundleManifest });
 assert.doesNotMatch(serialized, /hg_(?:live|test)_[A-Za-z0-9_-]+/);

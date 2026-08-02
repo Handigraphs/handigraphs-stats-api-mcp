@@ -3,10 +3,14 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { loadConfig } from "./config.js";
 import { redact } from "./redaction.js";
 import { createServer } from "./server.js";
+import { createSetupServer } from "./setup.js";
 
 async function main(): Promise<void> {
-  const config = loadConfig();
-  const server = createServer(config);
+  const setupEnabled = process.env.HANDIGRAPHS_CODEX_SETUP === "1";
+  const hasApiKey = Boolean(process.env.HANDIGRAPHS_API_KEY?.trim());
+  const server = setupEnabled && !hasApiKey
+    ? createSetupServer()
+    : createServer(loadConfig(), { enableLocalSetup: setupEnabled });
   await server.connect(new StdioServerTransport());
 }
 
@@ -22,3 +26,4 @@ export { parseRetryAfter } from "./errors.js";
 export { StatsApiHttpClient } from "./http.js";
 export { redact } from "./redaction.js";
 export { createServer } from "./server.js";
+export { createSetupServer, launchLocalApiKeySetup, registerApiKeySetupTool } from "./setup.js";

@@ -22,3 +22,16 @@ test("official MCP client communicates with the built server over stdio", async 
   assert.match(((listed as { content: Array<{ text: string }> }).content[0]?.text ?? ""), /batters/);
   assert.equal(stderr.includes("hg_test_stdio"), false);
 });
+
+test("Codex setup mode starts without a key and exposes only setup", async (t) => {
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [resolve(".test-dist/src/index.js")],
+    env: { HANDIGRAPHS_CODEX_SETUP: "1" },
+    stderr: "pipe",
+  });
+  const client = new Client({ name: "stdio-setup-test", version: "1.0.0" });
+  t.after(async () => { await client.close(); });
+  await client.connect(transport);
+  assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["configure_api_key"]);
+});
