@@ -18,6 +18,7 @@ const skill = await readFile(`${pluginRoot}/skills/query-handigraphs-stats/SKILL
 const setupSkill = await readFile(`${pluginRoot}/skills/setup-handigraphs-stats-api/SKILL.md`, "utf8");
 const windowsSetup = await readFile(`${pluginRoot}/scripts/configure-windows.ps1`, "utf8");
 const runtimeWindowsSetup = await readFile("runtime/configure-windows.ps1", "utf8");
+const setupRuntime = await readFile("src/setup.ts", "utf8");
 
 for (const manifest of [codexManifest, claudeManifest, bundleManifest]) {
   assert.equal(manifest.name, "handigraphs-stats-api");
@@ -63,6 +64,8 @@ assert.match(windowsSetup, /SetEnvironmentVariable\("HANDIGRAPHS_API_KEY", \$can
 assert.match(windowsSetup, /SendMessageTimeout/);
 assert.doesNotMatch(windowsSetup, /Write-(?:Host|Output).*\$(?:candidate|apiKey|keyBox)/i);
 assert.equal(runtimeWindowsSetup, windowsSetup);
+assert.match(setupRuntime, /windowsHide:\s*false/);
+assert.doesNotMatch(setupRuntime, /windowsHide:\s*true/);
 assert.equal(codexManifest.interface.defaultPrompt[0], "Connect my Handigraphs account.");
 
 const serialized = JSON.stringify({ codexMarketplace, claudeMarketplace, codexManifest, claudeManifest, codexMcp, claudeMcp, bundleManifest });

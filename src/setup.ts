@@ -34,7 +34,8 @@ export async function launchLocalApiKeySetup(): Promise<SetupLaunchResult> {
     ], {
       detached: true,
       stdio: "ignore",
-      windowsHide: true,
+      // Hiding the PowerShell process also hides its WinForms setup dialog.
+      windowsHide: false,
     });
     child.once("error", reject);
     child.once("spawn", () => {
