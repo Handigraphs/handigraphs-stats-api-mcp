@@ -20,21 +20,21 @@ Releases are published from GitHub Actions. Publishing a GitHub Release whose ta
 
 4. Merge the release pull request to `main` and confirm the `CI` workflow passes on the merge commit.
 
-## Publish 0.2.1
+## Publish 0.2.2
 
 From an authenticated GitHub CLI session, create the published release at the current `main` commit:
 
 ```console
-gh release create v0.2.1 --repo Handigraphs/handigraphs-stats-api-mcp --target main --title "v0.2.1" --generate-notes
+gh release create v0.2.2 --repo Handigraphs/handigraphs-stats-api-mcp --target main --title "v0.2.2" --generate-notes
 ```
 
-This creates the `v0.2.1` tag and triggers `.github/workflows/publish.yml`. Do not run `npm publish` locally for the normal release path.
+This creates the `v0.2.2` tag and triggers `.github/workflows/publish.yml`. Do not run `npm publish` locally for the normal release path.
 
 Watch the workflow in GitHub Actions, then verify both distributions:
 
 ```console
 npm view @handigraphs/stats-api-mcp version
-gh release view v0.2.1 --repo Handigraphs/handigraphs-stats-api-mcp
+gh release view v0.2.2 --repo Handigraphs/handigraphs-stats-api-mcp
 ```
 
-The npm result must be `0.2.1`, and the GitHub Release must include `handigraphs-stats-api-mcp-0.2.1.mcpb`.
+The npm result must be `0.2.2`, and the GitHub Release must include `handigraphs-stats-api-mcp-0.2.2.mcpb`.

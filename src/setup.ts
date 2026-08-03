@@ -5,7 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 export interface SetupLaunchResult {
-  status: "launched" | "unsupported";
+  status: "launched" | "completed" | "cancelled" | "unsupported";
   message: string;
 }
 
@@ -15,6 +15,7 @@ export interface SetupLaunchSpec {
   command: string;
   args: string[];
   windowsHide: boolean;
+  launchCheckMs: number;
 }
 
 export function getSetupLaunchSpec(platform: NodeJS.Platform = process.platform): SetupLaunchSpec | undefined {
@@ -33,6 +34,7 @@ export function getSetupLaunchSpec(platform: NodeJS.Platform = process.platform)
       ],
       // Hiding the PowerShell process also hides its WinForms setup dialog.
       windowsHide: false,
+      launchCheckMs: 0,
     };
   }
 
@@ -42,6 +44,10 @@ export function getSetupLaunchSpec(platform: NodeJS.Platform = process.platform)
       command: process.execPath,
       args: [scriptPath],
       windowsHide: true,
+      // AppleScript syntax and launch failures surface immediately. Give the
+      // helper time to exit before claiming that its dialog opened, without
+      // blocking the MCP call while the user creates or pastes a key.
+      launchCheckMs: 1_000,
     };
   }
 
@@ -65,7 +71,8 @@ export async function launchLocalApiKeySetup(): Promise<SetupLaunchResult> {
   delete childEnv.HANDIGRAPHS_API_KEY;
   delete childEnv.HANDIGRAPHS_API_BASE_URL;
 
-  await new Promise<void>((resolve, reject) => {
+  const result = await new Promise<"spawned" | "completed" | "cancelled">((resolve, reject) => {
+    let launchTimer: NodeJS.Timeout | undefined;
     const child = spawn(launch.command, launch.args, {
       detached: true,
       stdio: "ignore",
@@ -74,10 +81,39 @@ export async function launchLocalApiKeySetup(): Promise<SetupLaunchResult> {
     });
     child.once("error", reject);
     child.once("spawn", () => {
-      child.unref();
-      resolve();
+      if (launch.launchCheckMs === 0) {
+        child.unref();
+        resolve("spawned");
+        return;
+      }
+      launchTimer = setTimeout(() => {
+        child.unref();
+        resolve("spawned");
+      }, launch.launchCheckMs);
     });
+    if (launch.launchCheckMs > 0) {
+      child.once("close", (code) => {
+        if (launchTimer) clearTimeout(launchTimer);
+        if (code === 0) resolve("completed");
+        else if (code === 2) resolve("cancelled");
+        else reject(new Error("The setup helper exited before saving the credential."));
+      });
+    }
   });
+
+  if (result === "completed") {
+    return {
+      status: "completed",
+      message: "Your Handigraphs API key was saved securely in macOS Keychain. Fully quit and reopen Codex, then start a new task.",
+    };
+  }
+
+  if (result === "cancelled") {
+    return {
+      status: "cancelled",
+      message: "Handigraphs setup was cancelled. No credential was changed.",
+    };
+  }
 
   return {
     status: "launched",
@@ -91,7 +127,7 @@ function setupResult(result: SetupLaunchResult): CallToolResult {
     structuredContent: {
       status: result.status,
       secret_received_by_model: false,
-      restart_required: result.status === "launched",
+      restart_required: result.status === "launched" || result.status === "completed",
     },
   };
 }
@@ -117,7 +153,7 @@ export function registerApiKeySetupTool(server: McpServer, launcher: SetupLaunch
 
 export function createSetupServer(launcher: SetupLauncher = launchLocalApiKeySetup): McpServer {
   const server = new McpServer(
-    { name: "handigraphs-stats-api", version: "0.2.1" },
+    { name: "handigraphs-stats-api", version: "0.2.2" },
     { instructions: "Handigraphs authentication is not configured. Call configure_api_key without asking the user to paste the key into chat." },
   );
   registerApiKeySetupTool(server, launcher);

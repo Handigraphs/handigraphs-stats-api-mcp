@@ -1,6 +1,6 @@
 {
   "name": "@handigraphs/stats-api-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Read-only MCP server for the Handigraphs Stats API v1",
   "license": "Apache-2.0",
   "repository": {

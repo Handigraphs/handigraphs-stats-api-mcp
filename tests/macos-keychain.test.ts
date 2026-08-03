@@ -4,6 +4,19 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { readMacosKeychainApiKey } from "../src/credentials.js";
 
+test("macOS setup AppleScript compiles without opening a dialog", {
+  skip: process.platform !== "darwin",
+}, () => {
+  const result = spawnSync(process.execPath, [
+    "runtime/configure-macos.mjs",
+    "--validate-applescript",
+  ], {
+    encoding: "utf8",
+    maxBuffer: 16 * 1024,
+  });
+  assert.equal(result.status, 0, result.error?.message || result.stderr);
+});
+
 test("macOS helper storage is readable by the runtime Keychain loader", {
   skip: process.platform !== "darwin",
 }, async () => {

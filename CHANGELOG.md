@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2 - 2026-08-03
+
+- Fix the macOS masked setup dialog so its AppleScript preserves valid statement boundaries and opens reliably.
+- Give the macOS helper time to surface an immediate launch failure before reporting that its window opened, while leaving the dialog independent of the MCP call once it starts successfully.
+- Compile-check the bundled setup AppleScript on macOS CI in addition to validating Keychain storage.
+
 ## 0.2.1 - 2026-08-02
 
 - Start the Codex MCP server in setup-only mode when its key is missing and expose an argument-free `configure_api_key` tool that launches the password-masked setup window on Windows and macOS.
