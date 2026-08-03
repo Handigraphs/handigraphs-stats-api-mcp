@@ -2,7 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createSetupServer } from "../src/setup.js";
+import { createSetupServer, getSetupLaunchSpec } from "../src/setup.js";
+
+test("setup launch specifications cover Windows and macOS", () => {
+  const windows = getSetupLaunchSpec("win32");
+  assert.equal(windows?.command, "powershell.exe");
+  assert.match(windows?.args.at(-1) ?? "", /configure-windows\.ps1$/);
+  assert.equal(windows?.windowsHide, false);
+
+  const macos = getSetupLaunchSpec("darwin");
+  assert.equal(macos?.command, process.execPath);
+  assert.match(macos?.args.at(-1) ?? "", /configure-macos\.mjs$/);
+  assert.equal(macos?.windowsHide, true);
+
+  assert.equal(getSetupLaunchSpec("linux"), undefined);
+});
 
 test("missing-key server exposes only argument-free secure setup", async (t) => {
   let launches = 0;

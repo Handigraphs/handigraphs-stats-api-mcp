@@ -35,7 +35,7 @@ codex plugin add handigraphs-stats-api@handigraphs
 5. Codex opens the plugin's secure local setup window. Use its link to create a named Stats API key, paste the reveal-once key into the masked field, and select **Save**. Never paste the key into the Codex conversation.
 6. Fully quit and reopen Codex, then start a new task. The plugin will load the saved key automatically.
 
-When no key is configured, the plugin intentionally starts in setup-only mode and exposes only the argument-free `configure_api_key` tool. On Windows, that tool opens the bundled password-masked setup window; Codex never receives the key. See the [Codex setup guide](docs/codex-setup.md) for updating, key rotation, troubleshooting, and the macOS/Linux fallback.
+When no key is configured, the plugin intentionally starts in setup-only mode and exposes only the argument-free `configure_api_key` tool. On Windows and macOS, that tool opens the bundled password-masked setup window; Codex never receives the key. Windows stores it as a user environment variable, while macOS stores it in the user's login Keychain. See the [Codex setup guide](docs/codex-setup.md) for updating, key rotation, troubleshooting, and the Linux fallback.
 
 ### Claude Code
 
@@ -89,13 +89,13 @@ Environment variables:
 
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `HANDIGRAPHS_API_KEY` | Yes | none | Bearer key for protected data. It is never accepted as a tool argument. |
+| `HANDIGRAPHS_API_KEY` | Yes, except for Codex on macOS | macOS Keychain fallback in Codex | Bearer key for protected data. It is never accepted as a tool argument. |
 | `HANDIGRAPHS_API_BASE_URL` | No | Inferred from key prefix | API v1 root. `hg_test_` uses sandbox and other keys use `https://handigraphs.com/api/v1`; HTTPS is mandatory except loopback HTTP used by tests. |
 | `HANDIGRAPHS_DISCOVERY_TTL_SECONDS` | No | `300` | In-process public-discovery cache TTL. |
 | `HANDIGRAPHS_HTTP_TIMEOUT_MS` | No | `10000` | Upstream request timeout. |
 | `HANDIGRAPHS_MAX_RESPONSE_BYTES` | No | `5242880` | Maximum declared or streamed upstream JSON response size. |
 
-The Codex plugin never accepts the key as a skill or MCP tool argument. Its `configure_api_key` tool takes no arguments and launches a separate Windows setup process. The helper does not print the key or put it on a command line; it writes the value and its matching API environment only to the current user's environment configuration.
+The Codex plugin never accepts the key as a skill or MCP tool argument. Its `configure_api_key` tool takes no arguments and launches a separate local setup process on Windows or macOS. Neither helper prints the key or puts it on a process command line. Windows saves the key and matching API environment to the current user's environment configuration. macOS sends the key to the system `security` utility over a private stdin pipe, stores it in the user's login Keychain, and infers the API environment from the key prefix when the MCP process reads it.
 
 ## Query model
 
@@ -142,6 +142,8 @@ Build a local Claude Desktop artifact in `artifacts/` with:
 ```bash
 npm run mcpb:pack
 ```
+
+Maintainers should use the GitHub Release workflow described in [docs/releasing.md](docs/releasing.md) rather than publishing from a local machine.
 
 ## License
 

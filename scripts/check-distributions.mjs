@@ -16,8 +16,11 @@ const claudeMcp = await json(`${pluginRoot}/mcp.claude.json`);
 const bundleManifest = await json("mcpb/manifest.json");
 const skill = await readFile(`${pluginRoot}/skills/query-handigraphs-stats/SKILL.md`, "utf8");
 const setupSkill = await readFile(`${pluginRoot}/skills/setup-handigraphs-stats-api/SKILL.md`, "utf8");
+const macosSetup = await readFile(`${pluginRoot}/scripts/configure-macos.mjs`, "utf8");
 const windowsSetup = await readFile(`${pluginRoot}/scripts/configure-windows.ps1`, "utf8");
+const runtimeMacosSetup = await readFile("runtime/configure-macos.mjs", "utf8");
 const runtimeWindowsSetup = await readFile("runtime/configure-windows.ps1", "utf8");
+const credentialRuntime = await readFile("src/credentials.ts", "utf8");
 const setupRuntime = await readFile("src/setup.ts", "utf8");
 
 for (const manifest of [codexManifest, claudeManifest, bundleManifest]) {
@@ -56,9 +59,17 @@ assert.match(skill, /Never ask for or repeat a Stats API key in chat/);
 assert.match(skill, /setup-handigraphs-stats-api/);
 assert.match(setupSkill, /^name: setup-handigraphs-stats-api$/m);
 assert.match(setupSkill, /Never ask the user to paste, type, upload, or repeat the API key in chat/);
+assert.match(setupSkill, /configure-macos\.mjs/);
 assert.match(setupSkill, /configure-windows\.ps1/);
 assert.match(setupSkill, /Call the plugin MCP tool `configure_api_key` immediately/);
-assert.match(setupSkill, /Do not generate or show PowerShell code/);
+assert.match(setupSkill, /Do not generate or show shell setup code/);
+assert.match(macosSetup, /with hidden answer/);
+assert.match(macosSetup, /spawnSync\("\/usr\/bin\/security", \["-i"\]/);
+assert.match(macosSetup, /add-generic-password -U/);
+assert.match(macosSetup, /hg_\(\?:test\|live\)_/);
+assert.doesNotMatch(macosSetup, /spawnSync\("\/usr\/bin\/security", \["add-generic-password"/);
+assert.doesNotMatch(macosSetup, /console\.(?:log|error)|process\.(?:stdout|stderr)\.write/);
+assert.equal(runtimeMacosSetup, macosSetup);
 assert.match(windowsSetup, /UseSystemPasswordChar\s*=\s*\$true/);
 assert.match(windowsSetup, /StartsWith\("hg_test_"\)/);
 assert.match(windowsSetup, /StartsWith\("hg_live_"\)/);
@@ -69,8 +80,12 @@ assert.match(windowsSetup, /SetEnvironmentVariable\("HANDIGRAPHS_API_KEY", \$can
 assert.match(windowsSetup, /SendMessageTimeout/);
 assert.doesNotMatch(windowsSetup, /Write-(?:Host|Output).*\$(?:candidate|apiKey|keyBox)/i);
 assert.equal(runtimeWindowsSetup, windowsSetup);
+assert.match(credentialRuntime, /find-generic-password/);
+assert.match(credentialRuntime, /MACOS_KEYCHAIN_SERVICE/);
+assert.doesNotMatch(credentialRuntime, /console\.(?:log|error)|process\.(?:stdout|stderr)\.write/);
+assert.match(setupRuntime, /platform === "darwin"/);
+assert.match(setupRuntime, /configure-macos\.mjs/);
 assert.match(setupRuntime, /windowsHide:\s*false/);
-assert.doesNotMatch(setupRuntime, /windowsHide:\s*true/);
 assert.equal(codexManifest.interface.defaultPrompt[0], "Connect my Handigraphs account.");
 
 const serialized = JSON.stringify({ codexMarketplace, claudeMarketplace, codexManifest, claudeManifest, codexMcp, claudeMcp, bundleManifest });

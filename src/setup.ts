@@ -11,31 +11,66 @@ export interface SetupLaunchResult {
 
 export type SetupLauncher = () => Promise<SetupLaunchResult>;
 
-export async function launchLocalApiKeySetup(): Promise<SetupLaunchResult> {
-  if (process.platform !== "win32") {
+export interface SetupLaunchSpec {
+  command: string;
+  args: string[];
+  windowsHide: boolean;
+}
+
+export function getSetupLaunchSpec(platform: NodeJS.Platform = process.platform): SetupLaunchSpec | undefined {
+  if (platform === "win32") {
+    const scriptPath = fileURLToPath(new URL("../runtime/configure-windows.ps1", import.meta.url));
     return {
-      status: "unsupported",
-      message: "Automatic setup is currently available on Windows. Open https://handigraphs.com/developers#mcp for the macOS and Linux setup steps.",
+      command: "powershell.exe",
+      args: [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        scriptPath,
+      ],
+      // Hiding the PowerShell process also hides its WinForms setup dialog.
+      windowsHide: false,
     };
   }
 
-  const scriptPath = fileURLToPath(new URL("../runtime/configure-windows.ps1", import.meta.url));
+  if (platform === "darwin") {
+    const scriptPath = fileURLToPath(new URL("../runtime/configure-macos.mjs", import.meta.url));
+    return {
+      command: process.execPath,
+      args: [scriptPath],
+      windowsHide: true,
+    };
+  }
+
+  return undefined;
+}
+
+export async function launchLocalApiKeySetup(): Promise<SetupLaunchResult> {
+  const launch = getSetupLaunchSpec();
+  if (!launch) {
+    return {
+      status: "unsupported",
+      message: "Automatic setup is available on Windows and macOS. Open https://handigraphs.com/developers#mcp for the Linux setup steps.",
+    };
+  }
+
+  const scriptPath = launch.args.at(-1);
+  if (!scriptPath) throw new Error("The setup helper path is missing.");
   await access(scriptPath);
 
+  const childEnv = { ...process.env };
+  delete childEnv.HANDIGRAPHS_API_KEY;
+  delete childEnv.HANDIGRAPHS_API_BASE_URL;
+
   await new Promise<void>((resolve, reject) => {
-    const child = spawn("powershell.exe", [
-      "-NoLogo",
-      "-NoProfile",
-      "-NonInteractive",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      scriptPath,
-    ], {
+    const child = spawn(launch.command, launch.args, {
       detached: true,
       stdio: "ignore",
-      // Hiding the PowerShell process also hides its WinForms setup dialog.
-      windowsHide: false,
+      windowsHide: launch.windowsHide,
+      env: childEnv,
     });
     child.once("error", reject);
     child.once("spawn", () => {
@@ -46,7 +81,7 @@ export async function launchLocalApiKeySetup(): Promise<SetupLaunchResult> {
 
   return {
     status: "launched",
-    message: "A secure Handigraphs setup window opened. Create or copy your key there, paste it into the masked field, and save it. Test keys use the sandbox API; live keys use production. Then fully quit and reopen Codex.",
+    message: "A secure Handigraphs setup window opened. Create or copy your key there, paste it into the masked field, and save it. On macOS the key is stored in Keychain; on Windows it is stored as a user environment variable. Test keys use the sandbox API and live keys use production. Then fully quit and reopen Codex.",
   };
 }
 

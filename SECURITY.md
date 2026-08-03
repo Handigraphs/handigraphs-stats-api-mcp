@@ -6,10 +6,12 @@ Do not open a public issue containing credentials, exploit details, subscriber d
 
 ## API key handling
 
-- Supply the key only through `HANDIGRAPHS_API_KEY` in the MCP process environment.
+- Supply the key through `HANDIGRAPHS_API_KEY` in the MCP process environment, or use the Codex plugin's macOS helper to store it in the user's login Keychain.
 - Never put a real key in tool arguments, source files, committed MCP configuration, screenshots, or support logs.
-- When the Codex plugin has no key, its local MCP server exposes only the argument-free `configure_api_key` setup tool. That tool launches a detached Windows helper and never receives the key.
+- When the Codex plugin has no key, its local MCP server exposes only the argument-free `configure_api_key` setup tool. That tool launches a detached Windows or macOS helper and never receives the key.
 - The Windows helper accepts the key only in a password-masked local dialog, never prints it or places it on a command line, and saves it as the current user's `HANDIGRAPHS_API_KEY` environment variable.
+- The macOS helper accepts the key only in a password-masked local dialog, passes it to Apple's `security` utility through a private stdin pipe, and saves it as a generic password in the user's login Keychain. The key is never placed in process arguments, shell history, or a file.
+- On macOS the MCP runtime reads only the named Handigraphs Keychain item when `HANDIGRAPHS_API_KEY` is absent. Environment configuration takes precedence when explicitly supplied.
 - The server sends the key only as a Bearer credential to same-origin protected paths under the configured `/api/v1` root.
 - Public discovery requests never receive Authorization.
 - Rotate or revoke a key immediately from `/account/api` if exposure is suspected.
