@@ -32,6 +32,8 @@ try {
   await cp(join(root, "mcpb", "manifest.json"), join(stagingDirectory, "manifest.json"));
   await cp(join(root, "mcpb", ".mcpbignore"), join(stagingDirectory, ".mcpbignore"));
   await cp(join(root, "dist"), join(stagingDirectory, "dist"), { recursive: true });
+  await mkdir(join(stagingDirectory, "scripts"), { recursive: true });
+  await cp(join(root, "scripts", "audit-live-sandbox.mjs"), join(stagingDirectory, "scripts", "audit-live-sandbox.mjs"));
   for (const file of ["package.json", "package-lock.json", "README.md", "SECURITY.md", "LICENSE"]) {
     await cp(join(root, file), join(stagingDirectory, file));
   }

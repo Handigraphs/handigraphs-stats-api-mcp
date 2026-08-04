@@ -22,6 +22,8 @@ const runtimeMacosSetup = await readFile("runtime/configure-macos.mjs", "utf8");
 const runtimeWindowsSetup = await readFile("runtime/configure-windows.ps1", "utf8");
 const credentialRuntime = await readFile("src/credentials.ts", "utf8");
 const setupRuntime = await readFile("src/setup.ts", "utf8");
+const versionRuntime = await readFile("src/version.ts", "utf8");
+const liveAudit = await readFile("scripts/audit-live-sandbox.mjs", "utf8");
 
 for (const manifest of [codexManifest, claudeManifest, bundleManifest]) {
   assert.equal(manifest.name, "handigraphs-stats-api");
@@ -87,6 +89,11 @@ assert.match(setupRuntime, /platform === "darwin"/);
 assert.match(setupRuntime, /configure-macos\.mjs/);
 assert.match(setupRuntime, /windowsHide:\s*false/);
 assert.equal(codexManifest.interface.defaultPrompt[0], "Connect my Handigraphs account.");
+assert.match(versionRuntime, new RegExp(`SERVER_VERSION\\s*=\\s*["']${packageManifest.version.replaceAll(".", "\\.")}["']`));
+assert.match(liveAudit, /StdioClientTransport/);
+assert.match(liveAudit, /HANDIGRAPHS_API_KEY must be a temporary sandbox hg_test_ key/);
+assert.match(liveAudit, /live launch audit refuses non-sandbox HANDIGRAPHS_API_BASE_URL/);
+assert.doesNotMatch(liveAudit, /hg_live_/);
 
 const serialized = JSON.stringify({ codexMarketplace, claudeMarketplace, codexManifest, claudeManifest, codexMcp, claudeMcp, bundleManifest });
 assert.doesNotMatch(serialized, /hg_(?:live|test)_[A-Za-z0-9_-]+/);

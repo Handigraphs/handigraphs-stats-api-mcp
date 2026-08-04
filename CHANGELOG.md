@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3 - 2026-08-04
+
+- Report the package version consistently in both normal and setup-only MCP handshakes.
+- Add a sandbox-only official-client launch audit covering both sports, all nine resources, compact/default metadata, and cursor pagination.
+- Expand deterministic launch coverage for structured `400`, `401`, `429`, and `503` pass-through without retries, stderr redaction, and handshake version alignment.
+- Refresh the locked `fast-uri`, Hono, and `ip-address` transitive releases to patched versions required by the production dependency audit.
+
 ## 0.2.2 - 2026-08-03
 
 - Fix the macOS masked setup dialog so its AppleScript preserves valid statement boundaries and opens reliably.

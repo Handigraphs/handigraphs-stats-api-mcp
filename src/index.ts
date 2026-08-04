@@ -31,3 +31,4 @@ export { StatsApiHttpClient } from "./http.js";
 export { redact } from "./redaction.js";
 export { createServer } from "./server.js";
 export { createSetupServer, launchLocalApiKeySetup, registerApiKeySetupTool } from "./setup.js";
+export { SERVER_VERSION } from "./version.js";

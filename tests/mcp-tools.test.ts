@@ -19,6 +19,7 @@ async function connectedClient(baseUrl: string) {
 test("all three tools are exposed and query defaults compact, forwards pagination, and never caches data", async (t) => {
   const api = await startMockApi(); t.after(() => api.close());
   const connection = await connectedClient(api.baseUrl); t.after(() => connection.close());
+  assert.equal(connection.client.getServerVersion()?.version, "0.2.3");
   assert.deepEqual((await connection.client.listTools()).tools.map((tool) => tool.name), ["list_resources", "describe_resource", "query_stats"]);
   const args = { sport: "mlb", resource: "batters", metrics: ["avg"], filters: [{ metric: "avg", operator: "gte", value: 0.2 }], cursor: "opaque" };
   const first = await connection.client.callTool({ name: "query_stats", arguments: args });
@@ -111,23 +112,52 @@ test("a cached validation miss forces one live discovery refresh", async (t) => 
   assert.equal(metricCalls, 2);
 });
 
-test("problem+json maps to a redacted retryable MCP error without automatic retry", async (t) => {
-  let protectedCalls = 0;
-  const api = await startMockApi((request, response) => {
-    if (request.url?.startsWith("/api/v1/mlb/batters?")) {
-      protectedCalls += 1;
-      response.writeHead(429, { "content-type": "application/problem+json", "retry-after": "7", "x-request-id": "req-limit" });
-      response.end(JSON.stringify({ code: "rate_limit_exceeded", detail: "Do not expose hg_test_never_log", field_errors: { authorization: "Bearer hg_test_never_log" }, request_id: "req-limit" }));
-      return true;
-    }
-    return false;
-  }); t.after(() => api.close());
-  const connection = await connectedClient(api.baseUrl); t.after(() => connection.close());
-  const result = await connection.client.callTool({ name: "query_stats", arguments: { sport: "mlb", resource: "batters" } });
-  assert.equal(result.isError, true); assert.equal(protectedCalls, 1);
-  const text = (result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
-  assert.equal(text.includes("hg_test_never_log"), false);
-  assert.match(text, /rate_limit_exceeded/); assert.match(text, /retry_after_seconds/);
+test("structured 400, 401, 429, and 503 problems pass through once without retries", async (t) => {
+  const cases = [
+    { status: 400, code: "invalid_query", retryAfter: undefined },
+    { status: 401, code: "invalid_api_key", retryAfter: undefined },
+    { status: 429, code: "rate_limit_exceeded", retryAfter: "7" },
+    { status: 503, code: "stats_api_capacity_exceeded", retryAfter: "11" },
+  ] as const;
+
+  for (const item of cases) {
+    await t.test(String(item.status), async (t) => {
+      let protectedCalls = 0;
+      const api = await startMockApi((request, response) => {
+        if (request.url?.startsWith("/api/v1/mlb/batters?")) {
+          protectedCalls += 1;
+          response.writeHead(item.status, {
+            "content-type": "application/problem+json",
+            "x-request-id": `req-${item.status}`,
+            ...(item.retryAfter ? { "retry-after": item.retryAfter } : {}),
+          });
+          response.end(JSON.stringify({
+            code: item.code,
+            detail: `Do not expose hg_test_never_log for ${item.status}`,
+            field_errors: { authorization: "Bearer hg_test_never_log" },
+            request_id: `req-${item.status}`,
+          }));
+          return true;
+        }
+        return false;
+      });
+      t.after(() => api.close());
+      const connection = await connectedClient(api.baseUrl);
+      t.after(() => connection.close());
+
+      const result = await connection.client.callTool({ name: "query_stats", arguments: { sport: "mlb", resource: "batters" } });
+      assert.equal(result.isError, true);
+      assert.equal(protectedCalls, 1);
+      const encoded = JSON.stringify(result);
+      assert.equal(encoded.includes("hg_test_never_log"), false);
+      const problem = (result.structuredContent as { error: Record<string, unknown> }).error;
+      assert.equal(problem.status, item.status);
+      assert.equal(problem.code, item.code);
+      assert.equal(problem.request_id, `req-${item.status}`);
+      if (item.retryAfter) assert.equal(problem.retry_after_seconds, Number(item.retryAfter));
+      else assert.equal(problem.retry_after_seconds, undefined);
+    });
+  }
 });
 
 test("unknown upstream bodies are hidden", async (t) => {
