@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { loadConfig, validateBaseUrl } from "../src/config.js";
 import { parseRetryAfter } from "../src/errors.js";
-import { redact } from "../src/redaction.js";
+import { redact, safeStderr } from "../src/redaction.js";
 
 test("configuration requires the environment key and safe API base URL", () => {
   assert.throws(() => loadConfig({}), /HANDIGRAPHS_API_KEY is required/);
@@ -44,6 +44,24 @@ test("redaction is recursive and normalizes prefixed and hyphenated auth-like fi
   assert.equal(encoded.includes("camel-value"), false);
   assert.equal(value.harmless_header, "preserved");
   assert.match(encoded, /REDACTED/);
+});
+
+test("stderr diagnostics redact the configured key and auth-like fields", () => {
+  const key = "hg_test_stderr_secret";
+  const originalWrite = process.stderr.write;
+  let output = "";
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    output += String(chunk);
+    return true;
+  }) as typeof process.stderr.write;
+  try {
+    safeStderr("diagnostic:", { detail: `failed ${key}`, authorization: `Bearer ${key}` }, key);
+  } finally {
+    process.stderr.write = originalWrite;
+  }
+  assert.equal(output.includes(key), false);
+  assert.equal(output.includes("Bearer"), false);
+  assert.match(output, /REDACTED/);
 });
 
 test("Retry-After supports delta seconds and HTTP dates", () => {

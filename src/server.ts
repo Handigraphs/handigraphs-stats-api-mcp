@@ -8,6 +8,7 @@ import { StatsApiHttpClient } from "./http.js";
 import { FILTER_OPERATORS, validateAndBuildQuery, type QueryInput } from "./query.js";
 import { redact, safeStderr } from "./redaction.js";
 import { registerApiKeySetupTool, type SetupLauncher } from "./setup.js";
+import { SERVER_VERSION } from "./version.js";
 
 const sportSchema = z.string().trim().min(1).max(32);
 const resourceSchema = z.string().trim().min(1).max(64);
@@ -47,7 +48,7 @@ export interface ServerDependencies {
 export function createServer(config: Config, dependencies: ServerDependencies = {}): McpServer {
   const http = new StatsApiHttpClient(config, dependencies.fetchImpl);
   const discovery = new DiscoveryClient(http, config.discoveryTtlMs, dependencies.now);
-  const server = new McpServer({ name: "handigraphs-stats-api", version: "0.2.1" });
+  const server = new McpServer({ name: "handigraphs-stats-api", version: SERVER_VERSION });
 
   server.registerTool("list_resources", {
     title: "List Handigraphs Stats API resources",

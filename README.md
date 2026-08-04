@@ -1,6 +1,6 @@
 # Handigraphs Stats API MCP
 
-Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.2 uses stdio only. The normal authenticated server exposes three stats tools:
+Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.3 uses stdio only. The normal authenticated server exposes three stats tools:
 
 - `list_resources({ sport? })` discovers sports and resources.
 - `describe_resource({ sport, resource })` discovers metrics, canonical units, splits, and supported filters.
@@ -134,6 +134,14 @@ npm run pack:check
 npm run distributions:check
 npm run mcpb:check
 ```
+
+Maintainers can run the sandbox-only live launch audit with a temporary `hg_test_` key held only in `HANDIGRAPHS_API_KEY`:
+
+```bash
+npm run audit:live:sandbox
+```
+
+The audit uses the official MCP client over stdio, discovers both sports, describes and queries all nine resources with compact/default metadata, and verifies cursor pagination without printing response rows or the key.
 
 Tests use local mocked HTTP servers and the official MCP client, including an end-to-end stdio process. No live Handigraphs key or external service is required.
 

@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { SERVER_VERSION } from "./version.js";
 
 export interface SetupLaunchResult {
   status: "launched" | "completed" | "cancelled" | "unsupported";
@@ -153,7 +154,7 @@ export function registerApiKeySetupTool(server: McpServer, launcher: SetupLaunch
 
 export function createSetupServer(launcher: SetupLauncher = launchLocalApiKeySetup): McpServer {
   const server = new McpServer(
-    { name: "handigraphs-stats-api", version: "0.2.2" },
+    { name: "handigraphs-stats-api", version: SERVER_VERSION },
     { instructions: "Handigraphs authentication is not configured. Call configure_api_key without asking the user to paste the key into chat." },
   );
   registerApiKeySetupTool(server, launcher);
