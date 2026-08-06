@@ -19,11 +19,11 @@ The normal Windows and macOS setup requires one Codex starter and one masked pas
    codex plugin add handigraphs-stats-api@handigraphs
    ```
 
-4. Start a new Codex task with the Handigraphs plugin and select **Connect my Handigraphs account**.
+4. Start a new Codex task with the Handigraphs plugin and select **Connect my Handigraphs account**. On Windows, approve the local helper launch when Codex asks; the approval is only for opening the password-masked setup window.
 5. In the local setup window, open the Handigraphs API key page, create or copy your reveal-once key, paste it into the masked field, and select **Save**. The helper sends `hg_test_` keys to the sandbox API and `hg_live_` keys to production automatically.
 6. Fully quit and reopen Codex. Start a new task and ask a Handigraphs stats question.
 
-The plugin starts safely even when the key is absent. In that state it exposes only `configure_api_key`, an argument-free tool that opens the setup window on Windows or macOS. The API key is never included in the tool call or Codex conversation. Windows saves it as a user environment variable; macOS saves it in the user's login Keychain and reads it directly when the MCP process starts.
+The plugin starts safely even when the key is absent. In that state its setup skill launches the bundled Windows helper through Codex's approved local-shell path; on macOS it uses the argument-free `configure_api_key` MCP tool. The API key is never included in the shell command, tool call, or Codex conversation. Windows saves it as a user environment variable; macOS saves it in the user's login Keychain and reads it directly when the MCP process starts.
 
 ## Update an existing installation
 
@@ -48,7 +48,8 @@ Select **Connect my Handigraphs account** again. The same masked setup window re
 
 ## Troubleshooting
 
-- If Codex writes out shell instructions instead of opening a setup window on Windows or macOS, the installed plugin is outdated. Update Codex, reinstall the plugin, and start a new task.
+- If Codex says the setup window opened on Windows but no dialog appears, install plugin version `0.2.4` or newer, fully quit Codex, and try **Connect my Handigraphs account** in a new task. Approve the local helper launch when prompted.
+- If Codex writes out commands for you to paste instead of launching the masked helper itself, the installed plugin is outdated. Update Codex, reinstall the plugin, and start a new task.
 - If Codex says the setup window opened on macOS but no dialog appears, reinstall plugin version `0.2.2` or newer, fully quit Codex, and try **Connect my Handigraphs account** in a new task.
 - If stats tools are unavailable immediately after saving, fully quit Codex rather than only closing the task window, then reopen it.
 - If the setup window reports an invalid key, use a reveal-once key beginning with `hg_test_` or `hg_live_` from [handigraphs.com/account/api](https://handigraphs.com/account/api).

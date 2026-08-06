@@ -1,6 +1,6 @@
 # Handigraphs Stats API MCP
 
-Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.3 uses stdio only. The normal authenticated server exposes three stats tools:
+Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.4 uses stdio only. The normal authenticated server exposes three stats tools:
 
 - `list_resources({ sport? })` discovers sports and resources.
 - `describe_resource({ sport, resource })` discovers metrics, canonical units, splits, and supported filters.
@@ -31,11 +31,11 @@ codex plugin marketplace add Handigraphs/handigraphs-stats-api-mcp
 codex plugin add handigraphs-stats-api@handigraphs
 ```
 
-4. In Codex, select the plugin starter **Connect my Handigraphs account**.
+4. In Codex, select the plugin starter **Connect my Handigraphs account**. On Windows, approve the local helper launch when prompted.
 5. Codex opens the plugin's secure local setup window. Use its link to create a named Stats API key, paste the reveal-once key into the masked field, and select **Save**. Never paste the key into the Codex conversation.
 6. Fully quit and reopen Codex, then start a new task. The plugin will load the saved key automatically.
 
-When no key is configured, the plugin intentionally starts in setup-only mode and exposes only the argument-free `configure_api_key` tool. On Windows and macOS, that tool opens the bundled password-masked setup window; Codex never receives the key. Windows stores it as a user environment variable, while macOS stores it in the user's login Keychain. See the [Codex setup guide](docs/codex-setup.md) for updating, key rotation, troubleshooting, and the Linux fallback.
+When no key is configured, the plugin intentionally starts in setup-only mode. Its setup skill launches the bundled password-masked helper through Codex's approved local-shell path on Windows and uses the argument-free `configure_api_key` MCP tool on macOS; Codex never receives the key. Windows stores it as a user environment variable, while macOS stores it in the user's login Keychain. See the [Codex setup guide](docs/codex-setup.md) for updating, key rotation, troubleshooting, and the Linux fallback.
 
 ### Claude Code
 
@@ -95,7 +95,7 @@ Environment variables:
 | `HANDIGRAPHS_HTTP_TIMEOUT_MS` | No | `10000` | Upstream request timeout. |
 | `HANDIGRAPHS_MAX_RESPONSE_BYTES` | No | `5242880` | Maximum declared or streamed upstream JSON response size. |
 
-The Codex plugin never accepts the key as a skill or MCP tool argument. Its `configure_api_key` tool takes no arguments and launches a separate local setup process on Windows or macOS. Neither helper prints the key or puts it on a process command line. Windows saves the key and matching API environment to the current user's environment configuration. macOS sends the key to the system `security` utility over a private stdin pipe, stores it in the user's login Keychain, and infers the API environment from the key prefix when the MCP process reads it.
+The Codex plugin never accepts the key as a skill or MCP tool argument. Its platform-specific setup workflow launches a separate local masked process without putting the key on a process command line. Windows uses a user-approved local helper launch and saves the key and matching API environment to the current user's environment configuration. macOS uses the argument-free `configure_api_key` tool, sends the key to the system `security` utility over a private stdin pipe, stores it in the user's login Keychain, and infers the API environment from the key prefix when the MCP process reads it.
 
 ## Query model
 

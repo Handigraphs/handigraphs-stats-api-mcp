@@ -14,14 +14,25 @@ Configure the local plugin without exposing the reveal-once key to the model or 
 - Never read or print the current value. Credential checks may return only whether a value is present.
 - Direct the user to create or rotate a key at `https://handigraphs.com/account/api` when they do not already have a copied reveal-once key.
 
-## Windows and macOS agent-assisted setup
+## Windows agent-assisted setup
+
+1. Resolve the absolute path to the bundled `../../scripts/configure-windows.ps1` helper relative to this skill.
+2. Launch that helper in a visible Windows PowerShell process with `-NoLogo`, `-NoProfile`, `-NonInteractive`, `-STA`, `-ExecutionPolicy Bypass`, and `-File <absolute-helper-path>`. Use the local shell tool; never put the API key in the command, its environment, or any tool argument.
+3. This is an intentionally visible interactive setup window. If the sandbox blocks the GUI launch, immediately retry the same helper launch through the shell tool's approval or elevated-execution path and explain that approval is needed only to open the local masked window.
+4. Confirm only that the helper process remains open or has the `Handigraphs Stats API setup` window title. Do not inspect its controls, automate the paste, read the saved environment value, or claim that the credential was saved.
+5. Tell the user to finish the steps in the setup window and fully quit and reopen Codex. The already-running MCP process cannot reload a credential saved after it started.
+
+Do not call `configure_api_key` as the normal Windows path. A sandboxed Codex MCP process can report that its child spawned even when Windows terminates the GUI helper before a visible window appears.
+
+## macOS agent-assisted setup
 
 1. Call the plugin MCP tool `configure_api_key` immediately. It takes no arguments and launches the bundled password-masked local setup window.
-2. Do not generate or show shell setup code unless that MCP tool is unavailable in the installed plugin version.
-3. The helper selects the sandbox API for an `hg_test_` key and production for an `hg_live_` key. On Windows it stores the key as a user environment variable. On macOS it stores the key in the user's login Keychain, and the MCP package retrieves it directly when it starts.
-4. Tell the user to finish the steps in the setup window and fully quit and reopen Codex. The already-running MCP process cannot reload a credential saved after it started.
+2. Do not generate or show shell setup code unless that MCP tool is unavailable or reports `launch_failed`.
+3. Tell the user to finish the steps in the setup window and fully quit and reopen Codex. The already-running MCP process cannot reload a credential saved after it started.
 
-If `configure_api_key` is unavailable, explain that the installed plugin is outdated and direct the user to update Codex and reinstall the latest Handigraphs plugin. The bundled `../../scripts/configure-windows.ps1` and `../../scripts/configure-macos.mjs` helpers are last-resort local fallbacks, not the normal user flow.
+If the platform helper is unavailable, explain that the installed plugin is outdated and direct the user to update Codex and reinstall the latest Handigraphs plugin. The bundled macOS fallback is `../../scripts/configure-macos.mjs`; the bundled helpers never receive the key through the model or MCP arguments.
+
+The helper selects the sandbox API for an `hg_test_` key and production for an `hg_live_` key. On Windows it stores the key as a user environment variable. On macOS it stores the key in the user's login Keychain, and the MCP package retrieves it directly when it starts.
 
 Do not claim authentication is verified in the current task. After restart, a normal Handigraphs query confirms that the MCP server can load the credential and authenticate.
 
@@ -31,4 +42,4 @@ Codex does not currently expose an install-time secret field for local stdio plu
 
 ## Rotation
 
-On Windows or macOS, call `configure_api_key` again; the helper replaces the saved Windows user value or macOS Keychain item. On Linux, replace the variable through the same user-controlled environment or secret manager used during setup. A full Codex restart is required after rotation.
+On Windows or macOS, repeat the platform-specific setup above; the helper replaces the saved Windows user value or macOS Keychain item. On Linux, replace the variable through the same user-controlled environment or secret manager used during setup. A full Codex restart is required after rotation.

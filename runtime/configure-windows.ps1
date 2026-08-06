@@ -4,7 +4,7 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-if ($env:OS -ne "Windows_NT") {
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     throw "This helper supports Windows only."
 }
 
@@ -107,7 +107,7 @@ $form.Dispose()
 
 if ($result -ne [System.Windows.Forms.DialogResult]::OK) {
     Write-Output "Handigraphs Stats API setup was cancelled."
-    exit 1
+    exit 2
 }
 
 $broadcastResult = [UIntPtr]::Zero

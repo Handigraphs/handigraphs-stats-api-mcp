@@ -63,8 +63,9 @@ assert.match(setupSkill, /^name: setup-handigraphs-stats-api$/m);
 assert.match(setupSkill, /Never ask the user to paste, type, upload, or repeat the API key in chat/);
 assert.match(setupSkill, /configure-macos\.mjs/);
 assert.match(setupSkill, /configure-windows\.ps1/);
+assert.match(setupSkill, /Do not call `configure_api_key` as the normal Windows path/);
+assert.match(setupSkill, /shell tool's approval or elevated-execution path/);
 assert.match(setupSkill, /Call the plugin MCP tool `configure_api_key` immediately/);
-assert.match(setupSkill, /Do not generate or show shell setup code/);
 assert.match(macosSetup, /with hidden answer/);
 assert.match(macosSetup, /spawnSync\("\/usr\/bin\/security", \["-i"\]/);
 assert.match(macosSetup, /add-generic-password -U/);
@@ -80,6 +81,7 @@ assert.match(windowsSetup, /handigraphs-sandbox-web-49829810d1bb\.herokuapp\.com
 assert.match(windowsSetup, /SetEnvironmentVariable\("HANDIGRAPHS_API_BASE_URL", \$apiBaseUrl, "User"\)/);
 assert.match(windowsSetup, /SetEnvironmentVariable\("HANDIGRAPHS_API_KEY", \$candidate, "User"\)/);
 assert.match(windowsSetup, /SendMessageTimeout/);
+assert.match(windowsSetup, /exit 2/);
 assert.doesNotMatch(windowsSetup, /Write-(?:Host|Output).*\$(?:candidate|apiKey|keyBox)/i);
 assert.equal(runtimeWindowsSetup, windowsSetup);
 assert.match(credentialRuntime, /find-generic-password/);
@@ -88,6 +90,7 @@ assert.doesNotMatch(credentialRuntime, /console\.(?:log|error)|process\.(?:stdou
 assert.match(setupRuntime, /platform === "darwin"/);
 assert.match(setupRuntime, /configure-macos\.mjs/);
 assert.match(setupRuntime, /windowsHide:\s*false/);
+assert.match(setupRuntime, /launchCheckMs:\s*1_000/);
 assert.equal(codexManifest.interface.defaultPrompt[0], "Connect my Handigraphs account.");
 assert.match(versionRuntime, new RegExp(`SERVER_VERSION\\s*=\\s*["']${packageManifest.version.replaceAll(".", "\\.")}["']`));
 assert.match(liveAudit, /StdioClientTransport/);

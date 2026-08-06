@@ -8,8 +8,9 @@ test("setup launch specifications cover Windows and macOS", () => {
   const windows = getSetupLaunchSpec("win32");
   assert.equal(windows?.command, "powershell.exe");
   assert.match(windows?.args.at(-1) ?? "", /configure-windows\.ps1$/);
+  assert.equal(windows?.args.includes("-STA"), true);
   assert.equal(windows?.windowsHide, false);
-  assert.equal(windows?.launchCheckMs, 0);
+  assert.equal(windows?.launchCheckMs, 1_000);
 
   const macos = getSetupLaunchSpec("darwin");
   assert.equal(macos?.command, process.execPath);

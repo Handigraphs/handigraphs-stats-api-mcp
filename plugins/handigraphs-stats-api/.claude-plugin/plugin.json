@@ -1,7 +1,7 @@
 {
   "name": "handigraphs-stats-api",
   "displayName": "Handigraphs Stats API",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Discover and query live Handigraphs MLB and NHL statistics through a read-only local MCP server.",
   "author": {
     "name": "Handigraphs",
