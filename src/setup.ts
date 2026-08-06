@@ -28,6 +28,7 @@ export function getSetupLaunchSpec(platform: NodeJS.Platform = process.platform)
         "-NoLogo",
         "-NoProfile",
         "-NonInteractive",
+        "-STA",
         "-ExecutionPolicy",
         "Bypass",
         "-File",
@@ -35,7 +36,10 @@ export function getSetupLaunchSpec(platform: NodeJS.Platform = process.platform)
       ],
       // Hiding the PowerShell process also hides its WinForms setup dialog.
       windowsHide: false,
-      launchCheckMs: 0,
+      // Codex may allow the process to spawn and then terminate it before the
+      // WinForms dialog becomes visible. Do not report success until the
+      // helper survives the same launch check used on macOS.
+      launchCheckMs: 1_000,
     };
   }
 
@@ -82,30 +86,24 @@ export async function launchLocalApiKeySetup(): Promise<SetupLaunchResult> {
     });
     child.once("error", reject);
     child.once("spawn", () => {
-      if (launch.launchCheckMs === 0) {
-        child.unref();
-        resolve("spawned");
-        return;
-      }
       launchTimer = setTimeout(() => {
         child.unref();
         resolve("spawned");
       }, launch.launchCheckMs);
     });
-    if (launch.launchCheckMs > 0) {
-      child.once("close", (code) => {
-        if (launchTimer) clearTimeout(launchTimer);
-        if (code === 0) resolve("completed");
-        else if (code === 2) resolve("cancelled");
-        else reject(new Error("The setup helper exited before saving the credential."));
-      });
-    }
+    child.once("close", (code) => {
+      if (launchTimer) clearTimeout(launchTimer);
+      if (code === 0) resolve("completed");
+      else if (code === 2) resolve("cancelled");
+      else reject(new Error("The setup helper exited before saving the credential."));
+    });
   });
 
   if (result === "completed") {
+    const credentialStore = process.platform === "win32" ? "the Windows user environment" : "macOS Keychain";
     return {
       status: "completed",
-      message: "Your Handigraphs API key was saved securely in macOS Keychain. Fully quit and reopen Codex, then start a new task.",
+      message: `Your Handigraphs API key was saved securely in ${credentialStore}. Fully quit and reopen Codex, then start a new task.`,
     };
   }
 

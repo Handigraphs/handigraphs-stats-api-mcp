@@ -32,6 +32,6 @@ Use live discovery instead of guessing resource, metric, split, unit, or filter 
 
 ## Errors and credentials
 
-- Never ask for or repeat a Stats API key in chat. If the local server is not configured, invoke the bundled `setup-handigraphs-stats-api` skill and use the argument-free `configure_api_key` tool. Do not generate shell commands for the normal Windows or macOS setup path.
+- Never ask for or repeat a Stats API key in chat. If the local server is not configured, invoke the bundled `setup-handigraphs-stats-api` skill and follow its platform-specific masked setup workflow. Do not accept the key as a tool argument or automate entry into the setup window.
 - Do not automatically retry `429` or `503` responses. Report the safe error code and honor any retry guidance returned by the tool.
 - Treat every tool as read-only. Do not imply that the plugin can modify Handigraphs data or account settings.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4 - 2026-08-06
+
+- Launch the Windows masked-key helper through Codex's approved local-shell path so the setup window is visible outside the MCP sandbox.
+- Stop reporting Windows setup success until the helper survives an initial launch check, and return a launch failure when Windows terminates it immediately.
+- Run the Windows helper in STA mode, make its platform check independent of the inherited `OS` environment variable, and distinguish cancellation from launch failure.
+
 ## 0.2.3 - 2026-08-04
 
 - Report the package version consistently in both normal and setup-only MCP handshakes.

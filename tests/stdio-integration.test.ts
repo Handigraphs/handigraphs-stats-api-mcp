@@ -17,7 +17,7 @@ test("official MCP client communicates with the built server over stdio", async 
   const client = new Client({ name: "stdio-test", version: "1.0.0" });
   t.after(async () => { await client.close(); });
   await client.connect(transport);
-  assert.equal(client.getServerVersion()?.version, "0.2.3");
+  assert.equal(client.getServerVersion()?.version, "0.2.4");
   const listed = await client.callTool({ name: "list_resources", arguments: { sport: "mlb" } });
   assert.equal(listed.isError, undefined);
   assert.match(((listed as { content: Array<{ text: string }> }).content[0]?.text ?? ""), /batters/);

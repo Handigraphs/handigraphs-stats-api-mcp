@@ -8,7 +8,7 @@ Do not open a public issue containing credentials, exploit details, subscriber d
 
 - Supply the key through `HANDIGRAPHS_API_KEY` in the MCP process environment, or use the Codex plugin's macOS helper to store it in the user's login Keychain.
 - Never put a real key in tool arguments, source files, committed MCP configuration, screenshots, or support logs.
-- When the Codex plugin has no key, its local MCP server exposes only the argument-free `configure_api_key` setup tool. That tool launches a detached Windows or macOS helper and never receives the key.
+- When the Codex plugin has no key, its setup workflow never receives the key. Windows launches the bundled masked helper through Codex's user-approved local-shell path; macOS uses the argument-free `configure_api_key` tool to launch its helper.
 - The Windows helper accepts the key only in a password-masked local dialog, never prints it or places it on a command line, and saves it as the current user's `HANDIGRAPHS_API_KEY` environment variable.
 - The macOS helper accepts the key only in a password-masked local dialog, passes it to Apple's `security` utility through a private stdin pipe, and saves it as a generic password in the user's login Keychain. The key is never placed in process arguments, shell history, or a file.
 - On macOS the MCP runtime reads only the named Handigraphs Keychain item when `HANDIGRAPHS_API_KEY` is absent. Environment configuration takes precedence when explicitly supplied.
