@@ -12,7 +12,7 @@ Configure the local plugin without exposing the reveal-once key to the model or 
 - Never ask the user to paste, type, upload, or repeat the API key in chat.
 - Never pass the API key as a shell command argument, tool argument, environment dump, log message, or test fixture.
 - Never read or print the current value. Credential checks may return only whether a value is present.
-- Direct the user to create or rotate a key at `https://handigraphs.com/account/api` when they do not already have a copied reveal-once key.
+- Direct the user to create or rotate a key at `https://www.handigraphs.com/account/api` when they do not already have a copied reveal-once key.
 
 ## Windows agent-assisted setup
 

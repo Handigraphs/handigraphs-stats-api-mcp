@@ -6,7 +6,7 @@ export interface Config {
   maxResponseBytes: number;
 }
 
-const PRODUCTION_BASE_URL = "https://handigraphs.com/api/v1";
+const PRODUCTION_BASE_URL = "https://www.handigraphs.com/api/v1";
 const SANDBOX_BASE_URL = "https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com/api/v1";
 
 function positiveInteger(raw: string | undefined, fallback: number, name: string): number {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.5 - 2026-08-07
+
+- Point production MCP requests at the canonical `https://www.handigraphs.com/api/v1` root instead of the non-`www` host, which returns `404` for Stats API discovery.
+- Align packaged setup links, plugin metadata, release documentation, and configuration tests with the canonical `www.handigraphs.com` host.
+
 ## 0.2.4 - 2026-08-06
 
 - Launch the Windows masked-key helper through Codex's approved local-shell path so the setup window is visible outside the MCP sandbox.

@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Do not open a public issue containing credentials, exploit details, subscriber data, or sensitive logs. Use this repository's **Security** tab to submit a private vulnerability report. If private reporting is unavailable, contact the Handigraphs maintainers through the support channel at [handigraphs.com](https://handigraphs.com).
+Do not open a public issue containing credentials, exploit details, subscriber data, or sensitive logs. Use this repository's **Security** tab to submit a private vulnerability report. If private reporting is unavailable, contact the Handigraphs maintainers through the support channel at [www.handigraphs.com](https://www.handigraphs.com).
 
 ## API key handling
 

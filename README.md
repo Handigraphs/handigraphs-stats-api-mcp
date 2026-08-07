@@ -1,6 +1,6 @@
 # Handigraphs Stats API MCP
 
-Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.4 uses stdio only. The normal authenticated server exposes three stats tools:
+Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.5 uses stdio only. The normal authenticated server exposes three stats tools:
 
 - `list_resources({ sport? })` discovers sports and resources.
 - `describe_resource({ sport, resource })` discovers metrics, canonical units, splits, and supported filters.
@@ -10,7 +10,7 @@ Sports, resources, metrics, and splits are never compiled into this package. Pub
 
 ## Credentials
 
-Create a reveal-once Stats API key at [handigraphs.com/account/api](https://handigraphs.com/account/api). During rollout testing, keys beginning with `hg_test_` automatically use the sandbox API; production keys beginning with `hg_live_` use production. Never paste a real key into a repository, issue, prompt, or committed client configuration.
+Create a reveal-once Stats API key at [www.handigraphs.com/account/api](https://www.handigraphs.com/account/api). During rollout testing, keys beginning with `hg_test_` automatically use the sandbox API; production keys beginning with `hg_live_` use production. Never paste a real key into a repository, issue, prompt, or committed client configuration.
 
 ## Install with the Handigraphs plugin
 
@@ -40,7 +40,7 @@ When no key is configured, the plugin intentionally starts in setup-only mode. I
 ### Claude Code
 
 1. Install Node.js 22 or newer.
-2. [Create a named Stats API key](https://handigraphs.com/account/api) and copy it when it is revealed.
+2. [Create a named Stats API key](https://www.handigraphs.com/account/api) and copy it when it is revealed.
 3. Open Terminal and run these commands in order:
 
 ```bash
@@ -53,7 +53,7 @@ claude plugin install handigraphs-stats-api@handigraphs
 
 ### Claude Desktop extension
 
-1. [Create a named Stats API key](https://handigraphs.com/account/api) and copy it when it is revealed.
+1. [Create a named Stats API key](https://www.handigraphs.com/account/api) and copy it when it is revealed.
 2. Download `handigraphs-stats-api-mcp-<version>.mcpb` from the matching [GitHub release](https://github.com/Handigraphs/handigraphs-stats-api-mcp/releases).
 3. Double-click the downloaded file to open it in Claude Desktop. If it does not open, drag the file onto the Claude Desktop window.
 4. Review the extension, select **Install**, and enter the Stats API key when prompted.
@@ -90,7 +90,7 @@ Environment variables:
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `HANDIGRAPHS_API_KEY` | Yes, except for Codex on macOS | macOS Keychain fallback in Codex | Bearer key for protected data. It is never accepted as a tool argument. |
-| `HANDIGRAPHS_API_BASE_URL` | No | Inferred from key prefix | API v1 root. `hg_test_` uses sandbox and other keys use `https://handigraphs.com/api/v1`; HTTPS is mandatory except loopback HTTP used by tests. |
+| `HANDIGRAPHS_API_BASE_URL` | No | Inferred from key prefix | API v1 root. `hg_test_` uses sandbox and other keys use `https://www.handigraphs.com/api/v1`; HTTPS is mandatory except loopback HTTP used by tests. |
 | `HANDIGRAPHS_DISCOVERY_TTL_SECONDS` | No | `300` | In-process public-discovery cache TTL. |
 | `HANDIGRAPHS_HTTP_TIMEOUT_MS` | No | `10000` | Upstream request timeout. |
 | `HANDIGRAPHS_MAX_RESPONSE_BYTES` | No | `5242880` | Maximum declared or streamed upstream JSON response size. |

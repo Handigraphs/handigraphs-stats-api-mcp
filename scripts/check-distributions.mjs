@@ -100,6 +100,6 @@ assert.doesNotMatch(liveAudit, /hg_live_/);
 
 const serialized = JSON.stringify({ codexMarketplace, claudeMarketplace, codexManifest, claudeManifest, codexMcp, claudeMcp, bundleManifest });
 assert.doesNotMatch(serialized, /hg_(?:live|test)_[A-Za-z0-9_-]+/);
-assert.match(serialized, /https:\/\/handigraphs\.com\/privacy/);
+assert.match(serialized, /https:\/\/www\.handigraphs\.com\/privacy/);
 
 process.stdout.write("distribution checks passed\n");

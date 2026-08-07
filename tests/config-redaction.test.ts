@@ -7,12 +7,12 @@ import { redact, safeStderr } from "../src/redaction.js";
 test("configuration requires the environment key and safe API base URL", () => {
   assert.throws(() => loadConfig({}), /HANDIGRAPHS_API_KEY is required/);
   for (const value of [
-    "http://handigraphs.com/api/v1", "https://key@handigraphs.com/api/v1",
-    "https://handigraphs.com/api/v2", "https://handigraphs.com/api/v1?key=x",
+    "http://www.handigraphs.com/api/v1", "https://key@www.handigraphs.com/api/v1",
+    "https://www.handigraphs.com/api/v2", "https://www.handigraphs.com/api/v1?key=x",
   ]) assert.throws(() => validateBaseUrl(value));
   assert.equal(validateBaseUrl("http://127.0.0.1:1234/api/v1/").pathname, "/api/v1");
   assert.equal(loadConfig({ HANDIGRAPHS_API_KEY: "test" }).maxResponseBytes, 5 * 1024 * 1024);
-  assert.equal(loadConfig({ HANDIGRAPHS_API_KEY: "hg_live_example" }).baseUrl.href, "https://handigraphs.com/api/v1");
+  assert.equal(loadConfig({ HANDIGRAPHS_API_KEY: "hg_live_example" }).baseUrl.href, "https://www.handigraphs.com/api/v1");
   assert.equal(
     loadConfig({ HANDIGRAPHS_API_KEY: "hg_test_example" }).baseUrl.href,
     "https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com/api/v1",
