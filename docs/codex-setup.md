@@ -52,6 +52,6 @@ Select **Connect my Handigraphs account** again. The same masked setup window re
 - If Codex writes out commands for you to paste instead of launching the masked helper itself, the installed plugin is outdated. Update Codex, reinstall the plugin, and start a new task.
 - If Codex says the setup window opened on macOS but no dialog appears, reinstall plugin version `0.2.2` or newer, fully quit Codex, and try **Connect my Handigraphs account** in a new task.
 - If stats tools are unavailable immediately after saving, fully quit Codex rather than only closing the task window, then reopen it.
-- If the setup window reports an invalid key, use a reveal-once key beginning with `hg_test_` or `hg_live_` from [handigraphs.com/account/api](https://handigraphs.com/account/api).
+- If the setup window reports an invalid key, use a reveal-once key beginning with `hg_test_` or `hg_live_` from [www.handigraphs.com/account/api](https://www.handigraphs.com/account/api).
 - If a test key reaches the production API, reinstall the latest plugin and run **Connect my Handigraphs account** again so it saves the sandbox environment selection.
 - Never paste a real key into a conversation, issue, screenshot, committed configuration file, or support log.

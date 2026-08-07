@@ -1,13 +1,13 @@
 {
   "name": "@handigraphs/stats-api-mcp",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Read-only MCP server for the Handigraphs Stats API v1",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Handigraphs/handigraphs-stats-api-mcp.git"
   },
-  "homepage": "https://handigraphs.com/developers#mcp",
+  "homepage": "https://www.handigraphs.com/developers#mcp",
   "bugs": {
     "url": "https://github.com/Handigraphs/handigraphs-stats-api-mcp/issues"
   },

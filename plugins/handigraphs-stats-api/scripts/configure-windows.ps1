@@ -48,7 +48,7 @@ $accountLink.Location = New-Object System.Drawing.Point(20, 76)
 $accountLink.Size = New-Object System.Drawing.Size(505, 24)
 $accountLink.Text = "Open Handigraphs API key page"
 $accountLink.Add_LinkClicked({
-    Start-Process "https://handigraphs.com/account/api"
+    Start-Process "https://www.handigraphs.com/account/api"
 })
 $form.Controls.Add($accountLink)
 

@@ -11,7 +11,7 @@ const VALIDATE_FLAG = "--validate-applescript";
 const PROMPT_APPLESCRIPT = [
   "set setupChoice to display dialog \"Create or copy your reveal-once Handigraphs Stats API key, then continue. The key will be entered in a masked local window and saved only in macOS Keychain.\" buttons {\"Cancel\", \"Open key page\", \"Continue\"} default button \"Continue\" cancel button \"Cancel\" with title \"Handigraphs Stats API setup\"",
   "if button returned of setupChoice is \"Open key page\" then",
-  "open location \"https://handigraphs.com/account/api\"",
+  "open location \"https://www.handigraphs.com/account/api\"",
   "end if",
   "set keyResult to display dialog \"Paste your Handigraphs Stats API key. Test keys begin with hg_test_ and live keys begin with hg_live_.\" default answer \"\" with hidden answer buttons {\"Cancel\", \"Save\"} default button \"Save\" cancel button \"Cancel\" with title \"Handigraphs Stats API setup\"",
   "return text returned of keyResult",

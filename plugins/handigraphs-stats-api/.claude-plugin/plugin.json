@@ -1,14 +1,14 @@
 {
   "name": "handigraphs-stats-api",
   "displayName": "Handigraphs Stats API",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Discover and query live Handigraphs MLB and NHL statistics through a read-only local MCP server.",
   "author": {
     "name": "Handigraphs",
     "email": "support@handigraphs.com",
-    "url": "https://handigraphs.com"
+    "url": "https://www.handigraphs.com"
   },
-  "homepage": "https://handigraphs.com/developers#mcp",
+  "homepage": "https://www.handigraphs.com/developers#mcp",
   "repository": "https://github.com/Handigraphs/handigraphs-stats-api-mcp",
   "license": "Apache-2.0",
   "keywords": ["sports-analytics", "mlb", "nhl", "stats", "mcp"],
@@ -18,7 +18,7 @@
     "api_key": {
       "type": "string",
       "title": "Handigraphs Stats API key",
-      "description": "Reveal-once key created at handigraphs.com/account/api.",
+      "description": "Reveal-once key created at www.handigraphs.com/account/api.",
       "sensitive": true,
       "required": true
     }

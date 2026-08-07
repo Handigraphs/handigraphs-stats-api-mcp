@@ -64,7 +64,7 @@ export async function launchLocalApiKeySetup(): Promise<SetupLaunchResult> {
   if (!launch) {
     return {
       status: "unsupported",
-      message: "Automatic setup is available on Windows and macOS. Open https://handigraphs.com/developers#mcp for the Linux setup steps.",
+      message: "Automatic setup is available on Windows and macOS. Open https://www.handigraphs.com/developers#mcp for the Linux setup steps.",
     };
   }
 
@@ -143,7 +143,7 @@ export function registerApiKeySetupTool(server: McpServer, launcher: SetupLaunch
     } catch {
       return {
         isError: true,
-        content: [{ type: "text", text: "The secure setup window could not be opened. Use the fallback instructions at https://handigraphs.com/developers#mcp; never paste the key into chat." }],
+        content: [{ type: "text", text: "The secure setup window could not be opened. Use the fallback instructions at https://www.handigraphs.com/developers#mcp; never paste the key into chat." }],
         structuredContent: { status: "launch_failed", secret_received_by_model: false },
       };
     }
