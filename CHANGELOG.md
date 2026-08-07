@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.6 - 2026-08-07
+
+- Require Windows Codex setup to launch the masked helper through the approved out-of-sandbox shell path on the first attempt.
+- Document that a sandboxed PowerShell process can run on Codex's private desktop and remain invisible even when it has the expected window title.
+- Add distribution assertions that preserve the visible-desktop launch requirements in the packaged setup skill.
+
 ## 0.2.5 - 2026-08-07
 
 - Point production MCP requests at the canonical `https://www.handigraphs.com/api/v1` root instead of the non-`www` host, which returns `404` for Stats API discovery.

@@ -48,7 +48,7 @@ Select **Connect my Handigraphs account** again. The same masked setup window re
 
 ## Troubleshooting
 
-- If Codex says the setup window opened on Windows but no dialog appears, install plugin version `0.2.4` or newer, fully quit Codex, and try **Connect my Handigraphs account** in a new task. Approve the local helper launch when prompted.
+- If Codex says the setup window opened on Windows but no dialog appears, install plugin version `0.2.6` or newer, fully quit Codex, and try **Connect my Handigraphs account** in a new task. Approve the out-of-sandbox local helper launch when prompted; a helper started inside the Windows sandbox can be isolated on Codex's private desktop and remain invisible.
 - If Codex writes out commands for you to paste instead of launching the masked helper itself, the installed plugin is outdated. Update Codex, reinstall the plugin, and start a new task.
 - If Codex says the setup window opened on macOS but no dialog appears, reinstall plugin version `0.2.2` or newer, fully quit Codex, and try **Connect my Handigraphs account** in a new task.
 - If stats tools are unavailable immediately after saving, fully quit Codex rather than only closing the task window, then reopen it.

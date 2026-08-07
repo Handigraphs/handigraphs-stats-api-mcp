@@ -19,7 +19,7 @@ async function connectedClient(baseUrl: string) {
 test("all three tools are exposed and query defaults compact, forwards pagination, and never caches data", async (t) => {
   const api = await startMockApi(); t.after(() => api.close());
   const connection = await connectedClient(api.baseUrl); t.after(() => connection.close());
-  assert.equal(connection.client.getServerVersion()?.version, "0.2.5");
+  assert.equal(connection.client.getServerVersion()?.version, "0.2.6");
   assert.deepEqual((await connection.client.listTools()).tools.map((tool) => tool.name), ["list_resources", "describe_resource", "query_stats"]);
   const args = { sport: "mlb", resource: "batters", metrics: ["avg"], filters: [{ metric: "avg", operator: "gte", value: 0.2 }], cursor: "opaque" };
   const first = await connection.client.callTool({ name: "query_stats", arguments: args });

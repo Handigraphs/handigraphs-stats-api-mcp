@@ -64,7 +64,9 @@ assert.match(setupSkill, /Never ask the user to paste, type, upload, or repeat t
 assert.match(setupSkill, /configure-macos\.mjs/);
 assert.match(setupSkill, /configure-windows\.ps1/);
 assert.match(setupSkill, /Do not call `configure_api_key` as the normal Windows path/);
-assert.match(setupSkill, /shell tool's approval or elevated-execution path/);
+assert.match(setupSkill, /sandbox_permissions/);
+assert.match(setupSkill, /require_escalated/);
+assert.match(setupSkill, /private desktop/i);
 assert.match(setupSkill, /Call the plugin MCP tool `configure_api_key` immediately/);
 assert.match(macosSetup, /with hidden answer/);
 assert.match(macosSetup, /spawnSync\("\/usr\/bin\/security", \["-i"\]/);

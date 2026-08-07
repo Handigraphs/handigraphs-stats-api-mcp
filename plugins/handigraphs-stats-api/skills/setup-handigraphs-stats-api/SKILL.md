@@ -17,12 +17,13 @@ Configure the local plugin without exposing the reveal-once key to the model or 
 ## Windows agent-assisted setup
 
 1. Resolve the absolute path to the bundled `../../scripts/configure-windows.ps1` helper relative to this skill.
-2. Launch that helper in a visible Windows PowerShell process with `-NoLogo`, `-NoProfile`, `-NonInteractive`, `-STA`, `-ExecutionPolicy Bypass`, and `-File <absolute-helper-path>`. Use the local shell tool; never put the API key in the command, its environment, or any tool argument.
-3. This is an intentionally visible interactive setup window. If the sandbox blocks the GUI launch, immediately retry the same helper launch through the shell tool's approval or elevated-execution path and explain that approval is needed only to open the local masked window.
-4. Confirm only that the helper process remains open or has the `Handigraphs Stats API setup` window title. Do not inspect its controls, automate the paste, read the saved environment value, or claim that the credential was saved.
-5. Tell the user to finish the steps in the setup window and fully quit and reopen Codex. The already-running MCP process cannot reload a credential saved after it started.
+2. Launch that helper through the local shell tool's approval or out-of-sandbox execution path on the first attempt. When the shell tool exposes `sandbox_permissions`, set it to `require_escalated` and explain that approval is needed only to open the local masked window on the user's visible desktop.
+3. In that approved call, start a visible Windows PowerShell process with `-NoLogo`, `-NoProfile`, `-NonInteractive`, `-STA`, `-ExecutionPolicy Bypass`, `-File <absolute-helper-path>`, and a normal window style. Never put the API key in the command, its environment, or any tool argument.
+4. Do not first try the standard Windows sandbox. Codex normally isolates sandboxed commands on a private desktop, so `Start-Process` can report a live process with the expected window title even though the user cannot see it. A sandboxed process or title is not proof that the setup window is visible.
+5. After the approved launch, confirm only that the exact returned helper process remains open and has the `Handigraphs Stats API setup` window title. Do not inspect its controls, automate the paste, read the saved environment value, or claim that the credential was saved.
+6. Tell the user to finish the steps in the setup window and fully quit and reopen Codex. The already-running MCP process cannot reload a credential saved after it started.
 
-Do not call `configure_api_key` as the normal Windows path. A sandboxed Codex MCP process can report that its child spawned even when Windows terminates the GUI helper before a visible window appears.
+Do not call `configure_api_key` as the normal Windows path. A sandboxed Codex MCP process can report that its child spawned even when the GUI is isolated on a private desktop or terminates before a visible window appears.
 
 ## macOS agent-assisted setup
 
