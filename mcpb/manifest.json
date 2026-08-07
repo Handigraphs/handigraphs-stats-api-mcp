@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "handigraphs-stats-api",
   "display_name": "Handigraphs Stats API",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Discover and query live Handigraphs MLB and NHL statistics through a read-only local MCP server.",
   "long_description": "Connect Claude Desktop to the Handigraphs Stats API. Discover live resources, metrics, splits, units, and filters before querying read-only MLB and NHL statistics.",
   "author": {

@@ -1,6 +1,6 @@
 # Handigraphs Stats API MCP
 
-Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.5 uses stdio only. The normal authenticated server exposes three stats tools:
+Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.6 uses stdio only. The normal authenticated server exposes three stats tools:
 
 - `list_resources({ sport? })` discovers sports and resources.
 - `describe_resource({ sport, resource })` discovers metrics, canonical units, splits, and supported filters.
