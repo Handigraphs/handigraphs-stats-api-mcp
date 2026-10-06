@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.2.7 - 2026-10-06
 
-- Add an optional, live-discovery-gated `season` field to `query_stats`, including validation and forwarding of NHL IDs such as `20262027`. Omitted season preserves the API default. Requires REST discovery to advertise support; no release or publishing is included.
-- Refresh the five vulnerable transitive lockfile resolutions (`fast-uri`, `hono`, `ip-address`, `proxy-addr`, `qs`) within existing dependency ranges. Direct requirements, package version and the production audit gate are unchanged.
+- Add an optional, live-discovery-gated `season` field to `query_stats`, including validation and forwarding of NHL IDs such as `20262027`. Omitted season preserves the API default. Requires REST discovery to advertise support.
+- Refresh the five vulnerable transitive lockfile resolutions (`fast-uri`, `hono`, `ip-address`, `proxy-addr`, `qs`) within existing dependency ranges. Direct requirements and the production audit gate are unchanged.
 
 ## 0.2.6 - 2026-08-07
 
