@@ -20,6 +20,7 @@ Use live discovery instead of guessing resource, metric, split, unit, or filter 
 - Use canonical units returned by discovery. A proportion such as 20% is normally passed as `0.20`, not `20`.
 - Use only `eq`, `ne`, `gt`, `gte`, `lt`, or `lte` for numeric filters, with no more than five filters.
 - Keep one split per query. Do not invent historical dates, archive selectors, custom ranges, or unsupported operators.
+- When live discovery advertises `season`, NHL accepts an eight-digit ID such as `20262027`. Omit it to preserve the server default; retain the same season when following a cursor. The current slate is unchanged, and missing stats must not be replaced with prior-season or preseason numbers.
 - Prefer stable entity IDs for follow-up lookups when the API returns them.
 - Keep payloads focused. Request rich stats or full metadata only when benchmark details are necessary.
 

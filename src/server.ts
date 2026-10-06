@@ -93,6 +93,8 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
       sport: sportSchema,
       resource: resourceSchema,
       split: z.string().trim().min(1).max(80).optional(),
+      season: z.string().trim().min(1).max(8).optional()
+        .describe("Optional season from live discovery. NHL uses an eight-digit ID such as 20262027; omit to keep the server default."),
       metrics: z.array(z.string().trim().min(1).max(80))
         .min(1)
         .max(100)
