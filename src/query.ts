@@ -8,6 +8,7 @@ export interface QueryInput {
   sport: string;
   resource: string;
   split?: string;
+  season?: string;
   metrics?: string[];
   filters?: Array<{ metric: string; operator: FilterOperator; value: number }>;
   sort?: string;
@@ -90,6 +91,13 @@ async function validateOnce(discovery: DiscoveryClient, input: QueryInput, force
   requireSupported(resource, "opponent", input.opponent !== undefined);
   requireSupported(resource, "entity_id", input.entity_id !== undefined);
   requireSupported(resource, "day", input.day !== undefined);
+  requireSupported(resource, "season", input.season !== undefined);
+  if (input.sport === "nhl" && input.season !== undefined && (
+    !/^[0-9]{8}$/.test(input.season)
+    || Number(input.season.slice(4)) !== Number(input.season.slice(0, 4)) + 1
+  )) {
+    throw new ToolInputError("NHL season must contain consecutive years as an eight-digit ID, such as 20262027.");
+  }
   requireSupported(resource, "category", input.category !== undefined);
   requireSupported(resource, "duration", input.duration !== undefined);
   requireSupported(resource, "location", input.location !== undefined);
@@ -102,7 +110,7 @@ async function validateOnce(discovery: DiscoveryClient, input: QueryInput, force
   if (input.metrics?.length) params.set("metrics", input.metrics.join(","));
   for (const filter of input.filters ?? []) params.append("filter", `${filter.metric}:${filter.operator}:${filter.value}`);
   if (input.sort) params.set("sort", input.sort);
-  for (const key of ["team", "opponent", "entity_id", "day", "cursor", "category", "duration", "location"] as const) {
+  for (const key of ["team", "opponent", "entity_id", "day", "season", "cursor", "category", "duration", "location"] as const) {
     const value = input[key];
     if (value !== undefined) params.set(key, value);
   }

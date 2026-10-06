@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add an optional, live-discovery-gated `season` field to `query_stats`, including validation and forwarding of NHL IDs such as `20262027`. Omitted season preserves the API default. Requires REST discovery to advertise support; no release or publishing is included.
+
 ## 0.2.6 - 2026-08-07
 
 - Require Windows Codex setup to launch the masked helper through the approved out-of-sandbox shell path on the first attempt.

@@ -99,7 +99,9 @@ The Codex plugin never accepts the key as a skill or MCP tool argument. Its plat
 
 ## Query model
 
-`query_stats` accepts `sport`, `resource`, and these optional fields: `split`, `metrics`, up to five numeric `filters`, `sort`, `team`, `opponent`, `entity_id`, `day`, `page_size`, `cursor`, `stat_format`, `meta`, `category`, `duration`, and `location`. Resource discovery determines which optional fields are supported. `stat_format` and `meta` default to `compact`.
+`query_stats` accepts `sport`, `resource`, and these optional fields: `split`, `season`, `metrics`, up to five numeric `filters`, `sort`, `team`, `opponent`, `entity_id`, `day`, `page_size`, `cursor`, `stat_format`, `meta`, `category`, `duration`, and `location`. Resource discovery determines which optional fields are supported. `stat_format` and `meta` default to `compact`.
+
+For NHL, use `"season": "20262027"` to request 2026-27 statistics after live discovery advertises `season`. Omit it to retain the API's dashboard default, which may use the completed prior season during early-season mode. The current slate and split semantics stay unchanged; absent statistics remain empty or null. Continue pagination with the same season and all other filters. Older APIs that do not advertise `season` reject this option before any protected data request. This requires the matching REST season-selector change; merging this client alone does not expose new data.
 
 Filter objects use `{ "metric": "k_pct", "operator": "gte", "value": 0.20 }`. Operators are `eq`, `ne`, `gt`, `gte`, `lt`, and `lte`. Values must be finite and use the canonical unit returned by discovery; proportions use `0.20` for 20%.
 
