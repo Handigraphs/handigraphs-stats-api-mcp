@@ -6,6 +6,8 @@ import type { Config } from "../src/config.js";
 import { createServer } from "../src/server.js";
 import { startMockApi } from "./mock-api.js";
 
+const agentNames = ["describe_filter_capabilities", "list_saved_filters", "get_saved_filter", "validate_filter", "run_filter", "list_saved_research", "get_saved_research", "list_gamecenter_games", "get_gamecenter_packet"];
+
 function config(baseUrl: string): Config { return { apiKey: "hg_test_never_log", baseUrl: new URL(baseUrl), discoveryTtlMs: 300_000, timeoutMs: 2_000, maxResponseBytes: 5 * 1024 * 1024 }; }
 
 async function connectedClient(baseUrl: string) {
@@ -16,11 +18,15 @@ async function connectedClient(baseUrl: string) {
   return { client, close: async () => { await client.close(); await server.close(); } };
 }
 
-test("all three tools are exposed and query defaults compact, forwards pagination, and never caches data", async (t) => {
+test("legacy stats tools remain usable on an old server and preserve compact uncached pagination", async (t) => {
   const api = await startMockApi(); t.after(() => api.close());
   const connection = await connectedClient(api.baseUrl); t.after(() => connection.close());
   assert.equal(connection.client.getServerVersion()?.version, "0.2.7");
-  assert.deepEqual((await connection.client.listTools()).tools.map((tool) => tool.name), ["list_resources", "describe_resource", "query_stats"]);
+  assert.deepEqual((await connection.client.listTools()).tools.map((tool) => tool.name), ["list_resources", "describe_resource", "query_stats", ...agentNames]);
+  const unavailable = await connection.client.callTool({ name: "list_saved_filters", arguments: {} });
+  assert.equal(unavailable.isError, true);
+  assert.match(JSON.stringify(unavailable), /agent_api_unavailable/);
+  assert.equal(api.requests.some((item) => item.path.startsWith("/api/v1/filters")), false);
   const args = { sport: "mlb", resource: "batters", metrics: ["avg"], filters: [{ metric: "avg", operator: "gte", value: 0.2 }], cursor: "opaque" };
   const first = await connection.client.callTool({ name: "query_stats", arguments: args });
   const second = await connection.client.callTool({ name: "query_stats", arguments: args });
@@ -54,7 +60,7 @@ test("configured Codex mode keeps query tools and adds secure key rotation", asy
 
   assert.deepEqual(
     (await client.listTools()).tools.map((tool) => tool.name),
-    ["list_resources", "describe_resource", "query_stats", "configure_api_key"],
+    ["list_resources", "describe_resource", "query_stats", ...agentNames, "configure_api_key"],
   );
   const result = await client.callTool({ name: "configure_api_key", arguments: {} });
   assert.equal(result.isError, undefined);
