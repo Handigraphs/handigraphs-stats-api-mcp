@@ -170,7 +170,9 @@ npm run audit:live:sandbox
 
 The audit uses the official MCP client over stdio, discovers both sports, describes and queries all nine resources with compact/default metadata, and verifies cursor pagination without printing response rows or the key.
 
-`npm run audit:agent:sandbox` is a separate read-only entry point for agent capability and owned-list checks with a temporary sandbox key. It never creates filters, ideas or jobs. The synthetic-account research-and-save acceptance run and rollout evidence belong to the later PR-09 launch gate; passing this entry point is not that proof. Neither audit permits a production target.
+`npm run audit:agent:sandbox` checks agent capabilities and owned lists read-only by default, using a temporary sandbox key. Neither audit permits a production target.
+
+Operator-only `npm run audit:agent:sandbox -- --confirm-account-writes` delegates to the app repository's `web/backend/scripts/audit_stats_api_agent.py`. Configure `HANDIGRAPHS_AUDIT_PYTHON`, `HANDIGRAPHS_AGENT_AUDITOR`, `HANDIGRAPHS_AGENT_AUDIT_CASES` and `HANDIGRAPHS_AGENT_AUDIT_RUN_ID`; keep the temporary key only in `HANDIGRAPHS_API_KEY`. The app verifier checks the actual key digest and fresh synthetic owner against the fixed sandbox database before starting this MCP build. It owns bounded four-target/SOG execution and scoped cleanup/key revocation. Optional website parity requires `HANDIGRAPHS_AGENT_COMPARE_WEBSITE=1` and a same-owner temporary `HANDIGRAPHS_LEGACY_JWT`. Follow the app's `plans/agent_filter_research/operations.md` for provisioning prerequisites, recovery and evidence limits. Never use a permanent smoke key, review account or customer credential. Incomplete cleanup requires operator follow-up; passing this audit does not approve launch, hosted capacity, production deployment or package publication.
 
 Tests use local mocked HTTP servers and the official MCP client, including an end-to-end stdio process. No live Handigraphs key or external service is required.
 
