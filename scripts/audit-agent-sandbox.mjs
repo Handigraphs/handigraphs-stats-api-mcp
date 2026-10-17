@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { spawn } from "node:child_process";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -15,12 +16,26 @@ const REQUIRED_TOOLS = ["list_resources", "describe_resource", "query_stats",
   "list_filter_research", "get_filter_research", "cancel_filter_research"];
 
 export function auditConfiguration(env, args) {
-  assert.equal(args.length, 0, "This audit accepts no arguments or write confirmation; PR-09 owns mutating acceptance.");
+  assert.equal(args.length, 0, "Read-only configuration accepts no arguments; write mode requires the verified app operator.");
   const key = env.HANDIGRAPHS_API_KEY?.trim() ?? "";
   assert.match(key, /^hg_test_[A-Za-z0-9_-]+$/, "HANDIGRAPHS_API_KEY must be a temporary sandbox hg_test_ key");
   const base = env.HANDIGRAPHS_API_BASE_URL?.replace(/\/+$/, "");
   assert.ok(!base || base === SANDBOX, "agent audit refuses non-sandbox HANDIGRAPHS_API_BASE_URL");
   return { key, base: SANDBOX };
+}
+
+export function guardedWriteCommand(env) {
+  auditConfiguration(env, []);
+  for (const name of ["HANDIGRAPHS_AUDIT_PYTHON", "HANDIGRAPHS_AGENT_AUDITOR", "HANDIGRAPHS_AGENT_AUDIT_CASES", "HANDIGRAPHS_AGENT_AUDIT_RUN_ID"]) {
+    assert.ok(env[name]?.trim(), "Guarded app operator configuration is required");
+  }
+  assert.match(env.HANDIGRAPHS_AGENT_AUDITOR.replaceAll("\\", "/"), /\/web\/backend\/scripts\/audit_stats_api_agent\.py$/);
+  return { command: env.HANDIGRAPHS_AUDIT_PYTHON, args: [
+    env.HANDIGRAPHS_AGENT_AUDITOR, "--target", "sandbox", "--confirm-account-writes",
+    "--cases", env.HANDIGRAPHS_AGENT_AUDIT_CASES, "--transport", "mcp",
+    "--mcp-server", fileURLToPath(new URL("../dist/index.js", import.meta.url)),
+    ...(env.HANDIGRAPHS_AGENT_COMPARE_WEBSITE === "1" ? ["--compare-website"] : []),
+  ] };
 }
 
 // Read-only and bounded: four capability requests and one page of each owned list.
@@ -58,7 +73,21 @@ export async function auditAgentReads(client) {
 
 async function main() {
   if (process.argv.slice(2).length === 1 && process.argv[2] === "--help") {
-    process.stdout.write("Read-only sandbox agent audit. Set a temporary HANDIGRAPHS_API_KEY in the environment. No write flags; mutating acceptance belongs to PR-09.\n");
+    process.stdout.write("Read-only by default. --confirm-account-writes delegates to the app's verified sandbox operator before starting MCP. Configure HANDIGRAPHS_AUDIT_PYTHON, HANDIGRAPHS_AGENT_AUDITOR, HANDIGRAPHS_AGENT_AUDIT_CASES and HANDIGRAPHS_AGENT_AUDIT_RUN_ID. Temporary key stays in HANDIGRAPHS_API_KEY.\n");
+    return;
+  }
+  if (process.argv.slice(2).length === 1 && process.argv[2] === "--confirm-account-writes") {
+    const spec = guardedWriteCommand(process.env);
+    // Python verifies the bearer digest against the fixed sandbox, owns bounded
+    // execution and cleanup, and only then starts this repository's MCP build.
+    // No caller-provided "verified" flag or attestation file can bypass it.
+    const child = spawn(spec.command, spec.args, { env: process.env, windowsHide: true,
+      stdio: ["ignore", "inherit", "pipe"] });
+    child.stderr.on("data", () => {});
+    const code = await new Promise((resolve, reject) => {
+      child.once("error", reject); child.once("exit", value => resolve(value ?? 1));
+    });
+    process.exitCode = code;
     return;
   }
   const { key, base } = auditConfiguration(process.env, process.argv.slice(2));
@@ -85,7 +114,7 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch(() => {
     // Fixed diagnostic: SDK/network/validation exceptions can contain private payloads.
-    process.stderr.write("Agent sandbox audit failed. Check temporary sandbox credentials, target, capabilities and compatible server. No account writes were attempted.\n");
+    process.stderr.write("Agent sandbox audit failed. Check the guarded operator report and cleanup status before retrying; do not assume writes or cleanup completed.\n");
     process.exitCode = 1;
   });
 }

@@ -193,3 +193,19 @@ test("agent sandbox audit refuses production targets and writes, and exposes onl
   assert.equal(api.effects.filters + api.effects.ideas + api.effects.jobs, 0);
   assert.doesNotMatch(JSON.stringify(summary), /hg_test|next-owned-page|unsupported_filter/);
 });
+
+test("write audit delegates identity verification and cleanup to the app operator without secret arguments", async () => {
+  const { guardedWriteCommand } = await import(pathToFileURL(resolve("scripts/audit-agent-sandbox.mjs")).href);
+  const env = { HANDIGRAPHS_API_KEY: "hg_test_temporary", HANDIGRAPHS_AUDIT_PYTHON: "python",
+    HANDIGRAPHS_AGENT_AUDITOR: "/app/web/backend/scripts/audit_stats_api_agent.py",
+    HANDIGRAPHS_AGENT_AUDIT_CASES: "/private/cases.json",
+    HANDIGRAPHS_AGENT_AUDIT_RUN_ID: "3600b508-8aa9-4148-be37-cbed6b6a1253" };
+  assert.throws(() => guardedWriteCommand({}));
+  assert.throws(() => guardedWriteCommand({ ...env, HANDIGRAPHS_API_KEY: "hg_live_wrong" }));
+  assert.throws(() => guardedWriteCommand({ ...env, HANDIGRAPHS_AGENT_AUDITOR: "/tmp/verified.json" }));
+  const spec = guardedWriteCommand(env);
+  assert.equal(spec.command, "python");
+  assert.ok(spec.args.includes("--confirm-account-writes"));
+  assert.ok(spec.args.includes("mcp"));
+  assert.doesNotMatch(JSON.stringify(spec), /hg_test_temporary|Bearer/);
+});
