@@ -3,7 +3,8 @@ import { parseRetryAfter, ToolInputError, UpstreamError, type SafeProblem } from
 
 export type RequestOptions =
   | { method: "GET"; protectedData: boolean; etag?: string; body?: never; ifMatch?: never; idempotencyKey?: never }
-  | { method: "POST" | "PUT"; protectedData: true; body: Record<string, unknown>; etag?: never; ifMatch?: string; idempotencyKey?: string };
+  | { method: "POST" | "PUT"; protectedData: true; body: Record<string, unknown>; etag?: never; ifMatch?: string; idempotencyKey?: string }
+  | { method: "POST"; protectedData: true; body: null; etag?: never; ifMatch?: never; idempotencyKey?: never };
 
 function encodeBody(body: Record<string, unknown>): string {
   let encoded: string;
@@ -132,7 +133,8 @@ export class StatsApiHttpClient {
     if (options.method === "GET" && (options.body !== undefined || options.ifMatch !== undefined || options.idempotencyKey !== undefined)) {
       throw new ToolInputError("GET requests cannot contain a body or write headers.");
     }
-    if (options.method !== "GET" && (!options.protectedData || options.etag !== undefined || !options.body || typeof options.body !== "object" || Array.isArray(options.body))) {
+    const emptyPost = options.method === "POST" && options.body === null && options.ifMatch === undefined && options.idempotencyKey === undefined;
+    if (options.method !== "GET" && (!options.protectedData || options.etag !== undefined || (!emptyPost && (!options.body || typeof options.body !== "object" || Array.isArray(options.body))))) {
       throw new ToolInputError("Typed JSON requests require protected data and an object body.");
     }
     const headers = new Headers({ Accept: "application/json, application/problem+json" });
@@ -143,7 +145,7 @@ export class StatsApiHttpClient {
         headers.set(name!, value);
       }
     }
-    const body = options.method === "GET" ? undefined : encodeBody(options.body);
+    const body = options.method === "GET" || options.body === null ? undefined : encodeBody(options.body);
     if (body !== undefined) headers.set("Content-Type", "application/json");
     let response: Response;
     try {

@@ -90,6 +90,20 @@ test("ambiguous POST network failures and timeouts are never resubmitted", async
   }
 });
 
+test("explicit bodyless cancellation sends no JSON or content type and does not relax PUT requirements", async () => {
+  let calls = 0;
+  const http = new StatsApiHttpClient(config("http://localhost/api/v1"), async (_url, init) => {
+    calls++; assert.equal(init?.method, "POST"); assert.equal(init?.body, undefined);
+    assert.equal(new Headers(init?.headers).has("content-type"), false);
+    assert.equal(new Headers(init?.headers).get("authorization"), "Bearer hg_test_never_log");
+    return new Response(JSON.stringify({ job: { status: "cancel_requested" } }), { headers: { "content-type": "application/json" } });
+  });
+  await http.request("research/jobs/opaque/cancel", { method: "POST", protectedData: true, body: null });
+  await assert.rejects(http.request("filters/42", { method: "PUT", protectedData: true, body: null } as unknown as RequestOptions));
+  await assert.rejects(http.request("filters", { method: "POST", protectedData: true } as RequestOptions));
+  assert.equal(calls, 1);
+});
+
 test("discovery cache coalesces fills and revalidates expired entries with ETag", async (t) => {
   const api = await startMockApi((request, response) => {
     if (request.url === "/api/v1" && request.headers["if-none-match"] === '"root-v1"') {

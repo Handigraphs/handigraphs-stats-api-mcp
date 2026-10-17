@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { agentReadTools } from "../dist/agent-read.js";
+import { agentActionTools } from "../dist/agent-actions.js";
 
 async function json(path) {
   return JSON.parse(await readFile(path, "utf8"));
@@ -24,11 +26,14 @@ const credentialRuntime = await readFile("src/credentials.ts", "utf8");
 const setupRuntime = await readFile("src/setup.ts", "utf8");
 const versionRuntime = await readFile("src/version.ts", "utf8");
 const liveAudit = await readFile("scripts/audit-live-sandbox.mjs", "utf8");
+const researchSkill = await readFile(`${pluginRoot}/skills/research-handigraphs-filters/SKILL.md`, "utf8");
+const researchInterface = await readFile(`${pluginRoot}/skills/research-handigraphs-filters/agents/openai.yaml`, "utf8");
+const agentAudit = await readFile("scripts/audit-agent-sandbox.mjs", "utf8");
 
 for (const manifest of [codexManifest, claudeManifest, bundleManifest]) {
   assert.equal(manifest.name, "handigraphs-stats-api");
   assert.equal(manifest.version, packageManifest.version);
-  assert.match(manifest.description, /read-only local MCP server/i);
+  assert.match(manifest.description, /save bounded research through a local MCP server/i);
 }
 
 assert.equal(codexMarketplace.name, "handigraphs");
@@ -53,7 +58,18 @@ assert.equal(claudeMcp.mcpServers["handigraphs-stats"].env.HANDIGRAPHS_API_KEY, 
 assert.equal(bundleManifest.user_config?.api_key?.sensitive, true);
 assert.equal(bundleManifest.server?.entry_point, "dist/index.js");
 assert.equal(bundleManifest.server?.mcp_config?.env?.HANDIGRAPHS_API_KEY, "${user_config.api_key}");
-assert.deepEqual(bundleManifest.tools.map(({ name }) => name).sort(), ["describe_resource", "list_resources", "query_stats"]);
+assert.deepEqual(bundleManifest.tools.map(({ name }) => name).sort(),
+  ["describe_resource", "list_resources", "query_stats", ...agentReadTools.map(t => t.name), ...agentActionTools.map(t => t.name)].sort());
+for (const tool of [...agentReadTools, ...agentActionTools]) {
+  assert.equal(bundleManifest.tools.find(item => item.name === tool.name)?.description, tool.description);
+}
+assert.deepEqual(codexManifest.interface.capabilities, ["Read", "Write"]);
+assert.match(researchSkill, /^name: research-handigraphs-filters$/m);
+assert.doesNotMatch(researchSkill, /\[TODO|STATS_API_KEY_PEPPER|public\.api_keys|web\/backend/);
+assert.match(researchInterface, /\$research-handigraphs-filters/);
+assert.match(skill, /research-handigraphs-filters/);
+assert.match(agentAudit, /StdioClientTransport/);
+assert.match(agentAudit, /read-only/);
 
 assert.doesNotMatch(skill, /\[TODO|STATS_API_KEY_PEPPER|STATS_API_MODE|public\.api_keys|web\/backend/);
 assert.match(skill, /^name: query-handigraphs-stats$/m);

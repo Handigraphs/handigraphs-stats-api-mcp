@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — 0.3.0 candidate
+
+- Add native saved-filter discovery, validation and current-slate execution, owned
+  Angles ideas, and bounded stored MLB/NHL Gamecenter packets.
+- Add idempotent new filter/idea saves, revision-guarded replacements, and explicit
+  historical job submission, reads and cancellation with truthful MCP annotations.
+- Add a public research skill for bounded comparisons, supported conclusions or
+  abstention, exact saved settings, report expiry and explicit save/replace intent.
+- Align plugin and Desktop tool manifests; add a read-only agent sandbox audit entry.
+- Retain stats compatibility on older servers and update the MCP SDK to 1.31.0.
+- This is prepared source, not a published release or live launch sign-off.
+
 ## 0.2.7 - 2026-10-06
 
 - Add an optional, live-discovery-gated `season` field to `query_stats`, including validation and forwarding of NHL IDs such as `20262027`. Omitted season preserves the API default. Requires REST discovery to advertise support.

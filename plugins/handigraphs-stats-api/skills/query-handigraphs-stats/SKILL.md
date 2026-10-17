@@ -7,6 +7,11 @@ description: Use the Handigraphs Stats API MCP tools to discover and query live 
 
 Use live discovery instead of guessing resource, metric, split, unit, or filter names.
 
+For native saved filters, Angles historical tests, or research-and-save requests,
+use the bundled `research-handigraphs-filters` skill. Its rules and units differ
+from the simple numeric query filters below. The agent tools can save account
+items and submit research when authorized; ordinary stats queries remain read-only.
+
 ## Workflow
 
 1. Call `list_resources` when the sport or resource is uncertain.
@@ -35,4 +40,6 @@ Use live discovery instead of guessing resource, metric, split, unit, or filter 
 
 - Never ask for or repeat a Stats API key in chat. If the local server is not configured, invoke the bundled `setup-handigraphs-stats-api` skill and follow its platform-specific masked setup workflow. Do not accept the key as a tool argument or automate entry into the setup window.
 - Do not automatically retry `429` or `503` responses. Report the safe error code and honor any retry guidance returned by the tool.
-- Treat every tool as read-only. Do not imply that the plugin can modify Handigraphs data or account settings.
+- Keep this stats-query workflow read-only. Use the research skill for account
+  saves and historical jobs; explicit save intent and confirmed replacements are
+  required even when the key's default-on permissions are enabled.

@@ -1,7 +1,7 @@
 {
   "name": "handigraphs-stats-api",
-  "version": "0.2.7",
-  "description": "Discover and query live Handigraphs MLB and NHL statistics through a read-only local MCP server.",
+  "version": "0.3.0",
+  "description": "Discover MLB and NHL statistics, run filters, and save bounded research through a local MCP server.",
   "author": {
     "name": "Handigraphs",
     "email": "support@handigraphs.com",
@@ -20,12 +20,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Handigraphs Stats API",
-    "shortDescription": "Query live MLB and NHL analytics",
-    "longDescription": "Use a read-only local MCP server to discover Handigraphs resources, inspect live metrics and splits, and query MLB or NHL statistics.",
+    "shortDescription": "Research and save MLB and NHL filters",
+    "longDescription": "Discover MLB and NHL statistics, run filters, and save bounded research through a local MCP server.",
     "developerName": "Handigraphs",
     "category": "Data",
     "capabilities": [
-      "Read"
+      "Read",
+      "Write"
     ],
     "websiteURL": "https://www.handigraphs.com/developers#mcp",
     "privacyPolicyURL": "https://www.handigraphs.com/privacy",
@@ -33,7 +34,8 @@
     "defaultPrompt": [
       "Connect my Handigraphs account.",
       "Compare today's MLB starters using live Handigraphs data.",
-      "Show which Handigraphs stats and splits are available."
+      "Show which Handigraphs stats and splits are available.",
+      "Research and test SOG filter ideas, then save the strongest supported candidate for me."
     ]
   },
   "mcpServers": "./.mcp.json"

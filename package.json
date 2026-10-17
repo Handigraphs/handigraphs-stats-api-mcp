@@ -1,7 +1,7 @@
 {
   "name": "@handigraphs/stats-api-mcp",
-  "version": "0.2.7",
-  "description": "Read-only MCP server for the Handigraphs Stats API v1",
+  "version": "0.3.0",
+  "description": "Discover MLB and NHL statistics, run filters, and save bounded research through a local MCP server.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -36,7 +36,8 @@
     "README.md",
     "CHANGELOG.md",
     "SECURITY.md",
-    "LICENSE"
+    "LICENSE",
+    "scripts/audit-agent-sandbox.mjs"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -50,7 +51,8 @@
     "mcpb:pack": "npm run build && node scripts/build-mcpb.mjs",
     "mcpb:check": "npm run build && node scripts/build-mcpb.mjs --check",
     "pack:check": "npm run build && node scripts/check-pack.mjs",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "audit:agent:sandbox": "npm run build && node scripts/audit-agent-sandbox.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.31.0",

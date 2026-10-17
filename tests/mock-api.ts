@@ -72,9 +72,74 @@ export function agentDescriptor(): Record<string, unknown> {
       idea_read: { method: "GET", path: "/api/v1/research/ideas/{idea_id}" },
       gamecenter_games: { method: "GET", path: "/api/v1/{sport}/gamecenter" },
       gamecenter_read: { method: "GET", path: "/api/v1/{sport}/gamecenter/{game_id}" },
+      filters_save: { method: "POST", path: "/api/v1/filters" },
+      filters_replace: { method: "PUT", path: "/api/v1/filters/{filter_id}" },
+      ideas_update: { method: "PUT", path: "/api/v1/research/ideas/{idea_id}" },
+      jobs_submit: { method: "POST", path: "/api/v1/research/jobs" },
+      jobs_read: { method: "GET", path: "/api/v1/research/jobs" },
+      job_read: { method: "GET", path: "/api/v1/research/jobs/{job_id}" },
+      job_result: { method: "GET", path: "/api/v1/research/jobs/{job_id}/result" },
+      jobs_cancel: { method: "POST", path: "/api/v1/research/jobs/{job_id}/cancel" },
     },
     gamecenter: { sports: ["mlb", "nhl"], sections: ["summary", "context", "availability", "analysis", "evidence"], default_sections: ["summary", "context", "availability"], limits: { games_maximum: 25, evidence_maximum: 100 } },
   };
+}
+
+export const MOCK_JOB_ID = "f7e3a6ca-e19f-4bc9-85e9-f416bad81b43";
+export const MOCK_IDEA_ID = "da4382ab-73aa-4b44-bef6-7c769c0fd915";
+export async function startActionMockApi(custom?: (request: IncomingMessage, response: ServerResponse) => boolean) {
+  const effects = { filters: 0, ideas: 0, jobs: 0, cancels: 0, filterRevision: 7, ideaRevision: 2 };
+  const creates = new Map<string, { body: string; result: Record<string, unknown> }>();
+  let jobRequest: Record<string, unknown> = {};
+  let cancelled = false;
+  const api = await startAgentMockApi((request, response) => {
+    if (custom?.(request, response)) return true;
+    const url = new URL(request.url ?? "/", "http://localhost");
+    const send = (status: number, payload: unknown) => {
+      response.writeHead(status, { "content-type": status >= 400 ? "application/problem+json" : "application/json", "retry-after": "5", etag: `"${effects.filterRevision}"` });
+      response.end(JSON.stringify(payload));
+    };
+    const job = (status: string, detail = false) => ({ job_id: MOCK_JOB_ID, status, request_hash: "exact-input-hash", expires_at: "2026-10-18T12:00:00Z",
+      polling: { minimum_seconds: 5, unchanged_seconds: 15, foreground_deadline_seconds: 600 },
+      status_url: `/api/v1/research/jobs/${MOCK_JOB_ID}`, result_url: `/api/v1/research/jobs/${MOCK_JOB_ID}/result`,
+      ...(detail ? { request: jobRequest, frequency_status: "succeeded", outcome_status: "failed", stages: { frequency: { status: "succeeded", opportunities: 30 }, outcomes: { status: "failed", error_code: "missing_outcomes", priced_count: 0, roi: null } } } : {}) });
+    if (request.method === "GET" && url.pathname === "/api/v1/research/jobs") { send(200, { jobs: [job(cancelled ? "cancel_requested" : "queued")] }); return true; }
+    if (request.method === "GET" && url.pathname.startsWith(`/api/v1/research/jobs/${MOCK_JOB_ID}`)) { send(200, { job: job(cancelled ? "cancel_requested" : "partial", true) }); return true; }
+    if (!["POST", "PUT"].includes(request.method ?? "")) return false;
+    if (!["/api/v1/filters", "/api/v1/filters/42", `/api/v1/research/ideas/${MOCK_IDEA_ID}`, "/api/v1/research/jobs", `/api/v1/research/jobs/${MOCK_JOB_ID}/cancel`].includes(url.pathname)) return false;
+    let raw = "";
+    request.on("data", (chunk) => { raw += String(chunk); });
+    request.on("end", () => {
+      if (url.pathname.endsWith("/cancel")) {
+        if (raw) return send(400, { code: "invalid_research_request" });
+        if (!cancelled) effects.cancels++;
+        cancelled = true; return send(200, { job: job("cancel_requested") });
+      }
+      const body = JSON.parse(raw) as Record<string, unknown>;
+      if (request.method === "POST") {
+        const key = url.pathname + ":" + request.headers["idempotency-key"];
+        const prior = creates.get(key);
+        if (prior) {
+          if (raw !== prior.body) return send(409, { code: "idempotency_conflict" });
+          return send(200, { ...prior.result, replayed: true });
+        }
+        let result: Record<string, unknown>;
+        if (url.pathname === "/api/v1/filters") {
+          effects.filters++; if (body.research_idea) effects.ideas++;
+          result = { filter: { id: 42, revision: 7, links: { website: "/research/filters/42" } }, research_idea: body.research_idea ? { id: MOCK_IDEA_ID, definition: (body.research_idea as Record<string, unknown>).definition, links: { website: `/research/ideas/${MOCK_IDEA_ID}` }, report: { archived: false } } : null };
+        } else { effects.jobs++; jobRequest = body; result = { job: job("queued") }; }
+        creates.set(key, { body: raw, result }); send(url.pathname === "/api/v1/filters" ? 201 : 202, result); return;
+      }
+      if (url.pathname === "/api/v1/filters/42") {
+        if (request.headers["if-match"] !== `"${effects.filterRevision}"`) return send(412, { code: "filter_revision_conflict" });
+        effects.filterRevision++; return send(200, { filter: { id: 42, revision: effects.filterRevision } });
+      }
+      if (body.revision !== effects.ideaRevision) return send(409, { code: "research_idea_conflict" });
+      effects.ideaRevision++; send(200, { idea: { id: MOCK_IDEA_ID, revision: effects.ideaRevision } });
+    });
+    return true;
+  });
+  return { ...api, effects };
 }
 
 export function startAgentMockApi(custom?: (request: IncomingMessage, response: ServerResponse) => boolean): Promise<MockApi> {
