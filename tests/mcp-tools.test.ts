@@ -7,6 +7,7 @@ import { createServer } from "../src/server.js";
 import { startMockApi } from "./mock-api.js";
 
 const agentNames = ["describe_filter_capabilities", "list_saved_filters", "get_saved_filter", "validate_filter", "run_filter", "list_saved_research", "get_saved_research", "list_gamecenter_games", "get_gamecenter_packet"];
+const actionNames = ["save_filter", "update_saved_filter", "update_saved_research", "start_filter_research", "list_filter_research", "get_filter_research", "cancel_filter_research"];
 
 function config(baseUrl: string): Config { return { apiKey: "hg_test_never_log", baseUrl: new URL(baseUrl), discoveryTtlMs: 300_000, timeoutMs: 2_000, maxResponseBytes: 5 * 1024 * 1024 }; }
 
@@ -21,8 +22,8 @@ async function connectedClient(baseUrl: string) {
 test("legacy stats tools remain usable on an old server and preserve compact uncached pagination", async (t) => {
   const api = await startMockApi(); t.after(() => api.close());
   const connection = await connectedClient(api.baseUrl); t.after(() => connection.close());
-  assert.equal(connection.client.getServerVersion()?.version, "0.2.7");
-  assert.deepEqual((await connection.client.listTools()).tools.map((tool) => tool.name), ["list_resources", "describe_resource", "query_stats", ...agentNames]);
+  assert.equal(connection.client.getServerVersion()?.version, "0.3.0");
+  assert.deepEqual((await connection.client.listTools()).tools.map((tool) => tool.name), ["list_resources", "describe_resource", "query_stats", ...agentNames, ...actionNames]);
   const unavailable = await connection.client.callTool({ name: "list_saved_filters", arguments: {} });
   assert.equal(unavailable.isError, true);
   assert.match(JSON.stringify(unavailable), /agent_api_unavailable/);
@@ -60,7 +61,7 @@ test("configured Codex mode keeps query tools and adds secure key rotation", asy
 
   assert.deepEqual(
     (await client.listTools()).tools.map((tool) => tool.name),
-    ["list_resources", "describe_resource", "query_stats", ...agentNames, "configure_api_key"],
+    ["list_resources", "describe_resource", "query_stats", ...agentNames, ...actionNames, "configure_api_key"],
   );
   const result = await client.callTool({ name: "configure_api_key", arguments: {} });
   assert.equal(result.isError, undefined);

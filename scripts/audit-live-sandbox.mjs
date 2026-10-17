@@ -90,7 +90,10 @@ async function main() {
     await client.connect(transport);
     connected = true;
     assert.equal(client.getServerVersion()?.version, packageManifest.version, "MCP handshake version does not match package.json");
-    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name), ["list_resources", "describe_resource", "query_stats"]);
+    const toolNames = (await client.listTools()).tools.map((tool) => tool.name);
+    for (const name of ["list_resources", "describe_resource", "query_stats"]) {
+      assert.ok(toolNames.includes(name), `Missing original stats tool: ${name}`);
+    }
 
     const allResources = toolResponse(
       await client.callTool({ name: "list_resources", arguments: {} }),

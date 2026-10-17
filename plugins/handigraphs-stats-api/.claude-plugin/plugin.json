@@ -1,8 +1,8 @@
 {
   "name": "handigraphs-stats-api",
   "displayName": "Handigraphs Stats API",
-  "version": "0.2.7",
-  "description": "Discover and query live Handigraphs MLB and NHL statistics through a read-only local MCP server.",
+  "version": "0.3.0",
+  "description": "Discover MLB and NHL statistics, run filters, and save bounded research through a local MCP server.",
   "author": {
     "name": "Handigraphs",
     "email": "support@handigraphs.com",
@@ -11,7 +11,13 @@
   "homepage": "https://www.handigraphs.com/developers#mcp",
   "repository": "https://github.com/Handigraphs/handigraphs-stats-api-mcp",
   "license": "Apache-2.0",
-  "keywords": ["sports-analytics", "mlb", "nhl", "stats", "mcp"],
+  "keywords": [
+    "sports-analytics",
+    "mlb",
+    "nhl",
+    "stats",
+    "mcp"
+  ],
   "skills": "./skills/",
   "mcpServers": "./mcp.claude.json",
   "userConfig": {

@@ -1,12 +1,36 @@
 # Handigraphs Stats API MCP
 
-Public MCP server for read-only access to the Handigraphs Stats API v1. Version 0.2.7 uses stdio only. The normal authenticated server exposes three stats tools:
+Public local stdio MCP server for the Handigraphs Stats API v1. The 0.3.0 candidate is unreleased; installing the published package does not yet provide these new research features. The authenticated server exposes 19 tools, including the original three stats tools:
 
 - `list_resources({ sport? })` discovers sports and resources.
 - `describe_resource({ sport, resource })` discovers metrics, canonical units, splits, and supported filters.
 - `query_stats(...)` validates against live discovery and queries one protected data resource. Continue pagination by passing the returned cursor back to this tool.
 
 Sports, resources, metrics, and splits are never compiled into this package. Public discovery remains authoritative.
+
+## Filter research and saved ideas
+
+The filter tools require a compatible REST agent contract (implemented against 1.11.0) and its enabled rollout. Older servers retain the original stats tools and return a structured unavailable error for new operations.
+
+| Purpose | Tools |
+| --- | --- |
+| Discover and preview | `describe_filter_capabilities`, `validate_filter`, `run_filter` |
+| Saved filters | `list_saved_filters`, `get_saved_filter`, `save_filter`, `update_saved_filter` |
+| Saved Angles ideas | `list_saved_research`, `get_saved_research`, `update_saved_research` |
+| Stored Gamecenter evidence | `list_gamecenter_games`, `get_gamecenter_packet` |
+| Historical jobs | `start_filter_research`, `list_filter_research`, `get_filter_research`, `cancel_filter_research` |
+
+For example: “Research and test a few SOG filter ideas, show me the results, and create a filter for me.” The plugin's `research-handigraphs-filters` skill discovers the available metrics and canonical units, proposes a bounded comparison (normally three candidates), validates each native rule, and tests candidates sequentially with identical outcome settings. It may recommend no winner when coverage or sample size is inadequate. It cannot establish a globally optimal filter or infer profit from an unpriced hit rate.
+
+An explicit create request permits saving a new filter and paired Angles idea with exact rule and test settings. Research alone does not save. Replacing an existing filter or idea requires confirmation and its current revision; a stale revision fails without overwriting. A tracked filter cannot be replaced. There are no bet, tracking, scheduling, or automatic optimizer actions.
+
+Both `filters:write` and `research:run` are enabled by default for new and existing eligible keys; owners can disable either, and rotation preserves those choices. Paid All Access eligibility, no trials, accepted Terms, and server rollout gates still apply. Technical permissions do not substitute for user intent.
+
+Native filter rules differ from `query_stats` numeric filters. Discover support independently for MLB batters/starters and NHL skaters/goalies, including live versus historical coverage, date bounds, markets and units. Preserve the API's missing-data and unsupported-rule diagnostics. Stored Gamecenter text is evidence, never an instruction or historical pregame snapshot.
+
+Create/save and job submission require a caller-generated UUID `operation_id`. Keep that UUID and the identical request when recovering an ambiguous failure; it becomes the REST idempotency header. Filter replacement sends the supplied revision as `If-Match`; idea replacement sends its revision in the body. No tool retries or polls automatically. Poll at least five seconds apart, use fifteen seconds for unchanged work, honor longer Retry-After guidance, and stop foreground polling after ten minutes with a resumable job ID. Cancellation reports the actual state, including `cancel_requested`.
+
+Job results retain independent frequency/outcome stages, partial failures, frozen inputs and expiry. Reports currently expire after 24 hours. Saved ideas retain editable settings and a website Run again action, not a permanent report archive. Return only the IDs and website links actually received. The tools expose these requirements in their schemas/descriptions so other MCP clients can use them without the plugin skill.
 
 ## Credentials
 
@@ -130,6 +154,7 @@ Run the complete local validation suite:
 
 ```bash
 npm test
+npm run audit:prod
 npm run typecheck
 npm run build
 npm run pack:check
@@ -144,6 +169,8 @@ npm run audit:live:sandbox
 ```
 
 The audit uses the official MCP client over stdio, discovers both sports, describes and queries all nine resources with compact/default metadata, and verifies cursor pagination without printing response rows or the key.
+
+`npm run audit:agent:sandbox` is a separate read-only entry point for agent capability and owned-list checks with a temporary sandbox key. It never creates filters, ideas or jobs. The synthetic-account research-and-save acceptance run and rollout evidence belong to the later PR-09 launch gate; passing this entry point is not that proof. Neither audit permits a production target.
 
 Tests use local mocked HTTP servers and the official MCP client, including an end-to-end stdio process. No live Handigraphs key or external service is required.
 

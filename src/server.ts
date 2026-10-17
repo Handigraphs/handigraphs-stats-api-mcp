@@ -10,6 +10,7 @@ import { redact, safeStderr } from "./redaction.js";
 import { registerApiKeySetupTool, type SetupLauncher } from "./setup.js";
 import { SERVER_VERSION } from "./version.js";
 import { AgentReadClient, agentReadTools } from "./agent-read.js";
+import { AgentActionClient, agentActionTools } from "./agent-actions.js";
 
 const sportSchema = z.string().trim().min(1).max(32);
 const resourceSchema = z.string().trim().min(1).max(64);
@@ -50,6 +51,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   const http = new StatsApiHttpClient(config, dependencies.fetchImpl);
   const discovery = new DiscoveryClient(http, config.discoveryTtlMs, dependencies.now);
   const agent = new AgentReadClient(http, discovery);
+  const actions = new AgentActionClient(http, discovery);
   const server = new McpServer({ name: "handigraphs-stats-api", version: SERVER_VERSION });
 
   server.registerTool("list_resources", {
@@ -124,13 +126,17 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     return success(response.json, response.metadata);
   }));
 
-  for (const tool of agentReadTools) {
+  const tools = [
+    ...agentReadTools.map((tool) => ({ ...tool, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true }, execute: (input: unknown) => agent.execute(tool.name, input) })),
+    ...agentActionTools.map((tool) => ({ ...tool, execute: (input: unknown) => actions.execute(tool.name, input) })),
+  ];
+  for (const tool of tools) {
     server.registerTool(tool.name, {
       description: tool.description,
       inputSchema: tool.inputSchema,
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: tool.annotations,
     }, (input: unknown) => handler(config, async () => {
-      const response = await agent.execute(tool.name, input);
+      const response = await tool.execute(input);
       // Preserve opaque evaluation/cursor tokens while removing exact credential
       // echoes from arbitrary stored text as well as structured metadata.
       const removeKey = (_key: string, value: unknown) => typeof value === "string" && config.apiKey ? value.split(config.apiKey).join("[REDACTED]") : value;
