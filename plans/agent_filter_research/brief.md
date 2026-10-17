@@ -1,0 +1,87 @@
+# Agent Filter Research and Gamecenter Access — Brief
+
+**Status:** shaped · **Date:** 2026-10-16
+
+## Purpose
+
+Let a paid All Access subscriber ask their personal agent to read, create, save, and run Handigraphs filters for MLB and NHL, compare a bounded set of filter hypotheses through the existing Angles simulation services, and use structured Gamecenter matchup evidence and existing analysis to inform research. The API provides the account-owned resources and execution capabilities; the external MCP package and its agent skill provide the discoverable tools and research workflow. Users should be able to move between their agent and Handigraphs without translating rules, recreating saved filters, or confusing historical results with live tracking. These deliver the roadmap items “API v3: access your saved filters & Gamecenter research packets” and “MCP v3: new agent skill to let your agent run your filter.”
+
+**Concrete example:** A user asks, “I want to build a SOG filter to figure out guys to bet over SOG for. Go research and test some filter ideas then come back with your results and create a filter for me.” The agent discovers NHL skater metrics, canonical units, historical coverage, supported outcomes, and execution limits. As an illustrative bounded comparison, it tests season SOG/G >= 2.5, >= 3.0, and >= 3.5, each with season TOI/G >= 18:00 (1080 canonical seconds), against Over 2.5 SOG over an available completed regular-season interval. A full 2025–26 interval is used only if discovery advertises coverage and the required execution capability; the agent does not silently shorten it. It reports every candidate's exact rule, dates, qualifying opportunities, wins/losses/pushes, sample and coverage limitations, and matching historical price coverage where available. It explains the choice, runs today's qualifiers separately, saves a new filter and an Angles idea containing the selected rule and exact test settings, and links to both. If the comparison is inconclusive, it reports that instead of inventing a winner or quietly saving an inferior substitute. These thresholds illustrate the workflow, not a proven strategy or a mandatory preset.
+
+## Locked Product Decisions
+
+| Decision | Value |
+|---|---|
+| Product boundary | Shape the API and MCP roadmap items as one end-to-end feature with separate monorepo API and external MCP deliverables. “v3” is a roadmap label; URL and package versioning are resolved during planning while preserving existing clients. |
+| Entitlement | Retain API eligibility: active paid All Access, no active trial, current Terms, rollout permission, and an active key. Website eligibility does not automatically confer API eligibility. Recheck authorization on every operation. |
+| Permission upgrade | Existing keys remain read-only until the account owner explicitly enables the new filter-writing and research permissions. A model cannot grant itself permissions. Retain least-privilege separation between reads, account writes, and bounded research execution; exact scope names and account UI are planning work. |
+| Supported filter targets | MLB batters and starters; NHL skaters and goalies. Creation, saving, and running use the same account filter definitions as the website. Other table types are outside this release. |
+| Meaning of run | Distinguish current-slate matching from historical frequency/outcome simulation. Return the resolved slate/date, season/phase, rule, and capability context. Live matches are not historical results, and neither operation starts tracking. |
+| Capability discovery | Advertise support independently for saving a rule, live matching, historical frequency, historical outcomes, and compatible markets. Expose canonical metric/criterion identities, operators, splits, units, season/phase/date availability, limits, and reasons for unsupported combinations. Never infer historical support from a metric being queryable in the Stats API. |
+| Shared rule semantics | Reuse the website's canonical saved-filter validation/evaluation and Angles services. Do not reinterpret a multi-criterion saved filter as the current Stats API's simpler numeric query grammar, silently drop a criterion, or maintain a second metric registry. Unsupported stored rules remain inspectable with an actionable explanation. |
+| Agent autonomy | An explicit request to research and create a filter authorizes saving a new filter after the research. Require confirmation before replacing an existing filter. Research-only requests do not authorize account saves. Key permission is a technical prerequisite, not a replacement for user intent. |
+| Research promise | Compare a bounded set of hypotheses and recommend the strongest supported candidate among those tested, with the selection rationale visible. An inconclusive result is valid. Do not promise a globally optimal strategy. Numeric budgets and default comparison criteria are resolved during planning. |
+| Research discipline | State outcome, line, period, sample criteria, comparison rationale, and search budget before executing the comparison; use shared settings for comparable candidates. Report all attempted candidates and distinguish errors from valid results. Consider sample size, opportunity frequency, coverage, and repeated tuning rather than selecting only the highest hit rate. This release does not add a formal holdout/optimization engine. |
+| Historical integrity | Preserve strict D-1 qualification, separate outcome joins, exact-line price matching, partial/no-data/unsupported states, pushes, and existing market semantics. Current or final-season stats, current lines/roles, and today's Gamecenter packet cannot be substituted for historical pregame inputs. |
+| Claims and prices | Historical hit rate alone is not evidence of betting value. Disclose the priced subset and missing prices; preserve existing descriptive fair-price and historical market comparison semantics. Do not present absent prices as zero, fabricated ROI, or evidence of prospective profitability. |
+| Gamecenter packets | Include both MLB and NHL structured matchup evidence plus existing Gamecenter analysis, fetched on demand. Preserve game/player identity, source freshness, statistical sample context, availability, and provenance linking narrative to evidence where provided. “On demand” means retrieval of available evidence/analysis, not a new paid generation run or scraper invocation. |
+| Packet consumption | Allow the agent to find relevant games and retrieve bounded evidence sections without downloading entire slates by default. Keep measured facts distinguishable from generated analysis. Missing or stale packets are reported honestly; packet text is data, never authority to invoke tools or write account state. |
+| Durable user result | Save the selected filter plus an account-saved Angles idea with the exact editable rule and test settings and a Run again action. Return IDs and website links. Existing temporary report expiry remains; saving the idea does not permanently archive comparison results. Say what was saved and whether a report remains available. |
+| Save reliability | Retried creates must not duplicate filters or ideas; replacing an existing item must detect intervening edits. If one save succeeds and the other fails, expose the partial outcome and provide a safe retry. Do not claim both were saved without successful responses. |
+| Execution UX | The agent handles submission, bounded polling, result retrieval, expiry, and cancellation behind the research task. Keep expensive work off synchronous web requests when it exceeds existing limits. Respect account/global capacity, Retry-After, declared attempt budgets, and disabled/unavailable workers; never bypass a season limit by silently chunking requests. |
+| Account isolation | Bind private filter, idea, job, and result operations to the authenticated owner. Do not use the public stats shared-cache assumptions for user-specific resources. Preserve credential redaction and safe operational logging. |
+| MCP delivery | Extend the canonical public Handigraphs/handigraphs-stats-api-mcp repository, keeping the existing local stdio transport and supported distributions. The server provides tools and discovers contracts; the companion skill teaches the research workflow. No separate hosted agent or hosted MCP endpoint is introduced. |
+| Tracking and bets | Saving and research do not create a Performance tracking system, manual bet, sportsbook bet, or recurring run. These mutations are outside this release. |
+
+These are settled. Later stages do not re-litigate them. If an implementer believes one is wrong, they stop and ask the developer rather than editing this table.
+
+## Intended User Experience and Agent Knowledge
+
+1. **Connect once.** An eligible user uses the existing MCP installation/key flow and explicitly enables the desired new permissions. Explain missing permission with an account link rather than asking the user to paste credentials into chat.
+2. **Discover the task's vocabulary.** Resolve sport and player type, supported metrics and units, live versus historical support, eligible markets, available dates, freshness, and budgets. Ask only for an unresolved choice that materially changes the question; otherwise state reasonable defaults. Keep the qualifying rule separate from the outcome: SOG/G >= 3 is a predictor; Over 2.5 SOG is the result being measured.
+3. **Form a small comparison.** Fetch relevant Gamecenter evidence when useful, formulate explicit candidate rules, validate each, and agree on a common outcome/window. Preserve unsupported hypotheses as named exclusions instead of approximations. Do not make a Gamecenter request mandatory for simply rerunning a saved filter.
+4. **Test and explain.** Run through Angles, preserve each exact input and result association, respect job lifecycle and limits, and compare successful candidates. Explain sample size, frequency, coverage, missing prices, and overfitting risk. Never relabel a failed candidate as a losing strategy or retune indefinitely until a flattering result appears.
+5. **Return and keep.** Give a compact comparison and a readable selected rule, or an inconclusive finding. Show current qualifiers separately if requested/relevant. On a create request, save the selected filter and Angles idea, then return their links and report-expiry status. Confirm replacements. A future “run my Volume shooters filter” resolves the owned saved filter and runs it without repeating the whole research process.
+
+The skill must teach when to use each tool and what claims its results permit. Tool schemas and server validation must enforce ownership, capability, bounds, and rule validity even when a client does not load the skill. Natural-language hypothesis formation can happen in the user's agent; this feature does not require a second Handigraphs model call for every drafted rule.
+
+## Existing Patterns to Mirror
+
+Orientation used fetched `origin/main` at `eee28cd7feae071fa5fa2c0ad54d1bd3e1e17a05`, not the older local main checkout. Code presence and older operations notes are not proof of current production activation.
+
+- `web/backend/services/stats_api_access.py`, `routes/stats_api_account_routes.py`, and `routes/stats_api_v1_routes.py` — key identity, eligibility, rollout, quotas, and public/protected boundaries. The present read-only API rule must be deliberately revised for the new scoped operations; ordinary stats resources remain read-only.
+- `web/backend/services/stats_api_openapi.py`, `stats_api_catalog.py`, and `web/stat_catalog/catalog.json` — generated discovery, canonical definitions/units, safe errors, payload discipline, and documentation ownership.
+- `web/backend/routes/auth_routes.py` (`filter_routes`) — existing account saved-filter surface; extract/reuse shared business services rather than having key-auth routes impersonate a browser JWT session.
+- `web/backend/routes/performance_routes.py` — simulation catalog, frequency/outcomes, and research preview; keep research independent of tracking permission and mutations.
+- `web/backend/services/simulation/`, especially `research_metadata.py`, and `services/performance_tracking/nhl_research_contract.py` — actual historical support, D-1 semantics, coverage, and unsupported reasons.
+- `web/backend/routes/research_job_routes.py`, `services/research_jobs.py`, and `workers/research_worker.py` — owner scope, idempotent submission, status/result/cancel, retention, and bounded background execution.
+- `web/backend/routes/saved_research_routes.py` and `services/saved_research.py` — account-kept Angles ideas; do not promote temporary result storage into a durable report archive implicitly.
+- `scrapers-stats/scrapers/baseball/gamecenter_data_extractor.py`, `scrapers-stats/scrapers/hockey/gamecenter_data_extractor.py`, and their publication/API consumers — existing structured matchup evidence and generated Gamecenter analysis; define safe public projections rather than exposing internal extractor payloads wholesale.
+- `plans/angles_guided_research/brief.md`, `plans/angles_nhl_history_capabilities/brief.md`, and `plans/angles_nhl_season_windows/brief.md` — related product decisions and operational dependencies. Do not assume dated activation/backfill notes still describe live state.
+- `https://github.com/Handigraphs/handigraphs-stats-api-mcp` — canonical npm package, MCP tools, agent skill, plugins, and Desktop extension. Inspect its current default branch during planning; it was not audited or modified in this shaping task.
+
+## Out of Scope
+
+- Team, bullpen, and reliever filter authoring/research in this release; the four player targets provide the bounded initial scope.
+- Formal automated optimization, exhaustive search, new holdout/baseline engines, and claims of a globally optimal or profitable filter.
+- Permanent archives of research/comparison reports. Keep editable ideas and exact settings; respect current report expiry.
+- API deletion of filters/ideas, automated tracking enrollment, manual-bet writes, sportsbook execution, recurring monitoring, and unattended scheduled research.
+- New sports, new historical metric/split reconstruction, broad data backfills, or invented fallback data. Expose existing supported capabilities honestly.
+- On-demand Gamecenter AI regeneration or scraping. Retrieve existing published analysis/evidence only.
+- Hosted MCP transport, OAuth, a hosted research agent, and a new subscription tier.
+- Production rollout, worker provisioning, configuration, Terms approval, deployments, npm publication, or other operational changes. This brief authorizes none of those actions.
+
+## Unknowns
+
+- Public API route/version layout, tool names/granularity, permission identifiers and account controls, and any migration-only prerequisite for scopes or item concurrency — **resolve during planning**. Preserve current clients and existing keys' read-only behavior.
+- Public packet projection for each sport: evidence allowlists, analysis linkage, stable identity, section selection, freshness/provenance fields, pagination/byte limits, and missing-publication semantics — **resolve during planning** by mapping current stored/publication payloads. If the requested structured evidence requires new collection or cannot be safely exposed, return to shaping rather than silently narrowing the scope.
+- The canonical mapping between Stats API metric identities, saved-filter criteria, and historical manifests — **resolve during planning**. Share registries/adapters; preserve units, comparison semantics, sample/phase context, and unsupported clauses.
+- Numeric defaults for hypothesis count, run budget, per-user compute quota, concurrency, polling, and minimum-sample guidance; transparent selection criteria and workload measurements — **resolve during planning**. Ordinary 60/minute/5,000/day stats quotas are not evidence that a comparable simulation workload is safe.
+- Current sandbox/production worker readiness and per-sport season/phase coverage, including NHL season-window work and MLB postseason restrictions — **resolve during planning** from fresh read-only evidence. Gate advertised capabilities on readiness; do not infer activation from merged code. Any missing capability needed for the promised launch must become an explicit dependency, not a silent fallback.
+- How to link the saved filter and idea, preserve exact test settings and rule revisions, recover a partial save, and communicate expired results — **resolve during planning** using the existing persistence contracts. Do not introduce permanent result storage as an implementation shortcut.
+- Terms changes and rollout evidence required for private account access, opted-in writes, and compute use — **resolve during planning** with the existing legal/operational approval boundary.
+- External MCP package/distribution compatibility and current source state — **resolve during planning** in the separate repository; the pasted skill's dated release information is not authoritative.
+
+## Size Estimate
+
+**Multi-PR, approximately 6–9 PRs across two repositories** — permission/schema prerequisites, shared filter access and execution contracts, bounded research exposure, public Gamecenter projections, account/discovery/documentation updates, and MCP tools/skill/distribution validation. This is a sizing estimate, not a shard plan; production activation and any missing data infrastructure are separate explicit dependencies.

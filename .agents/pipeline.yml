@@ -1,0 +1,18 @@
+plans_dir: plans
+default_branch: main
+branch_prefix: codex
+worktree: required
+pr_flow: true
+required_checks: [test-build-pack]
+validate:
+  mcp: |
+    npm ci
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    foreach ($script in @('test','audit:prod','typecheck','build','pack:check','distributions:check','mcpb:check')) {
+      npm run $script
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+never_modify: ['.env', '**/.env']
+review:
+  pr_as_draft: false
+# No local UI, review app or hosted deployment. Releases require explicit approval.

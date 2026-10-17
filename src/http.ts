@@ -1,5 +1,23 @@
 import { isSafeApiUrl, type Config } from "./config.js";
-import { parseRetryAfter, UpstreamError, type SafeProblem } from "./errors.js";
+import { parseRetryAfter, ToolInputError, UpstreamError, type SafeProblem } from "./errors.js";
+
+export type RequestOptions =
+  | { method: "GET"; protectedData: boolean; etag?: string; body?: never; ifMatch?: never; idempotencyKey?: never }
+  | { method: "POST" | "PUT"; protectedData: true; body: Record<string, unknown>; etag?: never; ifMatch?: string; idempotencyKey?: string };
+
+function encodeBody(body: Record<string, unknown>): string {
+  let encoded: string;
+  try {
+    encoded = JSON.stringify(body, (_key, value: unknown) => {
+      if (typeof value === "number" && !Number.isFinite(value)) throw new Error();
+      return value;
+    });
+  } catch { throw new ToolInputError("Request body must contain finite JSON values."); }
+  if (!encoded || Buffer.byteLength(encoded, "utf8") > 65536) {
+    throw new ToolInputError("Request body exceeds the 64 KiB limit.");
+  }
+  return encoded;
+}
 
 export interface JsonResponse {
   json: Record<string, unknown>;
@@ -105,15 +123,34 @@ export class StatsApiHttpClient {
   }
 
   async get(pathOrUrl: string, options: { protectedData: boolean; etag?: string } ): Promise<JsonResponse | { notModified: true }> {
+    return this.request(pathOrUrl, { ...options, method: "GET" });
+  }
+
+  async request(pathOrUrl: string, options: RequestOptions): Promise<JsonResponse | { notModified: true }> {
     const url = this.resolve(pathOrUrl);
+    if (!["GET", "POST", "PUT"].includes(options.method)) throw new ToolInputError("Unsupported HTTP method.");
+    if (options.method === "GET" && (options.body !== undefined || options.ifMatch !== undefined || options.idempotencyKey !== undefined)) {
+      throw new ToolInputError("GET requests cannot contain a body or write headers.");
+    }
+    if (options.method !== "GET" && (!options.protectedData || options.etag !== undefined || !options.body || typeof options.body !== "object" || Array.isArray(options.body))) {
+      throw new ToolInputError("Typed JSON requests require protected data and an object body.");
+    }
     const headers = new Headers({ Accept: "application/json, application/problem+json" });
     if (options.protectedData) headers.set("Authorization", `Bearer ${this.config.apiKey}`);
-    if (options.etag) headers.set("If-None-Match", options.etag);
+    for (const [name, value] of [["If-None-Match", options.etag], ["If-Match", options.ifMatch], ["Idempotency-Key", options.idempotencyKey]]) {
+      if (value !== undefined) {
+        if (!value || value.length > 256 || /[\r\n]/.test(value)) throw new ToolInputError("Invalid conditional request header.");
+        headers.set(name!, value);
+      }
+    }
+    const body = options.method === "GET" ? undefined : encodeBody(options.body);
+    if (body !== undefined) headers.set("Content-Type", "application/json");
     let response: Response;
     try {
       response = await this.fetchImpl(url, {
-        method: "GET",
+        method: options.method,
         headers,
+        ...(body === undefined ? {} : { body }),
         redirect: "manual",
         signal: AbortSignal.timeout(this.config.timeoutMs),
       });
@@ -123,7 +160,10 @@ export class StatsApiHttpClient {
         : "The Handigraphs Stats API could not be reached.";
       throw new UpstreamError({ status: 503, code: "upstream_unavailable", detail });
     }
-    if (response.status === 304) return { notModified: true };
+    if (response.status === 304) {
+      if (options.method === "GET" && options.etag) return { notModified: true };
+      throw new UpstreamError({ status: 502, code: "invalid_upstream_response", detail: "Unexpected conditional response from Handigraphs." });
+    }
     if (response.status >= 300 && response.status < 400) {
       throw new UpstreamError({ status: 502, code: "unsafe_redirect", detail: "The Handigraphs Stats API returned a redirect, which was not followed." });
     }

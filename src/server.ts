@@ -9,6 +9,7 @@ import { FILTER_OPERATORS, validateAndBuildQuery, type QueryInput } from "./quer
 import { redact, safeStderr } from "./redaction.js";
 import { registerApiKeySetupTool, type SetupLauncher } from "./setup.js";
 import { SERVER_VERSION } from "./version.js";
+import { AgentReadClient, agentReadTools } from "./agent-read.js";
 
 const sportSchema = z.string().trim().min(1).max(32);
 const resourceSchema = z.string().trim().min(1).max(64);
@@ -48,6 +49,7 @@ export interface ServerDependencies {
 export function createServer(config: Config, dependencies: ServerDependencies = {}): McpServer {
   const http = new StatsApiHttpClient(config, dependencies.fetchImpl);
   const discovery = new DiscoveryClient(http, config.discoveryTtlMs, dependencies.now);
+  const agent = new AgentReadClient(http, discovery);
   const server = new McpServer({ name: "handigraphs-stats-api", version: SERVER_VERSION });
 
   server.registerTool("list_resources", {
@@ -121,6 +123,22 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     if ("notModified" in response) throw new Error("Protected data unexpectedly returned 304.");
     return success(response.json, response.metadata);
   }));
+
+  for (const tool of agentReadTools) {
+    server.registerTool(tool.name, {
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    }, (input: unknown) => handler(config, async () => {
+      const response = await agent.execute(tool.name, input);
+      // Preserve opaque evaluation/cursor tokens while removing exact credential
+      // echoes from arbitrary stored text as well as structured metadata.
+      const removeKey = (_key: string, value: unknown) => typeof value === "string" && config.apiKey ? value.split(config.apiKey).join("[REDACTED]") : value;
+      const safeResponse = JSON.parse(JSON.stringify(response.json, removeKey)) as Record<string, unknown>;
+      const safeMetadata = JSON.parse(JSON.stringify(response.metadata, removeKey)) as Record<string, unknown>;
+      return success(safeResponse, safeMetadata);
+    }));
+  }
 
   if (dependencies.enableLocalSetup) {
     registerApiKeySetupTool(server, dependencies.setupLauncher);

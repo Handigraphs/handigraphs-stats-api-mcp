@@ -1,4 +1,4 @@
-import { ToolInputError } from "./errors.js";
+import { ToolInputError, UpstreamError } from "./errors.js";
 import { StatsApiHttpClient } from "./http.js";
 
 interface CacheEntry { json: Record<string, unknown>; etag: string | null; expiresAt: number; }
@@ -10,6 +10,25 @@ export interface ResourceDocument {
   splits: string;
   filters: string[];
 }
+
+export function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+// Pin the supported protocol shapes, not metric vocabularies. A descriptor must
+// never redirect a read-only tool to an account mutation or arbitrary endpoint.
+export const AGENT_READ_OPERATIONS = {
+  capabilities: { method: "GET", path: "/api/v1/agent/capabilities" },
+  filters_read: { method: "GET", path: "/api/v1/filters" },
+  filter_read: { method: "GET", path: "/api/v1/filters/{filter_id}" },
+  filters_validate: { method: "POST", path: "/api/v1/filters/validate" },
+  filters_live: { method: "POST", path: "/api/v1/filters/run" },
+  ideas_read: { method: "GET", path: "/api/v1/research/ideas" },
+  idea_read: { method: "GET", path: "/api/v1/research/ideas/{idea_id}" },
+  gamecenter_games: { method: "GET", path: "/api/v1/{sport}/gamecenter" },
+  gamecenter_read: { method: "GET", path: "/api/v1/{sport}/gamecenter/{game_id}" },
+} as const;
+export type AgentReadOperation = keyof typeof AGENT_READ_OPERATIONS;
 
 export class DiscoveryClient {
   private readonly cache = new Map<string, CacheEntry>();
@@ -71,5 +90,24 @@ export class DiscoveryClient {
     const item = await this.resource(sport, resource, force);
     const [metrics, splits] = await Promise.all([this.get(item.metrics, force), this.get(item.splits, force)]);
     return { sport, resource: item, metrics, splits };
+  }
+
+  async agent(): Promise<Record<string, unknown>> {
+    const root = await this.get("");
+    const agent = object(root.agent);
+    if (!agent.operations) {
+      throw new UpstreamError({ status: 503, code: "agent_api_unavailable", detail: "This API server does not advertise agent research operations. Existing stats tools remain available." });
+    }
+    return agent;
+  }
+
+  async agentOperation(name: AgentReadOperation): Promise<{ method: "GET" | "POST"; path: string }> {
+    const agent = await this.agent();
+    const advertised = object(object(agent.operations)[name]);
+    const expected = AGENT_READ_OPERATIONS[name];
+    if (advertised.method !== expected.method || advertised.path !== expected.path) {
+      throw new UpstreamError({ status: 503, code: "agent_operation_unavailable", detail: "The API does not advertise a compatible operation for this tool. Use capability discovery before continuing." });
+    }
+    return expected;
   }
 }

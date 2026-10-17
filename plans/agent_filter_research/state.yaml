@@ -1,0 +1,333 @@
+feature: agent_filter_research
+title: Agent Filter Research and Gamecenter Access
+created: '2026-10-16'
+dispatch: sequential
+pr_mode: per-shard
+repo:
+  branch_prefix: codex
+  worktree: required
+  pr_flow: true
+  default_branch: main
+  required_checks: [frontend-lint-build, backend-tests, python-lint]
+  never_modify: ['.env', '**/.env', '.gitignore']
+  deploy_gate: 'Merge deploys sandbox; production workflow/environment approval, feature activation and MCP publication are separate explicit actions.'
+  validate:
+    web-frontend: 'cd web/frontend && npm run lint && npm run build'
+    python: 'venv/Scripts/python.exe -m pytest'
+    python-lint: 'ruff check web/backend scrapers-stats/scrapers scrapers-web shared'
+    schema: |
+      $env:PYTHONPATH = "$PWD/web/backend;$PWD"
+      & ./venv/Scripts/python.exe -m pytest web/backend/tests/test_migrations.py web/backend/tests/test_stats_api_migration.py -q
+      # Also require the disposable PostgreSQL round-trip/assertions and migration-diff in plan.md.
+    access: |
+      $env:PYTHONPATH = "$PWD/web/backend;$PWD"
+      & ./venv/Scripts/python.exe -m pytest web/backend/tests/test_agent_filter_schema.py web/backend/tests/services/test_stats_api_agent_access.py web/backend/tests/services/test_stats_api_startup_config.py web/backend/tests/routes/test_stats_api_account_routes.py web/backend/tests/routes/test_stats_api_agent_routes.py -q
+    filters: |
+      $env:PYTHONPATH = "$PWD/web/backend;$PWD"
+      & ./venv/Scripts/python.exe -m pytest web/backend/tests/services/test_stats_api_filters.py web/backend/tests/routes/test_stats_api_filter_routes.py web/backend/tests/services/test_saved_research.py web/backend/tests/routes/test_saved_research_routes.py web/backend/tests/routes/test_performance_routes.py -q
+    research: |
+      $env:PYTHONPATH = "$PWD/web/backend;$PWD"
+      & ./venv/Scripts/python.exe -m pytest web/backend/tests/services/test_stats_api_research.py web/backend/tests/routes/test_stats_api_research_routes.py web/backend/tests/services/test_research_jobs.py web/backend/tests/workers/test_research_worker.py web/backend/tests/services/simulation -q
+    packets: |
+      $env:PYTHONPATH = "$PWD/web/backend;$PWD"
+      & ./venv/Scripts/python.exe -m pytest web/backend/tests/services/test_stats_api_gamecenter.py web/backend/tests/routes/test_stats_api_gamecenter_routes.py web/backend/tests/routes/test_mlb_gamecenter_freshness.py web/backend/tests/routes/test_hockey_gamecenter_coverage.py web/backend/tests/routes/test_hockey_gamecenter_quotes.py -q
+    contract: |
+      $env:PYTHONPATH = "$PWD/web/backend;$PWD"
+      & ./venv/Scripts/python.exe -m pytest web/backend/tests/services/test_stats_api_v1.py web/backend/tests/routes/test_stats_api_v1_routes.py web/backend/tests/services/test_stats_api_problem_manifest.py web/backend/tests/routes/test_stats_api_agent_discovery_routes.py -q
+    ui: |
+      node --test web/frontend/tests/unit/agentResearchLinkModel.test.js
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      npm --prefix web/frontend run lint
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      npm --prefix web/frontend run build
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      Push-Location web/frontend
+      try { npx playwright test tests/e2e/stats-api-access.spec.ts tests/e2e/stats-api-agent-handoff.spec.ts tests/e2e/angles-generalize.spec.ts --project=desktop --project=mobile } finally { Pop-Location }
+    mcp: |
+      # Run in the external MCP shard worktree using Node 22.
+      npm ci
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      foreach ($script in @('test','audit:prod','typecheck','build','pack:check','distributions:check','mcpb:check')) {
+        npm run $script
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      }
+    acceptance: |
+      $env:PYTHONPATH = "$PWD/web/backend;$PWD"
+      & ./venv/Scripts/python.exe -m pytest web/backend/tests/scripts/test_audit_stats_api_agent.py -q
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      npm --prefix web/frontend run lint
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      npm --prefix web/frontend run build
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      Push-Location web/frontend
+      try { npx playwright test tests/e2e/stats-api-agent-handoff.spec.ts tests/e2e/stats-api-access.spec.ts --project=desktop --project=mobile } finally { Pop-Location }
+repositories:
+  app:
+    github: cjbuskey/handigraphs-app
+    default_branch: main
+  mcp:
+    github: Handigraphs/handigraphs-stats-api-mcp
+    default_branch: main
+    node: '22'
+    required_checks: [test-build-pack]
+    validation_cwd: external repository root
+    pipeline_bootstrap: 'PR-07 verifies instructions and runs onboarding if .agents/pipeline.yml remains absent.'
+execution_notes:
+  - 'Use shard.repository to select its checkout and gh --repo target before probing or dispatching. Never build MCP code in the monorepo.'
+  - 'The stock pipeline examples assume one repository. Explicit routing is mandatory; absent external evidence is unknown, never ready or merged.'
+  - 'Paths are relative to the selected repository unless qualified. Shared files occur only in ordered shards.'
+  - 'Static brief/plan/state copies are identical bootstrap artifacts. Every shard also owns its own progress/PR-NN.md fragment.'
+  - 'PR-01 is migration-only. PR-06 and visible PR-09 frontend work stop for local review before push.'
+  - 'The approved docs-only smoke skip does not apply to implementation.'
+shards:
+  - id: PR-01
+    title: Add additive permission and persistence schema
+    repository: app
+    service: web-schema
+    branch: codex/agent_filter_research-pr01
+    depends_on: []
+    owns:
+      - web/backend/migrations/versions/*_agent_filter_research_access.py
+      - plans/agent_filter_research/progress/PR-01.md
+    must_not_touch: [web/backend/models.py, 'web/backend/routes/**', 'web/backend/services/**', 'web/backend/tests/**', 'web/frontend/**']
+    validate: [schema]
+    scope: 'Add the additive migration specified in Database Design. Verify defaults, revision trigger, idempotency uniqueness and FK behavior on disposable PostgreSQL. Recheck the migration head.'
+    out_of_scope: 'No models, routes, backend test files, UI, worker changes or activation. New collected schema tests land in PR-02 because this PR must be migration-only.'
+  - id: PR-02
+    title: Add scoped API access and capability foundations
+    repository: app
+    service: web-backend
+    branch: codex/agent_filter_research-pr02
+    depends_on: [PR-01]
+    owns:
+      - web/backend/models.py
+      - web/backend/services/stats_api_access.py
+      - web/backend/services/stats_api_agent_access.py
+      - web/backend/services/stats_api_policy.py
+      - web/backend/routes/stats_api_account_routes.py
+      - web/backend/routes/stats_api_agent_routes.py
+      - web/backend/services/stats_api_agent_contract.py
+      - web/backend/app.py
+      - web/backend/tests/test_agent_filter_schema.py
+      - web/backend/tests/services/test_stats_api_agent_access.py
+      - web/backend/tests/services/test_stats_api_startup_config.py
+      - web/backend/tests/routes/test_stats_api_account_routes.py
+      - web/backend/tests/routes/test_stats_api_agent_routes.py
+      - web/backend/services/stats_api_openapi.py
+      - web/backend/services/stats_api_v1.py
+      - web/backend/services/stats_api_problem_codes.py
+      - web/backend/tests/fixtures/stats_api_problem_scenarios.json
+      - web/backend/tests/services/test_stats_api_v1.py
+      - web/backend/tests/services/test_stats_api_problem_manifest.py
+      - AGENTS.md
+      - CLAUDE.md
+      - .agents/skills/stats-api/SKILL.md
+      - plans/agent_filter_research/progress/PR-02.md
+    must_not_touch: ['web/backend/migrations/versions/**', 'web/frontend/**', 'scrapers-stats/**', 'shared/**']
+    validate: [access, contract, python, python-lint]
+    scope: 'Implement default-off feature rollout, optional key permissions, JWT-only permission editing, safe serialization and shared worker-safe eligibility. Add public operation schemas and protected capabilities; unfinished operations remain unavailable. Add real PostgreSQL schema regression tests and update API instructions. Preserve old stats/key behavior.'
+    out_of_scope: 'No filter/research/packet endpoints, frontend controls, MCP changes or production configuration.'
+  - id: PR-03
+    title: Expose owned filters, live runs, and saved ideas
+    repository: app
+    service: web-backend
+    branch: codex/agent_filter_research-pr03
+    depends_on: [PR-02]
+    owns:
+      - web/backend/services/saved_filters.py
+      - web/backend/services/stats_api_filters.py
+      - web/backend/routes/stats_api_filter_routes.py
+      - web/backend/routes/auth_routes.py
+      - web/backend/services/saved_research.py
+      - web/backend/routes/saved_research_routes.py
+      - web/backend/services/performance_tracking/systems.py
+      - web/backend/services/stats_api_agent_contract.py
+      - web/backend/app.py
+      - web/backend/tests/services/test_stats_api_filters.py
+      - web/backend/tests/routes/test_stats_api_filter_routes.py
+      - web/backend/tests/services/test_saved_research.py
+      - web/backend/tests/routes/test_saved_research_routes.py
+      - web/backend/tests/routes/test_performance_routes.py
+      - web/backend/services/stats_api_openapi.py
+      - web/backend/services/stats_api_v1.py
+      - web/backend/services/stats_api_problem_codes.py
+      - web/backend/tests/fixtures/stats_api_problem_scenarios.json
+      - web/backend/tests/services/test_stats_api_v1.py
+      - web/backend/tests/services/test_stats_api_problem_manifest.py
+      - .agents/skills/angles-workbench/SKILL.md
+      - .agents/skills/performance-tracking/SKILL.md
+      - plans/agent_filter_research/progress/PR-03.md
+    must_not_touch: ['web/backend/migrations/versions/**', web/backend/services/research_jobs.py, 'web/backend/workers/**', 'web/frontend/**', 'shared/**', 'scrapers-stats/**']
+    validate: [filters, contract, python, python-lint]
+    scope: 'Extract shared owner-scoped persistence. Add validation, pagination, today-only live runs, idempotent create with optional atomic filter/idea pairing, revision-guarded replacement and idea reads/updates. Explicitly map units. Block API replacement of any Performance-referenced filter and serialize the guard with website tracking creation/relinking. Preserve website behavior.'
+    out_of_scope: 'No historical execution, API tracking/ledger writes, new criterion semantics, packets or UI. Extraction and adapter are combined for parity and retry validation.'
+  - id: PR-04
+    title: Expose bounded research jobs with revocation checks
+    repository: app
+    service: web-backend
+    branch: codex/agent_filter_research-pr04
+    depends_on: [PR-03]
+    owns:
+      - web/backend/routes/stats_api_research_routes.py
+      - web/backend/services/stats_api_research.py
+      - web/backend/services/research_job_schemas.py
+      - web/backend/services/research_jobs.py
+      - web/backend/workers/research_worker.py
+      - web/backend/services/stats_api_agent_contract.py
+      - web/backend/app.py
+      - web/backend/tests/services/test_stats_api_research.py
+      - web/backend/tests/routes/test_stats_api_research_routes.py
+      - web/backend/tests/services/test_research_jobs.py
+      - web/backend/tests/workers/test_research_worker.py
+      - web/backend/services/stats_api_openapi.py
+      - web/backend/services/stats_api_v1.py
+      - web/backend/services/stats_api_problem_codes.py
+      - web/backend/tests/fixtures/stats_api_problem_scenarios.json
+      - web/backend/tests/services/test_stats_api_v1.py
+      - web/backend/tests/services/test_stats_api_problem_manifest.py
+      - AGENTS.md
+      - CLAUDE.md
+      - .agents/skills/angles-workbench/SKILL.md
+      - .agents/skills/stats-api/SKILL.md
+      - plans/agent_filter_research/progress/PR-04.md
+    must_not_touch: ['web/backend/migrations/versions/**', web/backend/services/simulation/execution.py, web/backend/services/simulation/nhl.py, web/backend/services/simulation/historical.py, 'web/frontend/**', 'scrapers-stats/**', 'shared/**']
+    validate: [research, contract, python, python-lint]
+    scope: 'Expose combined frequency/outcomes job submit/list/status/result/cancel. Add API execution contracts, source-key checks at claim/renewal/publication, admission limits and exact request provenance. Preserve website jobs, executor and retention. Test revocation, rolling upgrades, retries, cancellation, crashes and quotas.'
+    out_of_scope: 'No optimizer, report archive, source backfill, worker provisioning or simulation-engine rewrite. Admission and worker authorization stay together.'
+  - id: PR-05
+    title: Publish bounded MLB and NHL Gamecenter packets
+    repository: app
+    service: web-backend
+    branch: codex/agent_filter_research-pr05
+    depends_on: [PR-04]
+    owns:
+      - web/backend/services/stats_api_gamecenter.py
+      - web/backend/routes/stats_api_gamecenter_routes.py
+      - web/backend/services/mlb_research_payloads.py
+      - web/backend/services/stats_api_agent_contract.py
+      - web/backend/app.py
+      - web/backend/tests/services/test_stats_api_gamecenter.py
+      - web/backend/tests/routes/test_stats_api_gamecenter_routes.py
+      - web/backend/tests/fixtures/stats_api_gamecenter_packets.json
+      - web/backend/services/stats_api_openapi.py
+      - web/backend/services/stats_api_v1.py
+      - web/backend/services/stats_api_problem_codes.py
+      - web/backend/tests/fixtures/stats_api_problem_scenarios.json
+      - web/backend/tests/services/test_stats_api_v1.py
+      - web/backend/tests/services/test_stats_api_problem_manifest.py
+      - .agents/skills/stats-api/SKILL.md
+      - plans/agent_filter_research/progress/PR-05.md
+    must_not_touch: ['web/backend/migrations/versions/**', web/backend/routes/data_routes.py, web/backend/routes/hockey_routes.py, 'web/frontend/**', 'scrapers-stats/**', 'shared/**']
+    validate: [packets, contract, python-lint]
+    scope: 'Add date-bounded game discovery and stored section/evidence retrieval. Preserve publication gates, identity, citations, sample context and freshness through explicit allowlists. Test both sport schemas, legacy/stale/missing/withheld packets, doubleheaders, poison fields and byte bounds. Never use extractor fallback.'
+    out_of_scope: 'No scraper/generator changes, live odds refresh, model generation or historical reconstruction. Both sport projectors share one public contract.'
+  - id: PR-06
+    title: Add key permission controls and saved-item handoffs
+    repository: app
+    service: web-frontend
+    branch: codex/agent_filter_research-pr06
+    depends_on: [PR-05]
+    owns:
+      - web/frontend/src/components/Account/ApiAccessPage.jsx
+      - web/frontend/src/components/Workbench/AgentResearchLanding.jsx
+      - web/frontend/src/components/Workbench/agentResearchLinkModel.js
+      - web/frontend/src/components/Workbench/savedResearchModel.js
+      - web/frontend/src/components/Workbench/AngleTestDialog.jsx
+      - web/frontend/src/context/AnglesContext.jsx
+      - web/frontend/src/App.jsx
+      - web/frontend/src/config/api.js
+      - web/frontend/tests/e2e/stats-api-access.spec.ts
+      - web/frontend/tests/e2e/stats-api-agent-handoff.spec.ts
+      - web/frontend/tests/unit/agentResearchLinkModel.test.js
+      - .agents/skills/angles-workbench/SKILL.md
+      - .agents/skills/stats-api/SKILL.md
+      - plans/agent_filter_research/progress/PR-06.md
+    must_not_touch: ['web/backend/**', 'scrapers-stats/**', 'shared/**', 'Handigraphs/handigraphs-stats-api-mcp/**']
+    validate: [ui]
+    scope: 'Add opt-in key controls and authenticated filter/idea links into existing Angles. Preserve exact settings/drafts; explain report expiry and linked-filter revisions. No automatic run/save/track on link visit. Test desktop/mobile/login/conflicts and stop for local developer review before push.'
+    out_of_scope: 'No new research dashboard, report archive, optimizer UI, backend contracts or MCP. Developer guide is PR-09.'
+  - id: PR-07
+    title: Extend MCP transport and read-only research tools
+    repository: mcp
+    service: mcp
+    branch: codex/agent_filter_research-pr07
+    depends_on: [PR-05]
+    owns:
+      - .agents/pipeline.yml
+      - AGENTS.md
+      - CLAUDE.md
+      - src/http.ts
+      - src/discovery.ts
+      - src/agent-read.ts
+      - src/server.ts
+      - src/errors.ts
+      - tests/http-discovery.test.ts
+      - tests/agent-read.test.ts
+      - tests/mock-api.ts
+      - tests/mcp-tools.test.ts
+      - tests/stdio-integration.test.ts
+      - plans/agent_filter_research/progress/PR-07.md
+    must_not_touch: ['plugins/**', 'mcpb/**', package.json, package-lock.json, src/config.ts, src/credentials.ts, src/setup.ts, 'cjbuskey/handigraphs-app/**']
+    validate: [mcp]
+    scope: 'Verify external repo instructions and onboard if needed. Extend safe bounded HTTP to typed methods/bodies/conditional headers; preserve GET/no-retry behavior. Add discovered capability, saved-item, validation/live-run and packet read tools; no arbitrary HTTP. Test old-server compatibility and official MCP client behavior.'
+    out_of_scope: 'No save/update/job actions, workflow skill or publication. Read tools are independently useful and testable.'
+  - id: PR-08
+    title: Add MCP research actions and the filter-building skill
+    repository: mcp
+    service: mcp
+    branch: codex/agent_filter_research-pr08
+    depends_on: [PR-04, PR-06, PR-07]
+    owns:
+      - src/agent-actions.ts
+      - src/server.ts
+      - tests/agent-actions.test.ts
+      - tests/mcp-tools.test.ts
+      - tests/mock-api.ts
+      - tests/stdio-integration.test.ts
+      - plugins/handigraphs-stats-api/skills/research-handigraphs-filters/SKILL.md
+      - plugins/handigraphs-stats-api/skills/research-handigraphs-filters/agents/openai.yaml
+      - plugins/handigraphs-stats-api/skills/query-handigraphs-stats/SKILL.md
+      - plugins/handigraphs-stats-api/.codex-plugin/plugin.json
+      - plugins/handigraphs-stats-api/.claude-plugin/plugin.json
+      - mcpb/manifest.json
+      - scripts/check-distributions.mjs
+      - scripts/audit-agent-sandbox.mjs
+      - package.json
+      - package-lock.json
+      - src/version.ts
+      - README.md
+      - CHANGELOG.md
+      - SECURITY.md
+      - docs/releasing.md
+      - plans/agent_filter_research/progress/PR-08.md
+    must_not_touch: [src/credentials.ts, src/setup.ts, 'runtime/**', 'cjbuskey/handigraphs-app/**']
+    validate: [mcp]
+    scope: 'Add idempotent save, revision-guarded replace, job actions and truthful MCP annotations. Add the bounded research skill, explicit save/replace intent, honest abstention, unit/coverage handling and report expiry. Align manifests/version/docs and sandbox audit entry point; tools work without a skill. Actions and skill are reviewed together.'
+    out_of_scope: 'No hosted transport, scheduler, optimizer, holdout engine, tracking/bets or publication.'
+  - id: PR-09
+    title: Validate the complete journey and publish launch guidance
+    repository: app
+    service: web
+    branch: codex/agent_filter_research-pr09
+    depends_on: [PR-06, PR-08]
+    owns:
+      - web/backend/scripts/audit_stats_api_agent.py
+      - web/backend/tests/scripts/test_audit_stats_api_agent.py
+      - web/backend/services/stats_api_openapi.py
+      - web/backend/services/stats_api_v1.py
+      - web/backend/services/stats_api_problem_codes.py
+      - web/backend/tests/fixtures/stats_api_problem_scenarios.json
+      - web/backend/tests/services/test_stats_api_v1.py
+      - web/backend/tests/services/test_stats_api_problem_manifest.py
+      - web/frontend/src/components/Developers/DevelopersPage.jsx
+      - web/frontend/tests/e2e/stats-api-agent-handoff.spec.ts
+      - plans/agent_filter_research/operations.md
+      - AGENTS.md
+      - CLAUDE.md
+      - .agents/skills/stats-api/SKILL.md
+      - .agents/skills/angles-workbench/SKILL.md
+      - plans/agent_filter_research/progress/PR-09.md
+    must_not_touch: ['web/backend/migrations/versions/**', 'scrapers-stats/**', 'shared/**', 'Handigraphs/handigraphs-stats-api-mcp/**']
+    validate: [acceptance, contract, python, python-lint]
+    scope: 'Complete OpenAPI-owned examples and developer guide, guarded sandbox-identity acceptance, redacted evidence, exact-SHA app/MCP pairing and rollout/rollback instructions. Exercise all four targets and SOG example, parity and negative paths. Report blocked evidence honestly. Visible guide changes require local review.'
+    out_of_scope: 'No production activation, legal approval, worker scaling, data repair, publication, or mutating permanent deploy smoke.'
