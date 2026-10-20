@@ -57,6 +57,21 @@ seconds. `/health/ready` is local config/process readiness, not live backend,
 worker, deployment or launch proof. Run the complete mcp profile including
 official-client HTTP/stdio isolation tests and all packaging checks.
 
+## Hosted deployment source boundary
+
+The authorized hosted_mcp_oauth PR-07 adds fixed-target workflows and a hosted
+Procfile. Follow docs/hosted-operations.md. Sandbox deployment is DEFAULT OFF
+unless an operator separately enables HOSTED_SANDBOX_DEPLOY_ENABLED. Production
+is main-only, exact-SHA and requires human production-environment approval plus
+same-pair private acceptance provenance; absent PR-09 evidence/access blocks it.
+Never run either deployment workflow, create apps/domains, configure environments
+or credentials, enable flags, or publish a release from source-only authorization.
+No source validation job receives deployment, evidence or OAuth credentials.
+Credentialed jobs run only the pinned control-plane script, never npm scripts.
+The evidence token is minted for one private repository with explicit read-only
+permissions and revoked after its job; provisioning its App/key is a separate
+approved operation. Never put private evidence/logs/account IDs in public output.
+
 For agent_filter_research, the copied static plan preserves its original text.
 The user's subsequent permission decision (implemented by app PRs 733/734)
 supersedes its default-off wording: new and existing keys receive filters:write

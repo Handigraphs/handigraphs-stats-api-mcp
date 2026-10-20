@@ -15,4 +15,7 @@ validate:
 never_modify: ['.env', '**/.env']
 review:
   pr_as_draft: false
-# No local UI, review app or hosted deployment. Releases require explicit approval.
+# No local UI or review app. Hosted sandbox deployment is opt-in and default off;
+# production is manual/exact-SHA, requires real environment approval and private
+# same-pair acceptance evidence. Source merges authorize none of those operations.
+# npm/MCPB releases and manual merges still require separate explicit approval.

@@ -5,3 +5,9 @@ and its opt-in entrypoint. Follow AGENTS.md for request-local delegation,
 public-only caching, conservative bounds and the unchanged local stdio setup.
 Code and mocked tests do not authorize provisioning, activation, deployment,
 manual merge or npm/MCPB publication.
+
+PR-07 deployment controls and operator prerequisites are in
+docs/hosted-operations.md. Source validation is offline; never dispatch a
+deployment, provision credentials/resources, activate OAuth or publish a release
+without separate explicit authorization. Missing private PR-09 evidence is a
+hard production blocker, including when all source CI is green.

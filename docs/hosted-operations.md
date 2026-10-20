@@ -1,0 +1,182 @@
+# Hosted MCP operations
+
+This is a deployment-source contract, not a deployed endpoint or launch sign-off.
+PR-07 creates no apps, domains, secrets, environments, registrations or releases.
+The future private `hosted-mcp-oauth-evidence.yml` workflow belongs to application
+PR-09. Until that workflow, real acceptance, approved access and operational
+configuration exist, production preflight **fails closed**. Mock tests and a green
+MCP build never substitute for acceptance.
+
+## Fixed proposed targets
+
+| Target | Heroku app | Resource / readiness |
+| --- | --- | --- |
+| Sandbox | `handigraphs-mcp-sandbox` | `https://mcp-sandbox.handigraphs.com/mcp` / `/health/ready` |
+| Production | `handigraphs-mcp` | `https://mcp.handigraphs.com/mcp` / `/health/ready` |
+
+These names/domains are proposals whose availability, ownership and TLS must be
+verified by the operator before use. There is no caller-supplied app, host, URL or
+command. Both apps are separate US-region Node services; the gateway needs no
+attached Postgres/Redis and never connects directly to the application database.
+The existing application owns accounts, grants, quotas, queues and research.
+
+`Procfile` starts only `npm run start:hosted`; the npm bin still starts local
+stdio. `engines.node=22.x` pins the service major. The normal Heroku Node buildpack
+installs build dependencies, runs `heroku-postbuild` (`npm run build`), then prunes
+development dependencies. The operator must use that buildpack and leave build
+dependencies available during compilation. Nothing hooks npm/MCPB publishing or
+changes the package version. A source merge is distinct from a build, runtime
+deployment, OAuth activation, client acceptance and package publication.
+
+## Separate operator prerequisites
+
+Every provisioning, credential/environment change, workflow dispatch and
+activation needs its own explicit authorization. Install real values through the
+approved secret channel; never paste values into chat, workflow inputs, files,
+logs or process arguments. Do not modify a committed `.env`.
+
+For each app, separately configure `NODE_ENV=production`,
+`HANDIGRAPHS_HOSTED_ENABLED=true`, exact `HANDIGRAPHS_MCP_RESOURCE_URL`, application
+origin `HANDIGRAPHS_OAUTH_ISSUER`, and independent environment-specific
+`HANDIGRAPHS_MCP_SERVICE_CLIENT_ID` / `HANDIGRAPHS_MCP_SERVICE_SECRET`. The application
+must have the matching separately installed confidential-client secret hash,
+issuer, MCP/API audiences, pepper/signing keys, eligibility/cohort gates and
+OAuth-capable worker readiness. No customer API key belongs in the gateway.
+Heroku supplies `PORT`. Do not enable the loopback test switch on a hosted app.
+Keep exact Host/Origin allowlists and conservative source defaults unless an
+authorized measured rollout justifies changes. Readiness is local process/config
+readiness; it does not prove an eligible connection, healthy worker or capacity.
+
+Set up the repository environments `sandbox` and `production`; production must
+require a human reviewer. The workflow independently checks the current run's
+review history for an approved human `User` in `production` before any build
+mutation. Empty/unprotected, bot-only or rejected histories fail, even if GitHub
+allowed the job to start. Reruns are rejected: dispatch a new run so approvals
+cannot be reused from a previous attempt. No script approves a gate.
+
+Provision the following separately and restrict access to the intended jobs:
+
+| Configuration | Purpose |
+| --- | --- |
+| Repository variable `HOSTED_SANDBOX_DEPLOY_ENABLED` | Exact `true` enables sandbox workflow; missing/false means no deployment, including manual runs. |
+| Environment secrets `HEROKU_MCP_SANDBOX_API_KEY`, `HEROKU_MCP_PRODUCTION_API_KEY` | Separate least-privilege deploy authorizations for only their fixed app; never reuse the customer/web credential. |
+| Repository variable `HOSTED_EVIDENCE_APP_CLIENT_ID` and secret `HOSTED_EVIDENCE_APP_PRIVATE_KEY` | Approved GitHub App installed only on the private application repository. The pinned official token action mints short-lived one-repository Actions/Contents/Deployments **read** tokens, revokes them after each job, and never uses the public repository's token for private access. |
+| Secret `HEROKU_SANDBOX_READ_API_KEY` | Separately authorized read-only Heroku OAuth authorization restricted to inspecting the two sandbox apps' releases/slugs. A secret's name does not restrict its permissions; a normal account API key is privileged and is not an acceptable substitute. |
+
+The App-minted path deliberately avoids guessing the permissions of an arbitrary
+supplied PAT. No App installation/key or Heroku authorization is created here.
+Missing/unavailable private access blocks deployment. GitHub Actions' default
+public-repository token has no private application access.
+
+## Deployment sequence and trust boundary
+
+1. Review and merge source through the normal all-platform `test-build-pack` gate.
+2. With separate operational approval, opt in sandbox. Main pushes deploy only
+   when the variable is exact `true`; a manual main dispatch additionally requires
+   confirmation `deploy-sandbox`. No release or tag triggers deployment.
+3. Every workflow checks repository, main ref, first run attempt and full lowercase
+   40-hex source SHA. The MCP SHA must equal both the workflow-source commit and
+   freshly fetched public main. Checkout uses `github.sha`, never a user ref.
+   Stale or superseded runs fail; dispatch the current reviewed main revision.
+4. The source-validation job has no operational secrets. It installs and runs the
+   full package/test/build/distribution checks. Separate credentialed jobs install
+   no package dependencies and execute only the pinned dependency-free control
+   script. They never execute PR/fork source with deploy credentials.
+5. The Build API receives only the public canonical repository's exact-SHA archive
+   and matching source version. There is one build POST, no mutation retries and no
+   credential in the archive URL. Polling reads only fixed build/release endpoints;
+   build logs, signed source links and raw API responses are never printed.
+   The build has an eight-minute polling budget, each API/body a 15-second bound,
+   and readiness gets a further 90-second read-only polling budget. A successful
+   build alone is insufficient: the latest release's slug commit and fixed-host
+   readiness must match. A timeout after a release may mean deployment happened;
+   inspect the actual release before any further mutation.
+6. Run separately authorized real sandbox acceptance and publish private PR-09
+   evidence. For production manually select main and supply exact `mcp_sha`,
+   `app_sha`, and confirmation `deploy-production`. The private same-pair preflight
+   must pass before the production job reaches its human environment gate.
+7. After that gate, mint fresh read access and recheck current main, the actual
+   human approval, all evidence, both sandbox releases and health. A changed pair,
+   expired artifact, absent approval or unavailable dependency blocks the build.
+   Production never falls back to a build status, caller success boolean or old
+   preflight artifact. Runtime OAuth activation remains a separate operation.
+
+## Private PR-09 evidence interface
+
+The fixed source is private `cjbuskey/handigraphs-app`, workflow
+`.github/workflows/hosted-mcp-oauth-evidence.yml`. The gate discovers the latest
+successful main `workflow_dispatch` for the exact app SHA and independently reads
+the run. Require the fixed workflow ID/path, original repository/head repository,
+matching SHA, completed/success, first attempt and freshness within seven days.
+The run must contain an actual approved human review for the dedicated
+`hosted-mcp-evidence` environment. Any applicable rejection/bot history blocks it;
+a successful environment deployment without an approval record is insufficient.
+PR-09 must validate actual manual product-client evidence before that approval.
+
+Require exactly one non-expired artifact named `hosted-mcp-oauth-acceptance`,
+at most 64 KiB compressed, whose API provenance binds the same run, repositories,
+branch and app SHA. Authenticate the downloaded ZIP against the API's SHA-256
+digest. Follow exactly one API-issued HTTPS artifact redirect to GitHub's artifact
+storage without forwarding Authorization; no further redirects. The ZIP contains
+only `evidence.json`, a regular member of at most 16 KiB, stored or deflated. No
+archive files are extracted or executed.
+
+`evidence.json` is one canonical JSON object: recursively sort object keys, compact
+JSON, UTF-8, followed by exactly one newline. Duplicate keys, additional whitespace,
+unknown fields and noncanonical encodings are rejected. Use exported
+`serializeEvidence` / `evidenceDigest` in `scripts/check-hosted-deploy.mjs` as the
+interoperability reference. The exact allowed fields are:
+
+| Field | Contract |
+| --- | --- |
+| `schema_version` | Integer `1`. |
+| `app_sha`, `mcp_sha` | Exact full lowercase SHA pair requested for production. |
+| `checked_at` | UTC ISO timestamp within the source run and no older than seven days. |
+| `source` | Only `workflow` (fixed filename), positive `run_id`, `run_attempt` (`1`). |
+| `sandbox` | Only `app_release`, `mcp_release`, both `v` followed by positive integer. |
+| `clients` | Only `codex_desktop`, `codex_cli`, `claude_code`; numeric dotted versions (2–4 components), optional `-alpha.N`, `-beta.N`, `-rc.N`; no free text/URLs. |
+| `checks` | Exactly the keys exported as `CHECKS`, each string `passed`: Codex desktop/CLI, Claude Code, refresh, revocation, queued-job revocation, cross-user isolation, shared limits, rolling-worker compatibility, local stdio, tool refresh and measured capacity. |
+| `metrics` | Nonnegative safe integers only: `duration_seconds` (300–3600), `requests_per_second` (5–10, conservatively rounded down), `concurrency` (10–20), `added_p95_ms` (rounded up, below 500), `unexpected_429`, `unexpected_503` (both zero). Explained expected limits belong in private evidence; unexpected responses block this version. |
+| `cleanup` | Literal `true` after authorized synthetic cleanup. |
+| `evidence_sha256` | SHA-256 lowercase hex of canonical compact JSON **without** this field and **without** the final newline. This inner content digest is separate from the API-provided archive digest. |
+
+The application evidence workflow must enforce real clients, measured results,
+operator approval and cleanup before publishing this allowlisted object. An object
+claiming passed checks is not independently trusted. The gateway gate additionally
+queries the actual latest sandbox releases and slug commits for fixed
+`handigraphs-sandbox-web` / `handigraphs-mcp-sandbox`, requires their versions and
+SHAs to equal this manifest, and checks backend database/Redis readiness plus MCP
+readiness over fixed HTTPS origins. Only source SHAs and the redacted evidence
+digest are printed publicly. Never upload the private manifest, logs, raw browser
+traces, signed download URLs, account IDs, passwords or credentials to public CI.
+No authenticated transcripts or real customer data belong in this interface.
+
+## Health, rollout and rollback
+
+Probe `/health/live` and `/health/ready` without credentials, using the configured
+canonical host and bounded nonredirecting HTTP. Do not anonymously invoke a
+protected tool to infer health. Validate the actual source/release pair and real
+clients separately. Preserve the backend's existing quota, cohort and worker gates.
+Do not recommend or publish the hosted default until PR-09 and explicit launch
+approval; the local stdio plugin and key setup remain supported.
+
+For an authorized rollback, first stop new hosted authorizations/submissions in the
+application, revoke/suspend affected hosted grants, and drain/cancel OAuth research
+under a worker that understands contracts 5/6. The gateway drains short requests
+on SIGTERM. Roll the gateway independently to a previously verified compatible
+release only with explicit operational authorization; this workflow does not
+provide an arbitrary old-SHA bypass. Never revert workers to 1–4 while OAuth jobs
+are active, drop additive schema/tombstones, clear shared Redis, rotate personal
+keys or delete saved objects as rollback. A failed deployment does not authorize
+an automatic rollback, secret rotation, redeploy or flag change.
+
+The plan's 2026-10-17 public list-price baseline is $25/month Standard-1X production
+plus $7/month Basic sandbox ($32/month incremental); two production instances plus
+sandbox would be $57/month. This is an unmeasured planning scenario, not a current
+quote, capacity promise, purchase or API/LLM bill. No scaling or data upgrade is
+implied. Measure existing shared database/Redis/worker headroom before rollout.
+
+Primary implementation references: [Heroku Build API](https://devcenter.heroku.com/articles/build-and-release-using-the-api),
+[GitHub workflow runs/review history](https://docs.github.com/en/rest/actions/workflow-runs),
+[artifact provenance and downloads](https://docs.github.com/en/rest/actions/artifacts),
+and the pinned [official scoped token action](https://github.com/actions/create-github-app-token/tree/64ab729a6294000f5aa4a4bc0b73d1f32bc45510).

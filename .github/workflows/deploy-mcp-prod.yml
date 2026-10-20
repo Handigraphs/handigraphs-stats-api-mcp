@@ -1,0 +1,119 @@
+name: Deploy hosted MCP production
+
+on:
+  workflow_dispatch:
+    inputs:
+      mcp_sha:
+        description: Exact 40-character MCP main SHA (must equal this workflow source)
+        required: true
+        type: string
+      app_sha:
+        description: Exact 40-character app SHA with same-pair approved sandbox evidence
+        required: true
+        type: string
+      confirm:
+        description: Type deploy-production
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: hosted-mcp-production
+  cancel-in-progress: false
+
+env:
+  DEPLOY_TARGET: production
+  MCP_SHA: ${{ inputs.mcp_sha }}
+  APP_SHA: ${{ inputs.app_sha }}
+  DEPLOY_CONFIRM: ${{ inputs.confirm }}
+
+jobs:
+  validate:
+    if: ${{ github.repository == 'Handigraphs/handigraphs-stats-api-mcp' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: node scripts/check-hosted-deploy.mjs request
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: npm ci
+      - run: npm run audit:prod
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run heroku-postbuild
+      - run: npm run pack:check
+      - run: npm run distributions:check
+      - run: npm run mcpb:check
+
+  evidence:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Mint narrowly scoped read-only private evidence access
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        id: evidence-token
+        with:
+          client-id: ${{ vars.HOSTED_EVIDENCE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.HOSTED_EVIDENCE_APP_PRIVATE_KEY }}
+          owner: cjbuskey
+          repositories: handigraphs-app
+          permission-actions: read
+          permission-contents: read
+          permission-deployments: read
+      - name: Require private same-pair acceptance provenance and current healthy sandbox releases
+        run: node scripts/check-hosted-deploy.mjs evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_EVIDENCE_TOKEN: ${{ steps.evidence-token.outputs.token }}
+          HEROKU_SANDBOX_READ_API_KEY: ${{ secrets.HEROKU_SANDBOX_READ_API_KEY }}
+
+  deploy:
+    needs: [validate, evidence]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Mint fresh read-only evidence access after environment approval
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        id: evidence-token
+        with:
+          client-id: ${{ vars.HOSTED_EVIDENCE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.HOSTED_EVIDENCE_APP_PRIVATE_KEY }}
+          owner: cjbuskey
+          repositories: handigraphs-app
+          permission-actions: read
+          permission-contents: read
+          permission-deployments: read
+      - name: Recheck human approval and same pair, then build fixed production source
+        run: node scripts/check-hosted-deploy.mjs deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_EVIDENCE_TOKEN: ${{ steps.evidence-token.outputs.token }}
+          HEROKU_SANDBOX_READ_API_KEY: ${{ secrets.HEROKU_SANDBOX_READ_API_KEY }}
+          HEROKU_DEPLOY_API_KEY: ${{ secrets.HEROKU_MCP_PRODUCTION_API_KEY }}
