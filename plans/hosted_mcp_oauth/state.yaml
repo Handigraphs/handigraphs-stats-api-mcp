@@ -1,0 +1,238 @@
+{
+  "feature": "hosted_mcp_oauth",
+  "title": "Hosted MCP with OAuth",
+  "created": "2026-10-18",
+  "dispatch": "sequential",
+  "pr_mode": "per-shard",
+  "repo": {
+    "github": "cjbuskey/handigraphs-app",
+    "branch_prefix": "codex",
+    "worktree": "required",
+    "pr_flow": true,
+    "default_branch": "main",
+    "required_checks": ["frontend-lint-build", "backend-tests", "python-lint"],
+    "never_modify": [".env", "**/.env", ".gitignore"],
+    "deploy_gate": "Application merges deploy sandbox; production workflow/environment approval, OAuth activation and external releases are separate explicit actions.",
+    "validate": {
+      "web-frontend": "cd web/frontend && npm run lint && npm run build",
+      "python": "venv/Scripts/python.exe -m pytest",
+      "python-lint": "ruff check web/backend scrapers-stats/scrapers scrapers-web shared",
+      "schema": "$env:PYTHONPATH = \"$PWD/web/backend;$PWD\"\n& ./venv/Scripts/python.exe -m pytest web/backend/tests/test_migrations.py -q\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n# Require the new PostgreSQL cases with ANGLES_MIGRATION_TEST_ADMIN_URL; a skip is not acceptance.",
+      "oauth": "$env:PYTHONPATH = \"$PWD/web/backend;$PWD\"\n& ./venv/Scripts/python.exe -m pytest web/backend/tests/services/test_oauth_server.py web/backend/tests/routes/test_oauth_routes.py web/backend/tests/routes/test_oauth_account_routes.py web/backend/tests/services/test_stats_api_startup_config.py -q\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+      "principal": "$env:PYTHONPATH = \"$PWD/web/backend;$PWD\"\n& ./venv/Scripts/python.exe -m pytest web/backend/tests/services/test_stats_api_principal.py web/backend/tests/services/test_stats_api_agent_access.py web/backend/tests/routes/test_stats_api_agent_routes.py web/backend/tests/routes/test_stats_api_v1_routes.py web/backend/tests/routes/test_stats_api_filter_routes.py web/backend/tests/routes/test_stats_api_account_routes.py web/backend/tests/services/test_stats_api_problem_manifest.py -q\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+      "research": "$env:PYTHONPATH = \"$PWD/web/backend;$PWD\"\n& ./venv/Scripts/python.exe -m pytest web/backend/tests/services/test_oauth_research_jobs.py web/backend/tests/services/test_research_jobs.py web/backend/tests/services/test_stats_api_research.py web/backend/tests/routes/test_stats_api_research_routes.py web/backend/tests/workers/test_research_worker.py -q\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+      "ui": "node --test web/frontend/tests/unit/oauthConnectionModel.test.js\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\nnpm --prefix web/frontend run lint\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\nnpm --prefix web/frontend run build\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\nPush-Location web/frontend\ntry { npx playwright test tests/e2e/hosted-mcp-oauth.spec.ts tests/e2e/stats-api-access.spec.ts tests/e2e/stats-api-agent-handoff.spec.ts --project=desktop --project=mobile --trace=off; if ($LASTEXITCODE -ne 0) { throw 'OAuth browser tests failed' } } finally { Pop-Location }",
+      "acceptance": "$env:PYTHONPATH = \"$PWD/web/backend;$PWD\"\n& ./venv/Scripts/python.exe -m pytest web/backend/tests/scripts/test_audit_hosted_mcp_oauth.py -q\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\nnode --test web/frontend/tests/unit/oauthConnectionModel.test.js\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\nPush-Location web/frontend\ntry { npx playwright test tests/e2e/hosted-mcp-oauth.spec.ts --project=desktop --project=mobile --trace=off; if ($LASTEXITCODE -ne 0) { throw 'OAuth browser tests failed' } } finally { Pop-Location }"
+    }
+  },
+  "repositories": {
+    "app": {
+      "github": "cjbuskey/handigraphs-app",
+      "source_sha": "b39a240161ae251541bdf51e46711fa7762a42ef",
+      "settings": "Use the root repo snapshot; validation runs from the application shard worktree root.",
+      "review": "Major visible frontend changes stop locally before push; after approval PRs open ready and auto-merge on required checks. Backend/schema/test shards have no local UI stop."
+    },
+    "mcp": {
+      "github": "Handigraphs/handigraphs-stats-api-mcp",
+      "source_sha": "9a4c2f8088467a234cf454e531de160969d5ffd1",
+      "branch_prefix": "codex",
+      "worktree": "required",
+      "pr_flow": true,
+      "default_branch": "main",
+      "required_checks": ["test-build-pack"],
+      "never_modify": [".env", "**/.env"],
+      "node": "22",
+      "validate": {
+        "mcp": "npm ci\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\nforeach ($script in @('test','audit:prod','typecheck','build','pack:check','distributions:check','mcpb:check')) {\n  npm run $script\n  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n}"
+      },
+      "deploy_gate": "No existing hosted workflow. PR-07 adds fixed-app, exact-SHA gated workflows. Provisioning, hosted changes, merges, tagging and npm/MCPB publication still need explicit authorization.",
+      "review": "Ready PRs, no local UI gate and no auto-merge. Required aggregate check covers Linux/macOS/Windows; do not infer a merge or merge authorization from green checks."
+    }
+  },
+  "execution_notes": [
+    "This is YAML 1.2 in JSON-compatible syntax. It contains a static graph and no shard statuses.",
+    "Select shard.repository before any checkout, gh probe, validation or dispatch. The root repo block is the application default, not an instruction to build MCP files in the monorepo.",
+    "For an MCP shard use repositories.mcp settings and gh --repo Handigraphs/handigraphs-stats-api-mcp; for app use gh --repo cjbuskey/handigraphs-app. Unknown remote state is unknown, never ready or merged.",
+    "Keep identical brief/research/plan/state bootstrap copies in both repositories; bootstrap docs and the shard's own progress fragment are the only ownership exceptions. Verify their hashes before dispatch. Do not copy application source into the public adapter.",
+    "Before the plan is on main, sequential shard worktrees copy these committed documents as their first commit. Respect the migration guard's explicitly allowed test_migrations.py companion in PR-01.",
+    "External MCP repository does not exist in this task's checkout. PR-06 must reuse a suitable known-idle checkout or create its own fetched canonical-repository worktree; never presume an unrelated checkout is idle.",
+    "File paths are relative to the selected repository. Shared files between shards are intentional only when a dependency orders those shards. No parallel sessions or subagents are requested.",
+    "PR-03 temporarily rejects OAuth research submission and advertises it unavailable; PR-04 removes that temporary denial only after worker contract/readiness checks exist.",
+    "PR-05 requires local desktop/mobile review before push. PR-08 must not make an unavailable hosted endpoint the recommended public install; release activation requires PR-09 evidence.",
+    "Do not dispatch product implementation while the plan documents are uncommitted; checkpoint them first under the user's standing task-scoped commit/push authorization. A planning checkpoint does not authorize a PR, merge, deployment or release.",
+    "Implementation may not inherit the documentation-only SKIP_SMOKE exception. Use reproducible virtualenv/Node setup and process environment; never copy, modify or commit .env files.",
+    "Each shard commits plans/hosted_mcp_oauth/progress/PR-NN.md to its own repository. Derive branch/PR/check/merge state fresh with the selected repository; do not store it here."
+  ],
+  "shards": [
+    {
+      "id": "PR-01",
+      "title": "Add additive OAuth and research credential schema",
+      "repository": "app",
+      "service": "web-schema",
+      "branch": "codex/hosted_mcp_oauth-pr01",
+      "depends_on": [],
+      "owns": [
+        "web/backend/migrations/versions/*_hosted_mcp_oauth.py",
+        "web/backend/migrations/README.md",
+        "web/backend/tests/test_migrations.py",
+        "plans/hosted_mcp_oauth/progress/PR-01.md"
+      ],
+      "must_not_touch": ["web/backend/models.py", "web/backend/routes/**", "web/backend/services/**", "web/backend/workers/**", "web/frontend/**", "requirements.txt", "web/requirements.txt"],
+      "validate": ["schema", "python-lint"],
+      "scope": "Add the five OAuth persistence tables and nullable OAuth research-grant provenance specified in Database Design. Keep old rows/code valid. Add real PostgreSQL upgrade/downgrade/re-upgrade and constraint tests to the explicitly allowed test_migrations.py companion; inspect the actual Alembic head and retain one linear head.",
+      "out_of_scope": "No ORM/runtime/auth/UI/dependency changes, no grant creation/backfill, no deployed flag changes. Do not remove key provenance or existing research execution contracts."
+    },
+    {
+      "id": "PR-02",
+      "title": "Implement OAuth grants, consent APIs and delegated token exchange",
+      "repository": "app",
+      "service": "web-backend",
+      "branch": "codex/hosted_mcp_oauth-pr02",
+      "depends_on": ["PR-01"],
+      "owns": [
+        "requirements.txt", "web/requirements.txt", "web/backend/models.py", "web/backend/app.py",
+        "web/backend/services/oauth_server.py", "web/backend/services/oauth_credentials.py", "web/backend/services/oauth_persistence.py",
+        "web/backend/routes/oauth_routes.py", "web/backend/routes/oauth_account_routes.py",
+        "web/backend/tests/services/test_oauth_server.py", "web/backend/tests/routes/test_oauth_routes.py", "web/backend/tests/routes/test_oauth_account_routes.py",
+        "web/backend/tests/services/test_stats_api_startup_config.py",
+        "plans/hosted_mcp_oauth/progress/PR-02.md"
+      ],
+      "must_not_touch": ["web/backend/migrations/versions/**", "web/backend/services/stats_api_access.py", "web/backend/services/research_jobs.py", "web/backend/workers/**", "web/frontend/**"],
+      "validate": ["oauth", "python", "python-lint"],
+      "scope": "Use Authlib Flask authorization-code/refresh/PKCE integration, hashed credential storage, DCR, resource-bound metadata, browser transaction/consent APIs, connected-grant listing/revocation, and a narrow RFC8693 exchange grant for the confidential MCP gateway. Keep everything default-disabled and validate runtime secrets/issuer/audiences before enabling. Exchange returns a 60-second API-audience JWT, not a personal key.",
+      "out_of_scope": "No protected Stats API acceptance of delegated tokens yet, no research worker admission, no visible UI, no gateway provisioning. Token exchange is an explicit Authlib grant extension with RFC tests; do not assume native RFC8693 support or introduce an external identity service."
+    },
+    {
+      "id": "PR-03",
+      "title": "Share API authorization and user quotas across keys and OAuth grants",
+      "repository": "app",
+      "service": "web-backend",
+      "branch": "codex/hosted_mcp_oauth-pr03",
+      "depends_on": ["PR-02"],
+      "owns": [
+        "web/backend/services/stats_api_principal.py", "web/backend/services/stats_api_access.py", "web/backend/services/stats_api_policy.py",
+        "web/backend/services/stats_api_agent_access.py", "web/backend/services/stats_api_agent_contract.py", "web/backend/routes/stats_api_agent_routes.py",
+        "web/backend/routes/stats_api_research_routes.py", "web/backend/services/stats_api_problem_codes.py", "web/backend/tests/fixtures/stats_api_problem_scenarios.json",
+        "web/backend/tests/services/test_stats_api_principal.py", "web/backend/tests/services/test_stats_api_agent_access.py", "web/backend/tests/routes/test_stats_api_agent_routes.py",
+        "web/backend/tests/routes/test_stats_api_v1_routes.py", "web/backend/tests/routes/test_stats_api_filter_routes.py", "web/backend/tests/routes/test_stats_api_account_routes.py",
+        "AGENTS.md", "CLAUDE.md", ".agents/skills/stats-api/SKILL.md",
+        "plans/hosted_mcp_oauth/progress/PR-03.md"
+      ],
+      "must_not_touch": ["web/backend/migrations/versions/**", "web/backend/services/oauth_server.py", "web/backend/services/oauth_credentials.py", "web/backend/services/research_jobs.py", "web/backend/workers/**", "web/frontend/**"],
+      "validate": ["principal", "oauth", "python", "python-lint"],
+      "scope": "Introduce an explicit immutable principal with credential kind/ID, owner, scopes and grant revision. Keep the current require_stats_api_key import as a compatibility wrapper while composing current eligibility/ownership/quota enforcement. Accept only API-audience delegation JWTs or original personal keys, not MCP tokens or website JWTs. Adapt capability/permission code and credential-safe observability. Keep all OAuth research submit paths explicitly unavailable until PR-04.",
+      "out_of_scope": "No OAuth queued execution or hosted exposure. No separate hosted quota allowance, widening of trial/tier policy, shared privileged account, change to personal-key limits, or user-specific response caching."
+    },
+    {
+      "id": "PR-04",
+      "title": "Authorize OAuth research at admission and worker boundaries",
+      "repository": "app",
+      "service": "web-research-worker",
+      "branch": "codex/hosted_mcp_oauth-pr04",
+      "depends_on": ["PR-03"],
+      "owns": [
+        "web/backend/services/research_job_schemas.py", "web/backend/services/research_jobs.py", "web/backend/services/stats_api_research.py", "web/backend/services/stats_api_agent_contract.py",
+        "web/backend/routes/stats_api_research_routes.py", "web/backend/workers/research_worker.py",
+        "web/backend/tests/services/test_oauth_research_jobs.py", "web/backend/tests/services/test_research_jobs.py",
+        "web/backend/tests/services/test_stats_api_research.py", "web/backend/tests/routes/test_stats_api_research_routes.py", "web/backend/tests/workers/test_research_worker.py",
+        "plans/hosted_mcp_oauth/progress/PR-04.md"
+      ],
+      "must_not_touch": ["web/backend/migrations/versions/**", "web/backend/services/oauth_server.py", "web/backend/services/oauth_credentials.py", "web/backend/services/stats_api_access.py", "web/backend/services/simulation/**", "web/frontend/**", "scrapers-stats/**", "shared/**"],
+      "validate": ["research", "principal", "python", "python-lint"],
+      "scope": "Carry oauth_grant_id for stats_api-origin work without converting it to website-origin work. Add OAuth-specific NHL/MLB execution contracts 5/6 alongside unchanged 1-4. Recheck credential ownership, grant expiry/revision/scopes, account/Terms/rollout at claim, lease/stage/publication boundaries. Maintain existing user-wide daily budget and idempotency domain across keys/grants/namespaces. Deny admission without OAuth-capable worker heartbeats; preserve legacy key/website jobs and 24-hour report retention.",
+      "out_of_scope": "No new research engine, queue namespace splitting to evade budgets, worker scaling, data backfill, report archive, retroactive mutation of completed reports or forced interruption of SQL midway through an existing bounded stage."
+    },
+    {
+      "id": "PR-05",
+      "title": "Add browser consent and connected-application controls",
+      "repository": "app",
+      "service": "web-frontend",
+      "branch": "codex/hosted_mcp_oauth-pr05",
+      "depends_on": ["PR-04"],
+      "owns": [
+        "web/frontend/src/App.jsx", "web/frontend/src/components/Auth/Login.jsx", "web/frontend/src/components/Auth/ProtectedRoute.jsx",
+        "web/frontend/src/components/Auth/OAuthConsentPage.jsx", "web/frontend/src/components/Account/ConnectedAppsPanel.jsx", "web/frontend/src/components/Account/oauthConnectionModel.js",
+        "web/frontend/src/components/Account/ApiAccessPage.jsx", "web/frontend/src/config/api.js",
+        "web/frontend/tests/unit/oauthConnectionModel.test.js", "web/frontend/tests/e2e/hosted-mcp-oauth.spec.ts",
+        "web/backend/tests/routes/test_oauth_account_routes.py",
+        "plans/hosted_mcp_oauth/progress/PR-05.md"
+      ],
+      "must_not_touch": ["web/backend/migrations/versions/**", "web/backend/services/**", "web/backend/routes/oauth_routes.py", "web/backend/routes/oauth_account_routes.py", ".agents/pipeline.yml"],
+      "validate": ["ui", "oauth"],
+      "scope": "Add /oauth/connect using an opaque short-lived transaction selector, safe login continuation and explicit consent. Reuse existing JWT login and current Terms UI flow without exposing tokens in URLs/storage/logs beyond existing website login behavior. Extend /account/api with independently revocable connected apps while keeping personal-key management intact. Cover denial, expired requests, lapsed eligibility, duplicate submissions, revocation, and desktop/mobile accessibility.",
+      "out_of_scope": "No website identity migration, API-key rotation, remote Claude Desktop, marketing recommendation of an unvalidated endpoint, automatic local-plugin migration or analytics capture of authorization request query/cookies/tokens."
+    },
+    {
+      "id": "PR-06",
+      "title": "Serve shared MCP tools over authenticated stateless HTTP",
+      "repository": "mcp",
+      "service": "mcp-hosted",
+      "branch": "codex/hosted_mcp_oauth-pr06",
+      "depends_on": ["PR-03"],
+      "owns": [
+        "src/hosted-index.ts", "src/hosted-auth.ts", "src/hosted-config.ts", "src/server.ts", "src/http.ts", "src/config.ts", "src/redaction.ts",
+        "package.json", "package-lock.json", "tests/hosted-http.test.ts", "tests/hosted-auth.test.ts", "tests/mcp-tools.test.ts", "tests/stdio-integration.test.ts",
+        "AGENTS.md", "CLAUDE.md", "SECURITY.md",
+        "plans/hosted_mcp_oauth/progress/PR-06.md"
+      ],
+      "must_not_touch": ["src/credentials.ts", "src/setup.ts", "runtime/**", "plugins/**", "mcpb/manifest.json", ".github/workflows/publish.yml", ".github/workflows/deploy-mcp-*.yml"],
+      "validate": ["mcp"],
+      "scope": "Add a separately launched Node 22 HTTP entrypoint using the current stable SDK's stateless StreamableHTTPServerTransport and JSON response mode. Protect the complete /mcp endpoint, advertise protected-resource metadata, perform confidential token exchange for each authenticated protocol request, and construct request-local tool/API clients. Share existing tool handlers and read-only discovery caching; use only delegated API tokens for protected upstream calls. Add body/time/concurrency bounds, OAuth challenges, redaction, health and graceful shutdown. Preserve stdio protocol and the local configure_api_key tool; omit local setup from hosted tools.",
+      "out_of_scope": "No customer key storage, global mutable per-user configuration, MCP-to-database connections, persistent session affinity, HTTP endpoint provisioning, plugin replacement, SDK v2 migration or npm/MCPB release."
+    },
+    {
+      "id": "PR-07",
+      "title": "Add isolated hosted deployment and release gates",
+      "repository": "mcp",
+      "service": "mcp-deployment",
+      "branch": "codex/hosted_mcp_oauth-pr07",
+      "depends_on": ["PR-05", "PR-06"],
+      "owns": [
+        "Procfile", "package.json", "package-lock.json", ".github/workflows/deploy-mcp-sandbox.yml", ".github/workflows/deploy-mcp-prod.yml",
+        "scripts/check-hosted-deploy.mjs", "tests/hosted-deploy.test.ts", ".github/workflows/ci.yml",
+        ".agents/pipeline.yml", "AGENTS.md", "CLAUDE.md", "docs/hosted-operations.md",
+        "plans/hosted_mcp_oauth/progress/PR-07.md"
+      ],
+      "must_not_touch": ["src/**", "plugins/**", "runtime/**", "mcpb/**", ".github/workflows/publish.yml"],
+      "validate": ["mcp"],
+      "scope": "Build the Node service from the external repository with a hosted-only Procfile/start command and fixed sandbox/production app targets. Add opt-in sandbox deployment and main-only exact-SHA production dispatch with a production environment gate and paired app/MCP acceptance evidence preflight. Test workflow/manifest validation offline. Document proposed app/domain names, service credential/secret installation, health, rollback and cost without creating resources. Keep npm/MCPB publishing separate.",
+      "out_of_scope": "No Heroku app/DNS/credential/environment provisioning, shared Postgres/Redis attachments to the gateway, data-service upgrades, automatic production deploys, activation or API bill inference."
+    },
+    {
+      "id": "PR-08",
+      "title": "Add hosted plugin entries while retaining local distributions",
+      "repository": "mcp",
+      "service": "mcp-distribution",
+      "branch": "codex/hosted_mcp_oauth-pr08",
+      "depends_on": ["PR-07"],
+      "owns": [
+        "plugins/handigraphs-stats-api-hosted/**", ".agents/plugins/marketplace.json", ".claude-plugin/marketplace.json",
+        "plugins/handigraphs-stats-api/skills/query-handigraphs-stats/SKILL.md", "plugins/handigraphs-stats-api/skills/research-handigraphs-filters/SKILL.md",
+        "scripts/check-distributions.mjs", "tests/hosted-distributions.test.ts", "README.md", "docs/codex-setup.md", "docs/releasing.md", "CHANGELOG.md",
+        "plans/hosted_mcp_oauth/progress/PR-08.md"
+      ],
+      "must_not_touch": ["src/**", "runtime/**", "plugins/handigraphs-stats-api/.mcp.json", "plugins/handigraphs-stats-api/mcp.claude.json", "plugins/handigraphs-stats-api/.codex-plugin/plugin.json", "plugins/handigraphs-stats-api/.claude-plugin/plugin.json", "mcpb/manifest.json", ".github/workflows/deploy-mcp-*.yml", ".github/workflows/publish.yml"],
+      "validate": ["mcp"],
+      "scope": "Add a distinct handigraphs-stats-api-hosted plugin/server identity for Codex and Claude Code with HTTP/OAuth configuration and transport-appropriate query/research skills. Preserve the existing local plugin ID, npx configs, sensitive key setup and stdio MCPB. Extend distribution checks to verify both alternatives, no key setup tool/skill in the hosted plugin, and shared business tool descriptions. Use direct-URL connection instructions for pre-release testing; public recommendation/publication remains gated on PR-09 evidence.",
+      "out_of_scope": "No automatic migration of installed local connections, remote Claude Desktop bundle, tool renaming/consolidation project, new public package version/tag or npm/MCPB publication."
+    },
+    {
+      "id": "PR-09",
+      "title": "Package cross-repository OAuth acceptance and launch evidence",
+      "repository": "app",
+      "service": "web-acceptance",
+      "branch": "codex/hosted_mcp_oauth-pr09",
+      "depends_on": ["PR-08"],
+      "owns": [
+        "web/backend/scripts/audit_hosted_mcp_oauth.py", "web/backend/tests/scripts/test_audit_hosted_mcp_oauth.py", ".github/workflows/hosted-mcp-oauth-evidence.yml",
+        "web/frontend/tests/e2e/hosted-mcp-oauth.spec.ts", "web/frontend/src/components/Developers/DevelopersPage.jsx",
+        "web/frontend/tests/e2e/stats-api-agent-handoff.spec.ts", ".agents/skills/stats-api/SKILL.md",
+        "plans/hosted_mcp_oauth/operations.md", "plans/hosted_mcp_oauth/progress/PR-09.md"
+      ],
+      "must_not_touch": ["web/backend/migrations/versions/**", "web/backend/services/**", "web/backend/workers/**", "web/backend/routes/**", ".github/workflows/deploy-web-prod.yml", ".github/workflows/post-deploy-sandbox-web.yml"],
+      "validate": ["acceptance", "web-frontend", "python", "python-lint"],
+      "scope": "Add a fixed-sandbox, default-off audit/evidence wrapper with offline tests, trace-disabled browser coverage, version-paired operational checklist and gated developer guidance. Require measured Codex desktop/CLI and Claude Code consent/refresh/revocation, local stdio parity, queued-job revocation, cross-user isolation, limits, rolling-worker compatibility and load evidence before recommending/publishing the hosted default. Keep safe stopped/incomplete evidence truthful; no fixture pass is launch evidence.",
+      "out_of_scope": "No production audit writes, automatic account creation, real research/save calls without a specifically authorized disposable sandbox run, customer credentials, permanently authenticated traces, unreviewed cohort expansion, deployment, merge or publication."
+    }
+  ]
+}
