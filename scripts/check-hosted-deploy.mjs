@@ -1,0 +1,247 @@
+// Deployment-only control plane. Never import application code or log API bodies.
+import { createHash } from 'node:crypto';
+import { inflateRawSync } from 'node:zlib';
+import { pathToFileURL } from 'node:url';
+
+export const MCP_REPO = 'Handigraphs/handigraphs-stats-api-mcp';
+export const APP_REPO = 'cjbuskey/handigraphs-app';
+export const EVIDENCE_WORKFLOW = 'hosted-mcp-oauth-evidence.yml';
+export const EVIDENCE_ENVIRONMENT = 'hosted-mcp-evidence';
+export const TARGETS = Object.freeze({
+  sandbox: Object.freeze({ app: 'handigraphs-mcp-sandbox', origin: 'https://mcp-sandbox.handigraphs.com' }),
+  production: Object.freeze({ app: 'handigraphs-mcp', origin: 'https://mcp.handigraphs.com' }),
+});
+const APP_SANDBOX = Object.freeze({ app: 'handigraphs-sandbox-web', origin: 'https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com' });
+const MAX_JSON = 256 * 1024;
+const MAX_ARCHIVE = 64 * 1024;
+const MAX_MANIFEST = 16 * 1024;
+const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
+export const CHECKS = Object.freeze(['codex_desktop', 'codex_cli', 'claude_code', 'refresh', 'revocation', 'queued_job_revocation',
+  'cross_user_isolation', 'shared_limits', 'rolling_worker', 'local_stdio', 'tool_refresh', 'capacity']);
+function requireThat(value) { if (!value) throw new Error('Hosted deployment gate failed. See the operations prerequisites.'); }
+function sha(value) { return typeof value === 'string' && /^[a-f0-9]{40}$/.test(value); }
+function id(value) { return Number.isSafeInteger(value) && value > 0; }
+function keys(value, names) {
+  requireThat(value && typeof value === 'object' && !Array.isArray(value));
+  requireThat(Object.keys(value).sort().join(',') === [...names].sort().join(','));
+}
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])]));
+  return value;
+}
+export function evidenceDigest(manifest) {
+  const { evidence_sha256: _digest, ...body } = manifest;
+  return createHash('sha256').update(JSON.stringify(canonical(body))).digest('hex');
+}
+export function serializeEvidence(manifest) { return JSON.stringify(canonical(manifest)) + '\n'; }
+export function validateRequest(env) {
+  const target = env.DEPLOY_TARGET;
+  requireThat(Object.hasOwn(TARGETS, target ?? '') && env.GITHUB_REPOSITORY === MCP_REPO);
+  requireThat(env.GITHUB_REF === 'refs/heads/main' && sha(env.GITHUB_SHA) && env.GITHUB_RUN_ATTEMPT === '1');
+  requireThat(sha(env.MCP_SHA) && env.MCP_SHA === env.GITHUB_SHA);
+  if (target === 'production') {
+    requireThat(env.GITHUB_EVENT_NAME === 'workflow_dispatch' && env.DEPLOY_CONFIRM === 'deploy-production' && sha(env.APP_SHA));
+  } else {
+    requireThat(env.HOSTED_SANDBOX_DEPLOY_ENABLED === 'true');
+    requireThat(env.GITHUB_EVENT_NAME === 'push' || env.GITHUB_EVENT_NAME === 'workflow_dispatch' && env.DEPLOY_CONFIRM === 'deploy-sandbox');
+  }
+  return TARGETS[target];
+}
+export function validateManifest(manifest, pair, now = Date.now()) {
+  keys(manifest, ['schema_version', 'app_sha', 'mcp_sha', 'checked_at', 'source', 'sandbox', 'clients', 'checks', 'metrics', 'cleanup', 'evidence_sha256']);
+  requireThat(manifest.schema_version === 1 && sha(manifest.app_sha) && sha(manifest.mcp_sha));
+  requireThat(manifest.app_sha === pair.app_sha && manifest.mcp_sha === pair.mcp_sha);
+  const time = Date.parse(manifest.checked_at);
+  requireThat(typeof manifest.checked_at === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(manifest.checked_at)
+    && time <= now && now - time <= FRESH_MS);
+  keys(manifest.source, ['workflow', 'run_id', 'run_attempt']);
+  requireThat(manifest.source.workflow === EVIDENCE_WORKFLOW && id(manifest.source.run_id) && manifest.source.run_attempt === 1);
+  keys(manifest.sandbox, ['app_release', 'mcp_release']);
+  requireThat(Object.values(manifest.sandbox).every(value => typeof value === 'string' && /^v[1-9][0-9]{0,8}$/.test(value)));
+  keys(manifest.clients, ['codex_desktop', 'codex_cli', 'claude_code']);
+  requireThat(Object.values(manifest.clients).every(value => typeof value === 'string'
+    && /^[0-9]{1,10}(?:\.[0-9]{1,10}){1,3}(?:-(?:alpha|beta|rc)\.[0-9]{1,5})?$/.test(value)));
+  keys(manifest.checks, CHECKS);
+  requireThat(Object.values(manifest.checks).every(value => value === 'passed') && manifest.cleanup === true);
+  keys(manifest.metrics, ['duration_seconds', 'requests_per_second', 'concurrency', 'added_p95_ms', 'unexpected_429', 'unexpected_503']);
+  const metrics = manifest.metrics;
+  requireThat(Object.values(metrics).every(value => Number.isSafeInteger(value) && value >= 0));
+  requireThat(Number.isInteger(metrics.duration_seconds) && Number.isInteger(metrics.concurrency)
+    && metrics.duration_seconds >= 300 && metrics.duration_seconds <= 3600 && metrics.requests_per_second >= 5
+    && metrics.requests_per_second <= 10 && metrics.concurrency >= 10 && metrics.concurrency <= 20
+    && metrics.added_p95_ms < 500 && metrics.unexpected_429 === 0 && metrics.unexpected_503 === 0);
+  requireThat(/^[a-f0-9]{64}$/.test(manifest.evidence_sha256) && evidenceDigest(manifest) === manifest.evidence_sha256);
+  return manifest;
+}
+// One small regular JSON member; never extract paths or execute archive contents.
+export function readEvidenceZip(bytes) {
+  requireThat(bytes.length >= 22 && bytes.length <= MAX_ARCHIVE);
+  const end = bytes.length - 22;
+  requireThat(bytes.readUInt32LE(end) === 0x06054b50 && bytes.readUInt16LE(end + 4) === 0 && bytes.readUInt16LE(end + 6) === 0
+    && bytes.readUInt16LE(end + 8) === 1 && bytes.readUInt16LE(end + 10) === 1 && bytes.readUInt16LE(end + 20) === 0);
+  const offset = bytes.readUInt32LE(end + 16);
+  requireThat(offset + 46 <= end && bytes.readUInt32LE(offset) === 0x02014b50);
+  const method = bytes.readUInt16LE(offset + 10);
+  const compressed = bytes.readUInt32LE(offset + 20);
+  const length = bytes.readUInt32LE(offset + 24);
+  const nameLength = bytes.readUInt16LE(offset + 28);
+  const local = bytes.readUInt32LE(offset + 42);
+  requireThat((method === 0 || method === 8) && !(bytes.readUInt16LE(offset + 8) & 1) && length > 0 && length <= MAX_MANIFEST);
+  requireThat(bytes.subarray(offset + 46, offset + 46 + nameLength).toString('utf8') === 'evidence.json');
+  requireThat((bytes.readUInt32LE(offset + 38) >>> 16 & 0xf000) !== 0xa000 && local + 30 <= offset && bytes.readUInt32LE(local) === 0x04034b50);
+  requireThat(bytes.readUInt16LE(local + 8) === method && !(bytes.readUInt16LE(local + 6) & 1));
+  const localNameLength = bytes.readUInt16LE(local + 26);
+  requireThat(bytes.subarray(local + 30, local + 30 + localNameLength).toString('utf8') === 'evidence.json');
+  const start = local + 30 + localNameLength + bytes.readUInt16LE(local + 28);
+  requireThat(start + compressed <= offset);
+  const encoded = bytes.subarray(start, start + compressed);
+  const decoded = method === 0 ? encoded : inflateRawSync(encoded, { maxOutputLength: MAX_MANIFEST });
+  requireThat(decoded.length === length);
+  const text = decoded.toString('utf8');
+  const value = JSON.parse(text);
+  // A single canonical serialization rejects duplicate/hidden keys, malformed
+  // UTF-8, incidental dumps and alternate representations before validation.
+  requireThat(text === serializeEvidence(value));
+  return value;
+}
+async function bounded(response, maximum) {
+  requireThat(Number(response.headers.get('content-length') || 0) <= maximum);
+  const reader = response.body?.getReader(); requireThat(reader);
+  let size = 0; const parts = [];
+  try {
+    for (;;) { const item = await reader.read(); if (item.done) break; size += item.value.length; requireThat(size <= maximum); parts.push(item.value); }
+    return Buffer.concat(parts);
+  } finally { await reader.cancel().catch(() => {}); }
+}
+export function createControlPlane(fetchImpl = fetch, timing = {}) {
+  const clock = timing.now ?? Date.now;
+  const pause = timing.sleep ?? (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
+  async function request(url, token, { method = 'GET', body, raw = false, maximum = MAX_JSON, extraHeaders = {} } = {}) {
+    const signal = AbortSignal.timeout(15000);
+    const headers = { Accept: url.startsWith('https://api.heroku.com/') ? 'application/vnd.heroku+json; version=3' : 'application/vnd.github+json', ...extraHeaders };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (body) headers['Content-Type'] = 'application/json';
+    const response = await fetchImpl(url, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal });
+    if (raw) return response;
+    requireThat(response.ok);
+    return JSON.parse((await bounded(response, maximum)).toString('utf8'));
+  }
+  const github = (repo, path, token) => request(`https://api.github.com/repos/${repo}${path ? '/' + path : ''}`, token);
+  const heroku = (app, path, token, options) => request(`https://api.heroku.com/apps/${app}/${path}`, token, options);
+  async function requireMain(env) {
+    validateRequest(env);
+    const ref = await github(MCP_REPO, 'git/ref/heads/main', env.GH_TOKEN);
+    requireThat(ref.object?.sha === env.MCP_SHA);
+  }
+  async function approved(repo, runId, environment, token) {
+    requireThat(id(runId));
+    const reviews = await github(repo, `actions/runs/${runId}/approvals`, token);
+    requireThat(Array.isArray(reviews));
+    const matching = reviews.filter(review => review.environments?.some(item => item.name === environment));
+    requireThat(matching.length > 0 && matching.every(review => review.state === 'approved' && review.user?.type === 'User'));
+  }
+  async function release(app, token) {
+    requireThat(token);
+    const releases = await heroku(app, 'releases', token, { extraHeaders: { Range: 'version ..; order=desc,max=1' } });
+    requireThat(Array.isArray(releases) && releases.length > 0);
+    const latest = [...releases].sort((a, b) => b.version - a.version)[0];
+    requireThat(latest.status === 'succeeded' && id(latest.version) && /^[a-f0-9-]{36}$/.test(latest.slug?.id));
+    const slug = await heroku(app, `slugs/${latest.slug.id}`, token);
+    requireThat(sha(slug.commit));
+    return { version: `v${latest.version}`, sha: slug.commit };
+  }
+  async function healthy(origin, backend = false) {
+    const result = await request(origin + '/health/ready');
+    requireThat(backend ? result.status === 'ok' && result.db === 'ok' && result.redis === 'ok' : result.ready === true && result.stateless === true);
+  }
+  async function verifyEvidence(env) {
+    await requireMain(env);
+    requireThat(env.DEPLOY_TARGET === 'production' && env.APP_EVIDENCE_TOKEN && env.HEROKU_SANDBOX_READ_API_KEY);
+    const token = env.APP_EVIDENCE_TOKEN;
+    const repository = await github(APP_REPO, '', token);
+    requireThat(repository.full_name === APP_REPO && repository.private === true && id(repository.id));
+    const workflow = await github(APP_REPO, `actions/workflows/${EVIDENCE_WORKFLOW}`, token);
+    requireThat(id(workflow.id) && workflow.path === `.github/workflows/${EVIDENCE_WORKFLOW}` && workflow.state === 'active');
+    const listed = await github(APP_REPO, `actions/workflows/${workflow.id}/runs?head_sha=${env.APP_SHA}&branch=main&event=workflow_dispatch&status=success&per_page=20`, token);
+    requireThat(Array.isArray(listed.workflow_runs) && listed.workflow_runs.length > 0);
+    const runId = listed.workflow_runs[0].id; requireThat(id(runId));
+    const run = await github(APP_REPO, `actions/runs/${runId}`, token);
+    requireThat(run.workflow_id === workflow.id && run.path === workflow.path && run.event === 'workflow_dispatch'
+      && run.head_branch === 'main' && run.head_sha === env.APP_SHA && run.repository?.id === repository.id
+      && run.head_repository?.id === repository.id && run.status === 'completed' && run.conclusion === 'success' && run.run_attempt === 1);
+    const time = Date.parse(run.updated_at);
+    requireThat(Number.isFinite(time) && time <= Date.now() && Date.now() - time <= FRESH_MS);
+    await approved(APP_REPO, runId, EVIDENCE_ENVIRONMENT, token);
+    const artifacts = await github(APP_REPO, `actions/runs/${runId}/artifacts?per_page=100`, token);
+    requireThat(artifacts.total_count <= 100 && Array.isArray(artifacts.artifacts));
+    const matches = artifacts.artifacts.filter(item => item.name === 'hosted-mcp-oauth-acceptance');
+    requireThat(matches.length === 1);
+    const artifact = matches[0];
+    requireThat(id(artifact.id) && artifact.expired === false && artifact.size_in_bytes > 0 && artifact.size_in_bytes <= MAX_ARCHIVE
+      && /^sha256:[a-f0-9]{64}$/.test(artifact.digest) && artifact.workflow_run?.id === runId
+      && artifact.workflow_run.repository_id === repository.id && artifact.workflow_run.head_repository_id === repository.id
+      && artifact.workflow_run.head_branch === 'main' && artifact.workflow_run.head_sha === env.APP_SHA);
+    const response = await request(`https://api.github.com/repos/${APP_REPO}/actions/artifacts/${artifact.id}/zip`, token, { raw: true });
+    requireThat(response.status === 302);
+    const location = new URL(response.headers.get('location'));
+    requireThat(location.protocol === 'https:' && !location.username && !location.password && !location.hash
+      && (location.hostname.endsWith('.blob.core.windows.net') || location.hostname.endsWith('.actions.githubusercontent.com')));
+    // GitHub's signed blob URL is followed exactly once, WITHOUT Authorization.
+    const blob = await request(location.href, undefined, { raw: true });
+    requireThat(blob.ok);
+    const bytes = await bounded(blob, MAX_ARCHIVE);
+    requireThat('sha256:' + createHash('sha256').update(bytes).digest('hex') === artifact.digest);
+    const manifest = validateManifest(readEvidenceZip(bytes), { app_sha: env.APP_SHA, mcp_sha: env.MCP_SHA });
+    requireThat(manifest.source.run_id === runId && Date.parse(manifest.checked_at) >= Date.parse(run.created_at)
+      && Date.parse(manifest.checked_at) <= time);
+    const appRelease = await release(APP_SANDBOX.app, env.HEROKU_SANDBOX_READ_API_KEY);
+    const mcpRelease = await release(TARGETS.sandbox.app, env.HEROKU_SANDBOX_READ_API_KEY);
+    requireThat(appRelease.sha === env.APP_SHA && mcpRelease.sha === env.MCP_SHA
+      && appRelease.version === manifest.sandbox.app_release && mcpRelease.version === manifest.sandbox.mcp_release);
+    await healthy(APP_SANDBOX.origin, true); await healthy(TARGETS.sandbox.origin);
+    // Only public source pair + digest may leave this process; private provenance stays private.
+    return { app_sha: env.APP_SHA, mcp_sha: env.MCP_SHA, evidence_sha256: manifest.evidence_sha256 };
+  }
+  async function deploy(env) {
+    const target = validateRequest(env);
+    await requireMain(env);
+    if (env.DEPLOY_TARGET === 'production') {
+      await approved(MCP_REPO, Number(env.GITHUB_RUN_ID), 'production', env.GH_TOKEN);
+      await verifyEvidence(env); // Recheck after the approval wait; no stale preflight artifact trust.
+    }
+    requireThat(env.HEROKU_DEPLOY_API_KEY);
+    const result = await heroku(target.app, 'builds', env.HEROKU_DEPLOY_API_KEY, { method: 'POST', body: {
+      source_blob: { url: `https://github.com/${MCP_REPO}/archive/${env.MCP_SHA}.tar.gz`, version: env.MCP_SHA },
+    } });
+    requireThat(/^[a-f0-9-]{36}$/.test(result.id));
+    const deadline = clock() + 8 * 60 * 1000;
+    while (clock() < deadline) {
+      const build = await heroku(target.app, `builds/${result.id}`, env.HEROKU_DEPLOY_API_KEY);
+      if (build.status === 'successful' || build.status === 'succeeded') {
+        const current = await release(target.app, env.HEROKU_DEPLOY_API_KEY);
+        requireThat(current.sha === env.MCP_SHA);
+        const readyDeadline = clock() + 90000;
+        while (clock() < readyDeadline) {
+          try { await healthy(target.origin); return; } catch { /* Bounded read-only readiness polling, no build retry. */ }
+          await pause(3000);
+        }
+        requireThat(false);
+      }
+      requireThat(build.status === 'pending');
+      await pause(10000);
+    }
+    requireThat(false);
+  }
+  return { requireMain, verifyEvidence, deploy };
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const plane = createControlPlane();
+  const mode = process.argv[2];
+  Promise.resolve().then(async () => {
+    requireThat(process.argv.length === 3 && ['request', 'evidence', 'deploy'].includes(mode));
+    if (mode === 'request') await plane.requireMain(process.env);
+    else if (mode === 'evidence') console.log(JSON.stringify(await plane.verifyEvidence(process.env)));
+    else await plane.deploy(process.env);
+  }).catch(() => { console.error('Hosted deployment blocked: required source, approval, evidence, access or health check failed.'); process.exitCode = 1; });
+}

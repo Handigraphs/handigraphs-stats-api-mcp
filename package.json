@@ -24,7 +24,7 @@
   },
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "bin": {
     "handigraphs-stats-api-mcp": "dist/index.js"
@@ -53,7 +53,8 @@
     "mcpb:check": "npm run build && node scripts/build-mcpb.mjs --check",
     "pack:check": "npm run build && node scripts/check-pack.mjs",
     "prepack": "npm run build",
-    "audit:agent:sandbox": "npm run build && node scripts/audit-agent-sandbox.mjs"
+    "audit:agent:sandbox": "npm run build && node scripts/audit-agent-sandbox.mjs",
+    "heroku-postbuild": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.31.0",
@@ -62,7 +63,8 @@
   "devDependencies": {
     "@anthropic-ai/mcpb": "2.1.2",
     "@types/node": "22.19.11",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "yaml": "2.9.1"
   },
   "overrides": {
     "tmp": "0.2.7"
