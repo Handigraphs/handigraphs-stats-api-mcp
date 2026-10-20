@@ -1,0 +1,49 @@
+{
+  "canonical_request": "{\"app_sha\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"created_at\":\"2026-10-20T12:00:00Z\",\"mcp_sha\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"purpose\":\"hosted-mcp-acceptance\",\"repository\":\"cjbuskey/handigraphs-app\",\"review_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"run_attempt\":1,\"run_id\":77,\"schema_version\":1,\"workflow\":\"hosted-mcp-oauth-evidence.yml\"}",
+  "comments": [
+    {
+      "body": "APPROVE d323123eb1c0f951010be898c0df28c50d02c82c4183feceacd566fcc4279f65",
+      "created_at": "2026-10-20T12:01:00Z",
+      "id": 502,
+      "updated_at": "2026-10-20T12:01:00Z",
+      "user": {
+        "id": 39887731,
+        "type": "User"
+      }
+    }
+  ],
+  "consume_at": "2026-10-21T12:06:00Z",
+  "description": "Synthetic protocol vector only; never real acceptance evidence.",
+  "issue": {
+    "body": "Hosted MCP acceptance approval requested. Review the private workflow summary and actual client/load/cleanup observations.\n\n```json\n{\"app_sha\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"created_at\":\"2026-10-20T12:00:00Z\",\"mcp_sha\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"purpose\":\"hosted-mcp-acceptance\",\"repository\":\"cjbuskey/handigraphs-app\",\"review_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"run_attempt\":1,\"run_id\":77,\"schema_version\":1,\"workflow\":\"hosted-mcp-oauth-evidence.yml\"}\n```\n\nOnly cjbuskey may approve. Comment exactly:\n\n`APPROVE d323123eb1c0f951010be898c0df28c50d02c82c4183feceacd566fcc4279f65`\n\nTo reject, comment exactly:\n\n`REJECT d323123eb1c0f951010be898c0df28c50d02c82c4183feceacd566fcc4279f65`\n\nApproval has a five-minute cooldown and must publish within 30 minutes of dispatch. Keep this issue open while the evidence is in use. Any rejection, edited reviewer comment, missing approval or changed request blocks publication and future use. Agents must never approve.\n",
+    "created_at": "2026-10-20T12:00:10Z",
+    "number": 501,
+    "state": "open",
+    "user": {
+      "id": 41898282,
+      "type": "Bot"
+    }
+  },
+  "issue_body": "Hosted MCP acceptance approval requested. Review the private workflow summary and actual client/load/cleanup observations.\n\n```json\n{\"app_sha\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"created_at\":\"2026-10-20T12:00:00Z\",\"mcp_sha\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"purpose\":\"hosted-mcp-acceptance\",\"repository\":\"cjbuskey/handigraphs-app\",\"review_sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"run_attempt\":1,\"run_id\":77,\"schema_version\":1,\"workflow\":\"hosted-mcp-oauth-evidence.yml\"}\n```\n\nOnly cjbuskey may approve. Comment exactly:\n\n`APPROVE d323123eb1c0f951010be898c0df28c50d02c82c4183feceacd566fcc4279f65`\n\nTo reject, comment exactly:\n\n`REJECT d323123eb1c0f951010be898c0df28c50d02c82c4183feceacd566fcc4279f65`\n\nApproval has a five-minute cooldown and must publish within 30 minutes of dispatch. Keep this issue open while the evidence is in use. Any rejection, edited reviewer comment, missing approval or changed request blocks publication and future use. Agents must never approve.\n",
+  "proof": {
+    "comment_id": 502,
+    "issue_number": 501,
+    "method": "github_issue_v1",
+    "review_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "publication_at": "2026-10-20T12:06:00Z",
+  "request": {
+    "app_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "created_at": "2026-10-20T12:00:00Z",
+    "mcp_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "purpose": "hosted-mcp-acceptance",
+    "repository": "cjbuskey/handigraphs-app",
+    "review_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "run_attempt": 1,
+    "run_id": 77,
+    "schema_version": 1,
+    "workflow": "hosted-mcp-oauth-evidence.yml"
+  },
+  "request_sha256": "d323123eb1c0f951010be898c0df28c50d02c82c4183feceacd566fcc4279f65",
+  "run_updated_at": "2026-10-20T12:07:00Z"
+}

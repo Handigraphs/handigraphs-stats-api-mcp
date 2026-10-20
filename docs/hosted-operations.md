@@ -2,9 +2,9 @@
 
 This is a deployment-source contract, not a deployed endpoint or launch sign-off.
 PR-07 creates no apps, domains, secrets, environments, registrations or releases.
-The future private `hosted-mcp-oauth-evidence.yml` workflow belongs to application
-PR-09. Until that workflow, real acceptance, approved access and operational
-configuration exist, production preflight **fails closed**. Mock tests and a green
+The private `hosted-mcp-oauth-evidence.yml` workflow belongs to the application.
+Its matching v2 issue-approval implementation, real acceptance, approved access
+and operational configuration must exist or production preflight **fails closed**. Mock tests and a green
 MCP build never substitute for acceptance.
 
 ## Fixed proposed targets
@@ -60,11 +60,13 @@ Provision the following separately and restrict access to the intended jobs:
 | --- | --- |
 | Repository variable `HOSTED_SANDBOX_DEPLOY_ENABLED` | Exact `true` enables sandbox workflow; missing/false means no deployment, including manual runs. |
 | Environment secrets `HEROKU_MCP_SANDBOX_API_KEY`, `HEROKU_MCP_PRODUCTION_API_KEY` | Separate least-privilege deploy authorizations for only their fixed app; never reuse the customer/web credential. |
-| Repository variable `HOSTED_EVIDENCE_APP_CLIENT_ID` and secret `HOSTED_EVIDENCE_APP_PRIVATE_KEY` | Approved GitHub App installed only on the private application repository. The pinned official token action mints short-lived one-repository Actions/Contents/Deployments **read** tokens, revokes them after each job, and never uses the public repository's token for private access. |
+| Repository variable `HOSTED_EVIDENCE_APP_CLIENT_ID` and secret `HOSTED_EVIDENCE_APP_PRIVATE_KEY` | Approved GitHub App installed only on the private application repository. The pinned official token action mints short-lived one-repository Actions/Contents/Deployments/Issues **read** tokens, revokes them after each job, and never uses the public repository's token for private access. |
 | Secret `HEROKU_SANDBOX_READ_API_KEY` | Separately authorized read-only Heroku OAuth authorization restricted to inspecting the two sandbox apps' releases/slugs. A secret's name does not restrict its permissions; a normal account API key is privileged and is not an acceptable substitute. |
 
 The App-minted path deliberately avoids guessing the permissions of an arbitrary
-supplied PAT. No App installation/key or Heroku authorization is created here.
+supplied PAT. The installed App must separately have Issues read permission; requesting it in
+source does not provision or approve that access. No App installation/key or
+Heroku authorization is created here.
 Missing/unavailable private access blocks deployment. GitHub Actions' default
 public-repository token has no private application access.
 
@@ -108,10 +110,10 @@ The fixed source is private `cjbuskey/handigraphs-app`, workflow
 successful main `workflow_dispatch` for the exact app SHA and independently reads
 the run. Require the fixed workflow ID/path, original repository/head repository,
 matching SHA, completed/success, first attempt and freshness within seven days.
-The run must contain an actual approved human review for the dedicated
-`hosted-mcp-evidence` environment. Any applicable rejection/bot history blocks it;
-a successful environment deployment without an approval record is insufficient.
-PR-09 must validate actual manual product-client evidence before that approval.
+The private application evidence gate uses the v2 issue-approval protocol below,
+not native private-environment approval history. There is no v1/native fallback.
+The public MCP production deployment still requires its existing native
+`production` environment approval, unchanged and independently rechecked.
 
 Require exactly one non-expired artifact named `hosted-mcp-oauth-acceptance`,
 at most 64 KiB compressed, whose API provenance binds the same run, repositories,
@@ -129,16 +131,55 @@ interoperability reference. The exact allowed fields are:
 
 | Field | Contract |
 | --- | --- |
-| `schema_version` | Integer `1`. |
+| `schema_version` | Integer `2` only; v1 artifacts are deliberately rejected. |
 | `app_sha`, `mcp_sha` | Exact full lowercase SHA pair requested for production. |
 | `checked_at` | UTC ISO timestamp within the source run and no older than seven days. |
 | `source` | Only `workflow` (fixed filename), positive `run_id`, `run_attempt` (`1`). |
+| `approval` | Only `method` (`github_issue_v1`), positive safe-integer `issue_number` and `comment_id`, and lowercase 64-hex `review_sha256` binding the complete private observation record. IDs stay private. |
 | `sandbox` | Only `app_release`, `mcp_release`, both `v` followed by positive integer. |
 | `clients` | Only `codex_desktop`, `codex_cli`, `claude_code`; numeric dotted versions (2–4 components), optional `-alpha.N`, `-beta.N`, `-rc.N`; no free text/URLs. |
 | `checks` | Exactly the keys exported as `CHECKS`, each string `passed`: Codex desktop/CLI, Claude Code, refresh, revocation, queued-job revocation, cross-user isolation, shared limits, rolling-worker compatibility, local stdio, tool refresh and measured capacity. |
 | `metrics` | Nonnegative safe integers only: `duration_seconds` (300–3600), `requests_per_second` (5–10, conservatively rounded down), `concurrency` (10–20), `added_p95_ms` (rounded up, below 500), `unexpected_429`, `unexpected_503` (both zero). Explained expected limits belong in private evidence; unexpected responses block this version. |
 | `cleanup` | Literal `true` after authorized synthetic cleanup. |
 | `evidence_sha256` | SHA-256 lowercase hex of canonical compact JSON **without** this field and **without** the final newline. This inner content digest is separate from the API-provided archive digest. |
+
+### Independent private issue approval
+
+Reconstruct this exact request from the verified artifact and authoritative source
+run, never from caller URLs, input booleans or a claimed approval timestamp:
+
+```json
+{"schema_version":1,"purpose":"hosted-mcp-acceptance","repository":"cjbuskey/handigraphs-app","workflow":"hosted-mcp-oauth-evidence.yml","run_id":77,"run_attempt":1,"app_sha":"<full app SHA>","mcp_sha":"<full MCP SHA>","review_sha256":"<observation SHA256>","created_at":"<source run.created_at>"}
+```
+
+The example placeholders are explanatory, not accepted values. Hash recursively
+sorted, compact UTF-8 JSON **without** a newline. The issue body is exactly
+`approvalIssueBody(request)` in the control script: fixed review instructions,
+canonical request in a JSON fence, and exact `APPROVE <request-digest>` /
+`REJECT <request-digest>` commands. The shared synthetic golden fixture is
+`tests/fixtures/hosted-approval-contract.json`; it is not real acceptance evidence.
+
+Using only fixed private-repository GETs, independently re-fetch the issue, its
+complete bounded comments page, and the pinned comment. The issue must remain
+open, must not be a PR, must have the exact body and `41898282`/`Bot` creator.
+Only the fixed owner `39887731`/`User` (cjbuskey) can approve; agents never approve.
+After trimming surrounding whitespace, commands must match exactly; the pinned
+ID must be the highest-ID approval for this request. Any owner-edited
+comment or exact rejection, missing/deleted/changed approval, changed request or
+closed issue blocks publication and future use. Non-owner comments do not approve.
+Refuse pagination (`Link`) or 100+ comments rather than truncate hidden rejections.
+Re-fetch both current main refs and the approval after the bounded sandbox
+release/health probes, so changes during those reads block preflight too.
+Missing Issues access fails closed; the external verifier never writes an issue
+or comment and receives no Issues write permission.
+
+Require `approval.created_at + 300 seconds <= checked_at <= run.created_at +
+1800 seconds`. These are historical publication bounds, not a requirement that
+production consume evidence within 30 minutes. The existing source-run bounds,
+seven-day freshness, exact source pair and artifact expiry checks still apply.
+Keep the approval issue open through evidence use/expiry; a rejection invalidates
+it permanently for that request, so use a new reviewed dispatch when needed.
+No `approved_at` or operator approval boolean is accepted in the artifact.
 
 The application evidence workflow must enforce real clients, measured results,
 operator approval and cleanup before publishing this allowlisted object. An object
