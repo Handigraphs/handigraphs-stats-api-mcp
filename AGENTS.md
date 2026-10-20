@@ -71,6 +71,13 @@ Credentialed jobs run only the pinned control-plane script, never npm scripts.
 The evidence token is minted for one private repository with explicit read-only
 permissions and revoked after its job; provisioning its App/key is a separate
 approved operation. Never put private evidence/logs/account IDs in public output.
+The private acceptance artifact is v2 only and uses independently re-fetched
+issue/comment approval bound to the same pair, run and observation digest. Only
+cjbuskey's fixed human account may approve; never post approval as an agent.
+Missing Issues read access, closed/changed/rejected/edited approval or incomplete
+history fails closed. This replaces only private acceptance approval; retain the
+public production environment's native human gate. No issue, permission or secret
+is provisioned by source. See docs/hosted-operations.md for exact timing/protocol.
 
 For agent_filter_research, the copied static plan preserves its original text.
 The user's subsequent permission decision (implemented by app PRs 733/734)

@@ -35,6 +35,49 @@ export function evidenceDigest(manifest) {
   return createHash('sha256').update(JSON.stringify(canonical(body))).digest('hex');
 }
 export function serializeEvidence(manifest) { return JSON.stringify(canonical(manifest)) + '\n'; }
+export function approvalRequest(manifest, run) {
+  return { schema_version: 1, purpose: 'hosted-mcp-acceptance', repository: APP_REPO, workflow: EVIDENCE_WORKFLOW,
+    run_id: manifest.source.run_id, run_attempt: 1, app_sha: manifest.app_sha, mcp_sha: manifest.mcp_sha,
+    review_sha256: manifest.approval.review_sha256, created_at: run.created_at };
+}
+export function approvalDigest(request) {
+  return createHash('sha256').update(JSON.stringify(canonical(request))).digest('hex');
+}
+export function approvalIssueBody(request) {
+  const digest = approvalDigest(request);
+  return 'Hosted MCP acceptance approval requested. Review the private workflow summary and actual client/load/cleanup observations.\n\n```json\n'
+    + JSON.stringify(canonical(request)) + '\n```\n\nOnly cjbuskey may approve. Comment exactly:\n\n`APPROVE ' + digest
+    + '`\n\nTo reject, comment exactly:\n\n`REJECT ' + digest
+    + '`\n\nApproval has a five-minute cooldown and must publish within 30 minutes of dispatch. Keep this issue open while the evidence is in use. Any rejection, edited reviewer comment, missing approval or changed request blocks publication and future use. Agents must never approve.\n';
+}
+export function validateIssueApproval(manifest, run, issue, comments, selected) {
+  const proof = manifest.approval;
+  const request = approvalRequest(manifest, run);
+  const digest = approvalDigest(request);
+  const dispatched = Date.parse(run.created_at), published = Date.parse(manifest.checked_at);
+  requireThat(Number.isFinite(dispatched) && published <= dispatched + 1800000);
+  requireThat(issue.number === proof.issue_number && issue.state === 'open' && !issue.pull_request
+    && issue.user?.id === 41898282 && issue.user.type === 'Bot' && issue.body === approvalIssueBody(request));
+  const opened = Date.parse(issue.created_at);
+  requireThat(Number.isFinite(opened) && opened >= dispatched && opened <= published);
+  requireThat(Array.isArray(comments) && comments.length < 100 && new Set(comments.map(item => item.id)).size === comments.length);
+  const approved = [];
+  for (const comment of comments) {
+    requireThat(id(comment.id));
+    if (comment.user?.id !== 39887731) continue;
+    const time = Date.parse(comment.created_at);
+    requireThat(comment.user.type === 'User' && comment.updated_at === comment.created_at && typeof comment.body === 'string'
+      && Number.isFinite(time) && time >= opened && comment.body.trim() !== `REJECT ${digest}`);
+    if (comment.body.trim() === `APPROVE ${digest}`) approved.push(comment);
+  }
+  approved.sort((a, b) => a.id - b.id);
+  const latest = approved.at(-1);
+  requireThat(latest && latest.id === proof.comment_id && Date.parse(latest.created_at) + 300000 <= published);
+  // Re-fetch the pinned comment as well as the complete bounded history: deletion,
+  // edits or a later approval must not be hidden by a stale manifest pointer.
+  requireThat(selected.id === latest.id && selected.user?.id === 39887731 && selected.user.type === 'User'
+    && selected.body === latest.body && selected.created_at === latest.created_at && selected.updated_at === latest.updated_at);
+}
 export function validateRequest(env) {
   const target = env.DEPLOY_TARGET;
   requireThat(Object.hasOwn(TARGETS, target ?? '') && env.GITHUB_REPOSITORY === MCP_REPO);
@@ -49,14 +92,17 @@ export function validateRequest(env) {
   return TARGETS[target];
 }
 export function validateManifest(manifest, pair, now = Date.now()) {
-  keys(manifest, ['schema_version', 'app_sha', 'mcp_sha', 'checked_at', 'source', 'sandbox', 'clients', 'checks', 'metrics', 'cleanup', 'evidence_sha256']);
-  requireThat(manifest.schema_version === 1 && sha(manifest.app_sha) && sha(manifest.mcp_sha));
+  keys(manifest, ['schema_version', 'app_sha', 'mcp_sha', 'checked_at', 'source', 'approval', 'sandbox', 'clients', 'checks', 'metrics', 'cleanup', 'evidence_sha256']);
+  requireThat(manifest.schema_version === 2 && sha(manifest.app_sha) && sha(manifest.mcp_sha));
   requireThat(manifest.app_sha === pair.app_sha && manifest.mcp_sha === pair.mcp_sha);
   const time = Date.parse(manifest.checked_at);
   requireThat(typeof manifest.checked_at === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(manifest.checked_at)
     && time <= now && now - time <= FRESH_MS);
   keys(manifest.source, ['workflow', 'run_id', 'run_attempt']);
   requireThat(manifest.source.workflow === EVIDENCE_WORKFLOW && id(manifest.source.run_id) && manifest.source.run_attempt === 1);
+  keys(manifest.approval, ['method', 'issue_number', 'comment_id', 'review_sha256']);
+  requireThat(manifest.approval.method === 'github_issue_v1' && id(manifest.approval.issue_number) && id(manifest.approval.comment_id)
+    && typeof manifest.approval.review_sha256 === 'string' && /^[a-f0-9]{64}$/.test(manifest.approval.review_sha256));
   keys(manifest.sandbox, ['app_release', 'mcp_release']);
   requireThat(Object.values(manifest.sandbox).every(value => typeof value === 'string' && /^v[1-9][0-9]{0,8}$/.test(value)));
   keys(manifest.clients, ['codex_desktop', 'codex_cli', 'claude_code']);
@@ -155,12 +201,22 @@ export function createControlPlane(fetchImpl = fetch, timing = {}) {
     const result = await request(origin + '/health/ready');
     requireThat(backend ? result.status === 'ok' && result.db === 'ok' && result.redis === 'ok' : result.ready === true && result.stateless === true);
   }
+  async function currentIssueApproval(manifest, run, token) {
+    const issue = await github(APP_REPO, `issues/${manifest.approval.issue_number}`, token);
+    const response = await request(`https://api.github.com/repos/${APP_REPO}/issues/${manifest.approval.issue_number}/comments?per_page=100`, token, { raw: true });
+    requireThat(response.ok && !response.headers.has('link'));
+    const comments = JSON.parse((await bounded(response, MAX_JSON)).toString('utf8'));
+    const selected = await github(APP_REPO, `issues/comments/${manifest.approval.comment_id}`, token);
+    validateIssueApproval(manifest, run, issue, comments, selected);
+  }
   async function verifyEvidence(env) {
     await requireMain(env);
     requireThat(env.DEPLOY_TARGET === 'production' && env.APP_EVIDENCE_TOKEN && env.HEROKU_SANDBOX_READ_API_KEY);
     const token = env.APP_EVIDENCE_TOKEN;
     const repository = await github(APP_REPO, '', token);
     requireThat(repository.full_name === APP_REPO && repository.private === true && id(repository.id));
+    const appMain = await github(APP_REPO, 'git/ref/heads/main', token);
+    requireThat(appMain.object?.sha === env.APP_SHA);
     const workflow = await github(APP_REPO, `actions/workflows/${EVIDENCE_WORKFLOW}`, token);
     requireThat(id(workflow.id) && workflow.path === `.github/workflows/${EVIDENCE_WORKFLOW}` && workflow.state === 'active');
     const listed = await github(APP_REPO, `actions/workflows/${workflow.id}/runs?head_sha=${env.APP_SHA}&branch=main&event=workflow_dispatch&status=success&per_page=20`, token);
@@ -172,7 +228,6 @@ export function createControlPlane(fetchImpl = fetch, timing = {}) {
       && run.head_repository?.id === repository.id && run.status === 'completed' && run.conclusion === 'success' && run.run_attempt === 1);
     const time = Date.parse(run.updated_at);
     requireThat(Number.isFinite(time) && time <= Date.now() && Date.now() - time <= FRESH_MS);
-    await approved(APP_REPO, runId, EVIDENCE_ENVIRONMENT, token);
     const artifacts = await github(APP_REPO, `actions/runs/${runId}/artifacts?per_page=100`, token);
     requireThat(artifacts.total_count <= 100 && Array.isArray(artifacts.artifacts));
     const matches = artifacts.artifacts.filter(item => item.name === 'hosted-mcp-oauth-acceptance');
@@ -195,11 +250,16 @@ export function createControlPlane(fetchImpl = fetch, timing = {}) {
     const manifest = validateManifest(readEvidenceZip(bytes), { app_sha: env.APP_SHA, mcp_sha: env.MCP_SHA });
     requireThat(manifest.source.run_id === runId && Date.parse(manifest.checked_at) >= Date.parse(run.created_at)
       && Date.parse(manifest.checked_at) <= time);
+    await currentIssueApproval(manifest, run, token);
     const appRelease = await release(APP_SANDBOX.app, env.HEROKU_SANDBOX_READ_API_KEY);
     const mcpRelease = await release(TARGETS.sandbox.app, env.HEROKU_SANDBOX_READ_API_KEY);
     requireThat(appRelease.sha === env.APP_SHA && mcpRelease.sha === env.MCP_SHA
       && appRelease.version === manifest.sandbox.app_release && mcpRelease.version === manifest.sandbox.mcp_release);
     await healthy(APP_SANDBOX.origin, true); await healthy(TARGETS.sandbox.origin);
+    await requireMain(env);
+    const currentAppMain = await github(APP_REPO, 'git/ref/heads/main', token);
+    requireThat(currentAppMain.object?.sha === env.APP_SHA);
+    await currentIssueApproval(manifest, run, token); // Reject a decision changed during release/health reads.
     // Only public source pair + digest may leave this process; private provenance stays private.
     return { app_sha: env.APP_SHA, mcp_sha: env.MCP_SHA, evidence_sha256: manifest.evidence_sha256 };
   }

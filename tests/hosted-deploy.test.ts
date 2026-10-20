@@ -8,7 +8,7 @@ import test from 'node:test';
 import { parse } from 'yaml';
 
 // The executable is deliberately dependency-free and outside the runtime source.
-const { validateRequest, validateManifest, evidenceDigest, serializeEvidence, readEvidenceZip, createControlPlane, CHECKS, TARGETS } =
+const { validateRequest, validateManifest, evidenceDigest, serializeEvidence, readEvidenceZip, createControlPlane, CHECKS, TARGETS, approvalRequest, approvalDigest, approvalIssueBody, validateIssueApproval } =
   await import(pathToFileURL(resolve('scripts/check-hosted-deploy.mjs')).href);
 const mcp = 'a'.repeat(40); const app = 'b'.repeat(40);
 const env = { DEPLOY_TARGET: 'production', GITHUB_REPOSITORY: 'Handigraphs/handigraphs-stats-api-mcp',
@@ -17,8 +17,9 @@ const env = { DEPLOY_TARGET: 'production', GITHUB_REPOSITORY: 'Handigraphs/handi
   GH_TOKEN: 'synthetic-public-read', APP_EVIDENCE_TOKEN: 'synthetic-private-read', HEROKU_SANDBOX_READ_API_KEY: 'synthetic-platform-read',
   HEROKU_DEPLOY_API_KEY: 'synthetic-platform-deploy' };
 function manifest() {
-  const value = { schema_version: 1, app_sha: app, mcp_sha: mcp, checked_at: new Date(Date.now() - 30000).toISOString(),
+  const value = { schema_version: 2, app_sha: app, mcp_sha: mcp, checked_at: new Date(Date.now() - 30000).toISOString(),
     source: { workflow: 'hosted-mcp-oauth-evidence.yml', run_id: 88, run_attempt: 1 },
+    approval: { method: 'github_issue_v1', issue_number: 501, comment_id: 502, review_sha256: 'c'.repeat(64) },
     sandbox: { app_release: 'v12', mcp_release: 'v34' }, clients: { codex_desktop: '1.2.3', codex_cli: '1.2.3', claude_code: '2.3.4' },
     checks: Object.fromEntries(CHECKS.map((key: string) => [key, 'passed'])),
     metrics: { duration_seconds: 300, requests_per_second: 5, concurrency: 10, added_p95_ms: 250, unexpected_429: 0, unexpected_503: 0 },
@@ -49,7 +50,10 @@ test('fixed target, main source, full SHA and opt-in deployment gates reject uns
 test('strict redacted manifest binds pair, versions, measured capacity, cleanup and canonical digest', () => {
   const good = manifest(); assert.equal(validateManifest(good, { app_sha: app, mcp_sha: mcp }), good);
   const cases = [
-    { schema_version: 2 }, { app_sha: mcp }, { mcp_sha: app }, { checked_at: '2020-01-01T00:00:00Z' },
+    { schema_version: 1 }, { app_sha: mcp }, { mcp_sha: app }, { checked_at: '2020-01-01T00:00:00Z' },
+    { approval: undefined }, { approval: { ...good.approval, method: 'native_environment' } },
+    { approval: { ...good.approval, issue_number: true } }, { approval: { ...good.approval, comment_id: '502' } },
+    { approval: { ...good.approval, review_sha256: 'x'.repeat(64) } }, { approval: { ...good.approval, approved: true } },
     { checked_at: new Date(Date.now() + 60000).toISOString() }, { cleanup: false }, { passed: true },
     { token: 'synthetic-secret' }, { clients: { ...good.clients, codex_cli: 'https://private.test/account' } },
     { clients: { ...good.clients, codex_cli: '1-hg_live_synthetic_credential_marker' } },
@@ -76,19 +80,30 @@ test('bounded archive accepts one JSON member and rejects paths, multiple member
 });
 
 function fixture(change: { path?: string; value?: unknown; mutate?: (path: string, value: any) => unknown; blob?: Buffer;
-  healthFailures?: number; pendingBuild?: boolean; timing?: { now: () => number; sleep: (ms: number) => Promise<void> } } = {}) {
+  healthFailures?: number; pendingBuild?: boolean; commentsLink?: string; apiError?: { path: string; status: number };
+  timing?: { now: () => number; sleep: (ms: number) => Promise<void> } } = {}) {
   const evidence = manifest(); const archive = change.blob || zip(evidence); const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+  const run = { workflow_id: 44, path: '.github/workflows/hosted-mcp-oauth-evidence.yml', event: 'workflow_dispatch', head_branch: 'main', head_sha: app,
+    repository: { id: 99 }, head_repository: { id: 99 }, status: 'completed', conclusion: 'success', run_attempt: 1,
+    created_at: new Date(Date.parse(evidence.checked_at) - 600000).toISOString(), updated_at: new Date().toISOString() };
+  const request = approvalRequest(evidence, run);
+  const issue = { number: 501, state: 'open', user: { id: 41898282, type: 'Bot' }, body: approvalIssueBody(request),
+    created_at: new Date(Date.parse(run.created_at) + 10000).toISOString() };
+  const commentTime = new Date(Date.parse(run.created_at) + 60000).toISOString();
+  const comments = [{ id: 502, user: { id: 39887731, type: 'User' }, body: `APPROVE ${approvalDigest(request)}`,
+    created_at: commentTime, updated_at: commentTime }];
   let built = false; let healthFailures = change.healthFailures ?? 0;
   const fetchImpl: typeof fetch = async (input, init) => {
     const url = String(input); calls.push({ url, init }); const parsed = new URL(url); const path = parsed.pathname + parsed.search;
     let value: any;
-    if (path.endsWith('/git/ref/heads/main')) value = { object: { sha: mcp } };
+    if (path.endsWith('/git/ref/heads/main')) value = { object: { sha: path.includes('/repos/cjbuskey/') ? app : mcp } };
     else if (path === '/repos/cjbuskey/handigraphs-app') value = { id: 99, full_name: 'cjbuskey/handigraphs-app', private: true };
     else if (path.endsWith('/actions/workflows/hosted-mcp-oauth-evidence.yml')) value = { id: 44, path: '.github/workflows/hosted-mcp-oauth-evidence.yml', state: 'active' };
     else if (path.includes('/actions/workflows/44/runs?')) value = { workflow_runs: [{ id: 88 }] };
-    else if (path.endsWith('/actions/runs/88')) value = { workflow_id: 44, path: '.github/workflows/hosted-mcp-oauth-evidence.yml', event: 'workflow_dispatch', head_branch: 'main', head_sha: app,
-      repository: { id: 99 }, head_repository: { id: 99 }, status: 'completed', conclusion: 'success', run_attempt: 1,
-      created_at: new Date(Date.now() - 60000).toISOString(), updated_at: new Date().toISOString() };
+    else if (path.endsWith('/actions/runs/88')) value = run;
+    else if (path.endsWith('/issues/501')) value = issue;
+    else if (path.endsWith('/issues/501/comments?per_page=100')) value = comments;
+    else if (path.endsWith('/issues/comments/502')) value = comments[0];
     else if (path.endsWith('/approvals')) value = [{ state: 'approved', user: { type: 'User' }, environments: [{ name: path.includes('/77/') ? 'production' : 'hosted-mcp-evidence' }] }];
     else if (path.endsWith('/artifacts?per_page=100')) value = { total_count: 1, artifacts: [{ id: 55, name: 'hosted-mcp-oauth-acceptance', expired: false, size_in_bytes: archive.length,
       digest: 'sha256:' + createHash('sha256').update(archive).digest('hex'), workflow_run: { id: 88, repository_id: 99, head_repository_id: 99, head_branch: 'main', head_sha: app } }] };
@@ -106,9 +121,11 @@ function fixture(change: { path?: string; value?: unknown; mutate?: (path: strin
     else throw new Error('Unexpected mock API request');
     if (change.path && path.includes(change.path)) value = change.value;
     if (change.mutate) value = change.mutate(path, value);
-    return new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(value), { status: change.apiError && path.includes(change.apiError.path) ? change.apiError.status : 200,
+      headers: { 'Content-Type': 'application/json',
+      ...(change.commentsLink && path.includes('/issues/501/comments?') ? { Link: change.commentsLink } : {}) } });
   };
-  return { plane: createControlPlane(fetchImpl, change.timing), calls, evidence };
+  return { plane: createControlPlane(fetchImpl, change.timing), calls, evidence, run, issue, comments };
 }
 test('API-backed evidence authenticates exact workflow, human approval, archive and current healthy source pair', async () => {
   const { plane, calls, evidence } = fixture();
@@ -117,6 +134,90 @@ test('API-backed evidence authenticates exact workflow, human approval, archive 
   const blob = calls.find(call => call.url.includes('blob.core.windows.net'))!;
   assert.equal(new Headers(blob.init?.headers).has('Authorization'), false);
   for (const call of calls.filter(call => call.url.includes('/repos/cjbuskey/'))) assert.equal(new Headers(call.init?.headers).get('Authorization'), 'Bearer synthetic-private-read');
+  assert.ok(calls.some(call => call.url.endsWith('/issues/comments/502')));
+  assert.equal(calls.some(call => call.url.includes('/repos/cjbuskey/') && call.url.endsWith('/approvals')), false);
+});
+
+test('shared Python/JavaScript approval vector is exact and keeps publication timing historical', async () => {
+  const vector = JSON.parse(await readFile('tests/fixtures/hosted-approval-contract.json', 'utf8'));
+  const evidence = { ...manifest(), app_sha: vector.request.app_sha, mcp_sha: vector.request.mcp_sha,
+    source: { workflow: vector.request.workflow, run_id: vector.request.run_id, run_attempt: 1 },
+    approval: vector.proof, checked_at: vector.publication_at };
+  evidence.evidence_sha256 = evidenceDigest(evidence);
+  const run = { created_at: vector.request.created_at };
+  assert.deepEqual(approvalRequest(evidence, run), vector.request);
+  assert.equal(approvalDigest(vector.request), vector.request_sha256);
+  assert.equal(approvalIssueBody(vector.request), vector.issue_body);
+  assert.equal(serializeEvidence(vector.request).slice(0, -1), vector.canonical_request);
+  assert.doesNotThrow(() => validateManifest(evidence, { app_sha: evidence.app_sha, mcp_sha: evidence.mcp_sha }, Date.parse(vector.consume_at)));
+  assert.doesNotThrow(() => validateIssueApproval(evidence, run, vector.issue, vector.comments, vector.comments[0]));
+  // A valid artifact remains usable during its seven-day lifetime; only original
+  // publication, not the future production invocation, has the 30-minute TTL.
+  for (const time of ['2026-10-20T12:05:59Z', '2026-10-20T12:30:01Z']) {
+    assert.throws(() => validateIssueApproval({ ...evidence, checked_at: time }, run, vector.issue, vector.comments, vector.comments[0]));
+  }
+  assert.doesNotThrow(() => validateIssueApproval({ ...evidence, checked_at: '2026-10-20T12:30:00Z' }, run, vector.issue, vector.comments, vector.comments[0]));
+});
+
+test('private issue approval rejects forged actors, changed binding, edits, rejection and stale pointers', () => {
+  const { evidence, run, issue, comments } = fixture(); const owner = comments[0]!;
+  const verify = (changes: { issue?: any; comments?: any; selected?: any; evidence?: any; run?: any }) => validateIssueApproval(
+    changes.evidence ?? evidence, changes.run ?? run, changes.issue ?? issue, changes.comments ?? comments, changes.selected ?? owner);
+  for (const change of [
+    { state: 'closed' }, { number: 500 }, { pull_request: {} }, { body: issue.body + '\n' },
+    { user: { id: 1, type: 'Bot' } }, { user: { id: 41898282, type: 'User' } }, { created_at: 'invalid' },
+  ]) assert.throws(() => verify({ issue: { ...issue, ...change } }));
+  for (const change of [
+    { body: owner.body.toLowerCase() }, { user: { id: 1, type: 'User' } },
+    { user: { id: 39887731, type: 'Bot' } }, { updated_at: new Date().toISOString() }, { created_at: 'invalid' },
+  ]) assert.throws(() => verify({ comments: [{ ...owner, ...change }], selected: { ...owner, ...change } }));
+  const spaced = { ...owner, body: ` \n${owner.body}\n ` };
+  assert.doesNotThrow(() => verify({ comments: [spaced], selected: spaced }));
+  for (const body of [owner.body, 'unrelated owner comment']) {
+    assert.throws(() => verify({ comments: [owner, { ...owner, id: 503, body, updated_at: new Date().toISOString() }] }));
+  }
+  const rejection = { ...owner, id: 503, body: owner.body.replace('APPROVE ', 'REJECT ') };
+  for (const history of [[rejection, owner], [owner, rejection]]) assert.throws(() => verify({ comments: history }));
+  assert.throws(() => verify({ comments: [owner, { ...rejection, body: ` \n${rejection.body}\n ` }] }));
+  assert.throws(() => verify({ comments: [owner, { ...owner, id: 503 }] })); // latest exact APPROVE must be pinned
+  assert.throws(() => verify({ comments: [] })); // deleted or missing approval, even if pinned GET is stale
+  assert.throws(() => verify({ selected: { ...owner, body: 'edited away' } }));
+  assert.throws(() => verify({ selected: { ...owner, updated_at: new Date().toISOString() } }));
+  for (const proof of [{ review_sha256: 'd'.repeat(64) }, { comment_id: 503 }, { issue_number: 500 }]) {
+    assert.throws(() => verify({ evidence: { ...evidence, approval: { ...evidence.approval, ...proof } } }));
+  }
+  assert.throws(() => verify({ evidence: { ...evidence, app_sha: mcp } }));
+  assert.throws(() => verify({ evidence: { ...evidence, source: { ...evidence.source, run_id: 89 } } }));
+  assert.throws(() => verify({ run: { ...run, created_at: new Date(Date.parse(run.created_at) - 1000).toISOString() } }));
+  assert.throws(() => verify({ comments: Array.from({ length: 100 }, (_, index) => ({ ...owner, id: index + 1 })) }));
+  assert.throws(() => verify({ comments: [owner, owner] }));
+});
+
+test('private approval API is independently read-only, bounded, unpaginated and unavailable access fails closed', async () => {
+  for (const change of [
+    { commentsLink: '<https://api.github.com/repos/cjbuskey/handigraphs-app/issues/501/comments?page=2>; rel="next"' },
+    { path: '/issues/comments/502', value: {} }, { path: '/issues/501', value: {} },
+    { path: '/issues/501/comments?', value: Array.from({ length: 100 }, (_, index) => ({ id: index + 1 })) },
+    { apiError: { path: '/issues/501', status: 403 } }, { apiError: { path: '/issues/501/comments?', status: 403 } },
+    { apiError: { path: '/issues/comments/502', status: 404 } },
+  ]) {
+    const { plane, calls } = fixture(change); await assert.rejects(plane.verifyEvidence(env));
+    assert.equal(calls.some(call => call.init?.method === 'POST'), false);
+  }
+  let reads = 0;
+  const changed = fixture({ mutate: (path, value) => path.endsWith('/issues/501') && ++reads === 2 ? { ...value, state: 'closed' } : value });
+  await assert.rejects(changed.plane.verifyEvidence(env));
+  assert.equal(changed.calls.filter(call => call.url.endsWith('/issues/501')).length, 2);
+  assert.ok(changed.calls.some(call => call.url.endsWith('/health/ready')));
+  assert.equal(changed.calls.some(call => call.init?.method === 'POST'), false);
+  for (const repository of ['cjbuskey/handigraphs-app', 'Handigraphs/handigraphs-stats-api-mcp']) {
+    let refs = 0;
+    const advanced = fixture({ mutate: (path, value) => path === `/repos/${repository}/git/ref/heads/main` && ++refs === 2
+      ? { object: { sha: 'f'.repeat(40) } } : value });
+    await assert.rejects(advanced.plane.verifyEvidence(env));
+    assert.ok(advanced.calls.some(call => call.url.endsWith('/health/ready')));
+    assert.equal(advanced.calls.some(call => call.init?.method === 'POST'), false);
+  }
 });
 test('missing access, missing future workflow/evidence and unsafe provenance fail without deployment', async () => {
   for (const change of [{ APP_EVIDENCE_TOKEN: '' }, { HEROKU_SANDBOX_READ_API_KEY: '' }]) {
@@ -126,8 +227,7 @@ test('missing access, missing future workflow/evidence and unsafe provenance fai
     { path: '/git/ref/heads/main', value: { object: { sha: app } } },
     { path: '/actions/workflows/hosted-mcp-oauth-evidence.yml', value: {} },
     { path: '/workflows/44/runs?', value: { workflow_runs: [] } },
-    { path: '/approvals', value: [] }, { path: '/approvals', value: [{ state: 'approved', user: { type: 'Bot' }, environments: [{ name: 'hosted-mcp-evidence' }] }] },
-    { path: '/approvals', value: [{ state: 'rejected', user: { type: 'User' }, environments: [{ name: 'hosted-mcp-evidence' }] }] },
+    { path: '/issues/501', value: {} }, { path: '/issues/501/comments?', value: [] },
     { path: '/artifacts?', value: { total_count: 0, artifacts: [] } },
   ]) { const { plane } = fixture(mutation); await assert.rejects(plane.verifyEvidence(env)); }
   for (const [field, value] of [['head_sha', mcp], ['head_branch', 'feature'], ['event', 'push'], ['run_attempt', 2], ['conclusion', 'failure'], ['updated_at', '2020-01-01T00:00:00Z']]) {
@@ -140,10 +240,6 @@ test('missing access, missing future workflow/evidence and unsafe provenance fai
   for (const change of [{ head_sha: mcp }, { id: 1 }, { repository_id: 1 }, { head_repository_id: 1 }, { head_branch: 'feature' }]) {
     await assert.rejects(fixture({ mutate: (path, result) => path.includes('/artifacts?') ? { ...result, artifacts: [{ ...result.artifacts[0], workflow_run: { ...result.artifacts[0].workflow_run, ...change } }] } : result }).plane.verifyEvidence(env));
   }
-  await assert.rejects(fixture({ path: '/approvals', value: [
-    { state: 'approved', user: { type: 'User' }, environments: [{ name: 'hosted-mcp-evidence' }] },
-    { state: 'rejected', user: { type: 'User' }, environments: [{ name: 'hosted-mcp-evidence' }] },
-  ] }).plane.verifyEvidence(env));
   for (const [field, value] of [['expired', true], ['digest', 'sha256:' + '0'.repeat(64)], ['size_in_bytes', 100000]]) {
     const { plane } = fixture({ mutate: (path, result) => path.includes('/artifacts?') ? { ...result, artifacts: [{ ...result.artifacts[0], [String(field)]: value }] } : result });
     await assert.rejects(plane.verifyEvidence(env));
@@ -206,7 +302,14 @@ test('workflow boundaries retain pinned source, default-off sandbox, production 
   }
   assert.ok(sandbox.includes("vars.HOSTED_SANDBOX_DEPLOY_ENABLED == 'true'"));
   assert.ok(prod.includes('environment: production') && prod.includes('needs: [validate, evidence]'));
-  for (const permission of ['actions', 'contents', 'deployments']) assert.ok(prod.includes(`permission-${permission}: read`));
+  for (const permission of ['actions', 'contents', 'deployments', 'issues']) assert.ok(prod.includes(`permission-${permission}: read`));
+  const mints = Object.values(parsedProd.jobs).flatMap((job: any) => job.steps.filter((step: any) => step.id === 'evidence-token')) as any[];
+  assert.equal(mints.length, 2);
+  for (const mint of mints) {
+    assert.equal(mint.with.owner, 'cjbuskey'); assert.equal(mint.with.repositories, 'handigraphs-app');
+    for (const permission of ['actions', 'contents', 'deployments', 'issues']) assert.equal(mint.with[`permission-${permission}`], 'read');
+    assert.ok(Object.entries(mint.with).filter(([key]) => key.startsWith('permission-')).every(([, value]) => value === 'read'));
+  }
   assert.ok(prod.includes('repositories: handigraphs-app') && prod.includes('owner: cjbuskey'));
   assert.equal((await readFile('Procfile', 'utf8')).trim(), 'web: npm run start:hosted');
   const pkg = JSON.parse(await readFile('package.json', 'utf8'));

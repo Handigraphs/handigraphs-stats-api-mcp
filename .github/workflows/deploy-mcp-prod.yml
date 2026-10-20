@@ -79,6 +79,7 @@ jobs:
           permission-actions: read
           permission-contents: read
           permission-deployments: read
+          permission-issues: read
       - name: Require private same-pair acceptance provenance and current healthy sandbox releases
         run: node scripts/check-hosted-deploy.mjs evidence
         env:
@@ -110,6 +111,7 @@ jobs:
           permission-actions: read
           permission-contents: read
           permission-deployments: read
+          permission-issues: read
       - name: Recheck human approval and same pair, then build fixed production source
         run: node scripts/check-hosted-deploy.mjs deploy
         env:

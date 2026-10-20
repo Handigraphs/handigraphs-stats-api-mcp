@@ -20,3 +20,9 @@ Tests must use mocked REST endpoints. Never commit or attach a live Handigraphs 
 ## Pull requests
 
 Keep changes focused, preserve stdio stdout for MCP protocol messages, and update tests and documentation with behavior changes. Open security reports through the private process in [SECURITY.md](SECURITY.md), not a public issue.
+
+Hosted approval compatibility tests must remain offline and use synthetic issue,
+comment, workflow and platform responses. Run the full recorded mcp profile, and
+update docs/hosted-operations.md with any protocol change. Private acceptance v2
+and public production's native approval are separate gates; changing their source
+does not authorize a workflow dispatch, comment/approval, provisioning or release.
