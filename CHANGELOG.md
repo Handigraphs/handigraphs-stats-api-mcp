@@ -2,6 +2,13 @@
 
 ## Unreleased — 0.3.0 candidate
 
+- Add distinct hosted OAuth candidate plugin/server identities for Codex and
+  Claude Code, with shared query/research behavior and no local key setup.
+- Keep hosted unavailable and unrecommended pending hosted_mcp_oauth PR-09 real
+  acceptance and explicit launch approval; add conditional direct sandbox URL
+  instructions and preserve existing local configurations, setup and stdio MCPB.
+- Check candidate transport, identity, credential boundaries and business parity
+  alongside canonical local-distribution snapshots. No version or release bump.
 - Add native saved-filter discovery, validation and current-slate execution, owned
   Angles ideas, and bounded stored MLB/NHL Gamecenter packets.
 - Add idempotent new filter/idea saves, revision-guarded replacements, and explicit

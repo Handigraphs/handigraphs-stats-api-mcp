@@ -2,6 +2,11 @@
 
 The normal Windows and macOS setup requires one Codex starter and one masked paste. You do not need to edit `config.toml`, write shell commands, or send your API key to an agent.
 
+The normal installation below is the supported **local** `handigraphs-stats-api`
+plugin. The separate hosted candidate is unavailable; its gated pre-release
+instructions are at the end of this guide. Do not put a local key into an HTTP
+connection or replace an existing local installation.
+
 ## Install
 
 1. Install Node.js 22 or newer.
@@ -55,3 +60,96 @@ Select **Connect my Handigraphs account** again. The same masked setup window re
 - If the setup window reports an invalid key, use a reveal-once key beginning with `hg_test_` or `hg_live_` from [www.handigraphs.com/account/api](https://www.handigraphs.com/account/api).
 - If a test key reaches the production API, reinstall the latest plugin and run **Connect my Handigraphs account** again so it saves the sandbox environment selection.
 - Never paste a real key into a conversation, issue, screenshot, committed configuration file, or support log.
+
+## Hosted candidate: pre-release testing
+
+**Not available for normal installation.** `handigraphs-stats-api-hosted` is
+unreleased candidate source, with proposed production URL
+`https://mcp.handigraphs.com/mcp`. Neither this domain nor the proposed sandbox
+domain is provisioned by this change. The Codex marketplace entry is
+`NOT_AVAILABLE`; the Claude marketplace entry is labeled unavailable candidate
+because its schema has no assumed equivalent install-policy gate. Do not treat
+either entry as an available endpoint or interoperability sign-off.
+
+Only proceed when an operator has separately authorized and provisioned the exact
+sandbox environment, configured its paired backend/gateway/worker revision and
+approved disposable test accounts. **hosted_mcp_oauth PR-09** requires actual
+Codex desktop, Codex CLI and Claude Code consent/refresh/revocation, isolation,
+quotas, worker and measured load evidence. Public hosted recommendation,
+publication and activation require that evidence and **explicit launch/release
+approval**. No live acceptance or account mutation was performed to write this
+guide; listing a client format is not proof the client flow has passed.
+
+### Direct sandbox URL with Codex
+
+After those operator prerequisites, record the actual client version, then add
+the separately provisioned **sandbox** URL under the distinct name:
+
+```console
+codex --version
+codex mcp add handigraphs-stats-hosted --url https://mcp-sandbox.handigraphs.com/mcp
+codex mcp login handigraphs-stats-hosted
+```
+
+These commands are conditional test instructions, not commands to run against an
+available service today. Sign in as the intended Handigraphs account in the
+browser, verify the unverified app name and return destination, accept current
+API Terms explicitly if needed, and approve only intended scopes. `stats:read` is
+required; `filters:write` and `research:run` are independent choices. No fixed
+client ID, callback port, client secret, bearer header or key setting is needed:
+the client discovers the public registration and OAuth metadata. The plugin's
+compatibility `.mcp.json` uses `type: "http"` and the exact resource URL; the
+committed candidate points to the proposed production URL, not this sandbox.
+
+The desktop/CLI configuration is shared as described in the
+[official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+Record each tested product version and observed browser flow separately; do not
+assume one desktop result proves CLI compatibility. The existing native plugin
+compatibility manifest remains supported by the
+[official packaging documentation](https://developers.openai.com/plugins/build/plugins).
+
+### Direct sandbox URL with Claude Code
+
+Under the same separately approved sandbox prerequisites:
+
+```console
+claude --version
+claude mcp add --transport http handigraphs-stats-hosted https://mcp-sandbox.handigraphs.com/mcp
+```
+
+Inside Claude Code run `/mcp`, select that connection and follow its browser
+authentication flow. Do not use the local plugin's sensitive-key configuration
+screen for hosted OAuth. The hosted plugin's `mcp.claude.json` uses the same plain
+`type: "http"` / URL shape and relies on discovery. See the
+[official Claude Code MCP guide](https://code.claude.com/docs/en/mcp) and
+[plugin manifest reference](https://code.claude.com/docs/en/plugins-reference).
+Direct URL registration supplies tools, not bundled skills; separately load the
+reviewed candidate skills only as part of authorized pre-release testing.
+Claude Desktop remains on the supported local MCPB path.
+
+### Reconnect, permissions and choosing local
+
+For expired/revoked authorization or `401`, use the client's login/reconnect flow
+as the intended owner. For missing scopes, explain the denial; revoke the app in
+Account → API access and reconnect with explicit consent to change permissions.
+Eligibility/Terms/rollout failures do not justify broader consent, a different
+account, repeated submissions or silently using a local key. A lapsed owner can
+still inspect and revoke connections. Never paste API keys, website JWTs,
+refresh/access tokens or gateway service secrets into chat, configuration, tool
+arguments or support logs. Browser login handles credentials; the hosted package
+contains no local setup helpers or credential placeholders.
+
+Use **one connection at a time** to avoid duplicate tool choices. Do not register
+the same hosted server both directly and through a plugin. If local access is
+preferred, choose the existing local plugin and its masked setup explicitly;
+never automatically disable, uninstall or migrate either installation. Revoking
+an OAuth grant leaves personal-key slots, permissions and saved objects intact.
+Keys and multiple grants share the same account limits, so switching does not
+increase a budget. Technical scope never authorizes an unrequested save, and
+replacement still requires explicit confirmation and a current revision.
+
+Hosted handler changes deploy centrally, but tool definitions can remain cached
+in an active chat. Reconnect or start a new conversation/task when definitions
+change. Updating installed skills is a separate plugin update, followed by a new
+task/session; it is not guaranteed by a server deployment. Do not promise an
+instant tool refresh or silently retry an ambiguous write during reconnect.

@@ -1,6 +1,6 @@
 # Handigraphs Stats API MCP
 
-Public local stdio MCP server for the Handigraphs Stats API v1. The 0.3.0 candidate is unreleased; installing the published package does not yet provide these new research features. The authenticated server exposes 19 tools, including the original three stats tools:
+Canonical MCP adapter for the Handigraphs Stats API v1, with supported local stdio distributions and separately gated hosted candidate source. The 0.3.0 candidate is unreleased; installing the published package does not yet provide these new research features. The authenticated server exposes 19 business tools, including the original three stats tools:
 
 - `list_resources({ sport? })` discovers sports and resources.
 - `describe_resource({ sport, resource })` discovers metrics, canonical units, splits, and supported filters.
@@ -32,7 +32,38 @@ Create/save and job submission require a caller-generated UUID `operation_id`. K
 
 Job results retain independent frequency/outcome stages, partial failures, frozen inputs and expiry. Reports currently expire after 24 hours. Saved ideas retain editable settings and a website Run again action, not a permanent report archive. Return only the IDs and website links actually received. The tools expose these requirements in their schemas/descriptions so other MCP clients can use them without the plugin skill.
 
-## Credentials
+## Hosted candidate — not available
+
+`handigraphs-stats-api-hosted` is a separate **unreleased candidate**, not an
+available or recommended hosted connection. The proposed
+`https://mcp.handigraphs.com/mcp` endpoint is unprovisioned by this work. Source
+merges, HTTP fixture tests and manifest validation do not prove deployment or
+Codex/Claude Code interoperability. Complete **hosted_mcp_oauth PR-09** acceptance
+and obtain explicit launch/release approval before recommending or publishing it.
+
+| Choice | Plugin / server identity | Authentication | Current status |
+| --- | --- | --- | --- |
+| Local | `handigraphs-stats-api` / `handigraphs-stats` | Existing personal key and secure local setup | Supported installation path below; new 0.3.0 features remain unreleased. |
+| Hosted | `handigraphs-stats-api-hosted` / `handigraphs-stats-hosted` | Browser OAuth with independent consent | Candidate source only; Codex marketplace policy is `NOT_AVAILABLE`, Claude entry is explicitly labeled unavailable candidate. |
+
+Hosted candidate files contain only HTTP URL configuration and two business
+skills; they include no key placeholder, local setup helper or secret setting.
+The same 19 handlers, tool descriptions, owned objects and account-wide budgets
+apply to both transports; only local Codex adds its key setup tool. Local keys and
+OAuth grants remain separate and independently revocable. Existing installations
+are never migrated, disabled or rotated automatically. Choose one connection at a
+time to avoid duplicate tools; changing connections is always the user's choice.
+Claude Desktop retains the local stdio MCPB for this release.
+
+For separately authorized pre-release sandbox testing, see
+[the candidate connection instructions](docs/codex-setup.md#hosted-candidate-pre-release-testing).
+Those instructions require an operator-provisioned environment; they are not a
+working public endpoint announcement. Server updates are centralized, but client
+tool caches may require reconnecting and a new conversation; installed skills
+still require a plugin update. Operational setup and deployment gates remain in
+[hosted operations](docs/hosted-operations.md).
+
+## Local credentials
 
 Create a reveal-once Stats API key at [www.handigraphs.com/account/api](https://www.handigraphs.com/account/api). During rollout testing, keys beginning with `hg_test_` automatically use the sandbox API; production keys beginning with `hg_live_` use production. Never paste a real key into a repository, issue, prompt, or committed client configuration.
 
@@ -107,7 +138,7 @@ Restart the MCP client after saving its configuration. Do not commit the configu
 
 An `hg_test_` key selects `https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com/api/v1` automatically. `HANDIGRAPHS_API_BASE_URL` remains available as an explicit override for local development or another approved environment.
 
-## Configuration
+## Local configuration
 
 Environment variables:
 

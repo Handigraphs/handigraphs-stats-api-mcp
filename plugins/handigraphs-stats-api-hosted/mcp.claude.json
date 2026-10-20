@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "handigraphs-stats-hosted": {
+      "type": "http",
+      "url": "https://mcp.handigraphs.com/mcp"
+    }
+  }
+}
