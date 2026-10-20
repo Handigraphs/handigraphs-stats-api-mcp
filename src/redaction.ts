@@ -1,9 +1,11 @@
-const AUTH_LIKE = /(^|_)(authorization|api_?key|access_?token|auth_?token|token|secret|credential|password)($|_)/i;
+const AUTH_LIKE = /(^|_)(authorization|authorization_?code|auth_?code|api_?key|access_?token|auth_?token|token|secret|credential|password|cookie)($|_)/i;
 const REDACTED = "[REDACTED]";
 
-function redactString(value: string, apiKey: string): string {
-  if (!apiKey) return value;
-  return value.split(apiKey).join(REDACTED);
+function redactString(value: string, apiKey: string | readonly string[]): string {
+  for (const secret of typeof apiKey === "string" ? [apiKey] : apiKey) {
+    if (secret) value = value.split(secret).join(REDACTED);
+  }
+  return value;
 }
 
 function isAuthLikeField(key: string): boolean {
@@ -14,7 +16,7 @@ function isAuthLikeField(key: string): boolean {
   return AUTH_LIKE.test(normalized);
 }
 
-export function redact(value: unknown, apiKey: string, seen = new WeakSet<object>()): unknown {
+export function redact(value: unknown, apiKey: string | readonly string[], seen = new WeakSet<object>()): unknown {
   if (typeof value === "string") return redactString(value, apiKey);
   if (value === null || typeof value !== "object") return value;
   if (seen.has(value)) return "[CIRCULAR]";
@@ -34,7 +36,13 @@ export function redact(value: unknown, apiKey: string, seen = new WeakSet<object
   return output;
 }
 
-export function safeStderr(message: string, detail: unknown, apiKey: string): void {
+export function safeStderr(message: string, detail: unknown, apiKey: string | readonly string[]): void {
   const safe = redact(detail, apiKey);
   process.stderr.write(`${message} ${JSON.stringify(safe)}\n`);
+}
+
+/** Exact credential echoes only: opaque business cursors/evaluation tokens survive. */
+export function redactCredentialEchoes<T>(value: T, secrets: readonly string[]): T {
+  return JSON.parse(JSON.stringify(value, (_key, item: unknown) =>
+    typeof item === "string" ? redactString(item, secrets) : item)) as T;
 }

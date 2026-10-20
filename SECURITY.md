@@ -26,6 +26,40 @@ The server supports stdio only. The base URL must use HTTPS; plain HTTP is accep
 
 Do not weaken these controls to accommodate a proxy. Configure a trusted same-origin HTTPS endpoint instead.
 
+### Opt-in hosted source
+
+The planned hosted entrypoint is separate from the local stdio command and is
+disabled unless explicitly configured. It adds stateless JSON Streamable HTTP
+with one request-local SDK server and private API client per MCP message. It
+never reads the local key store or enables `configure_api_key`. Public metadata
+identifies the exact configured MCP resource and application authorization
+server. All `/mcp` methods require an opaque MCP token, including initialize,
+tool listing and calls; authenticated GET/DELETE are bounded 405 responses.
+
+The gateway exchanges that subject token using its independent confidential
+service credential, a fixed issuer `/oauth/token` endpoint and exact API
+audience/resource. Only the returned API-audience credential is sent to the
+same-origin data API. Tokens are never stored, reused across messages, placed in
+process.env, or forwarded as user-provided credentials to arbitrary URLs.
+Missing/rejected user credentials and insufficient scopes return OAuth
+challenges; service authentication or dependency failures return safe 503.
+Ambiguous writes are not retried. The backend rechecks grants and account policy;
+the gateway does not mint an identity or bypass that enforcement.
+
+Only public discovery responses and their in-flight reads are shared. Private
+capabilities, owned items and API clients are never shared or cached. Known
+subject/service/delegated credentials and Basic encodings are removed from
+tool results, protocol errors and diagnostics; protocol bodies and raw error
+objects are not logged at the hosted HTTP boundary. Business evaluation tokens
+and pagination cursors retain their existing behavior.
+
+Exact Host/Origin allowlists are checked before exchange, independently of
+forwarded headers. Body bytes, whole-body time, request time, concurrency and
+upstream response bytes are bounded. Health responses contain only local
+process/config booleans and source version. Shutdown drains bounded in-flight
+requests and then aborts remaining I/O. This source change provides no hosted
+endpoint, operational secrets, service provisioning, release or activation.
+
 ## Account actions and research
 
 The server now includes account mutations. Tool annotations mark saves, replacements,

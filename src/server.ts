@@ -6,7 +6,7 @@ import { DiscoveryClient } from "./discovery.js";
 import { ToolInputError, UpstreamError, type SafeProblem } from "./errors.js";
 import { StatsApiHttpClient } from "./http.js";
 import { FILTER_OPERATORS, validateAndBuildQuery, type QueryInput } from "./query.js";
-import { redact, safeStderr } from "./redaction.js";
+import { redact, redactCredentialEchoes, safeStderr } from "./redaction.js";
 import { registerApiKeySetupTool, type SetupLauncher } from "./setup.js";
 import { SERVER_VERSION } from "./version.js";
 import { AgentReadClient, agentReadTools } from "./agent-read.js";
@@ -22,7 +22,7 @@ function success(response: Record<string, unknown>, metadata: Record<string, unk
   };
 }
 
-function errorResult(problem: SafeProblem, apiKey: string): CallToolResult {
+function errorResult(problem: SafeProblem, apiKey: string | readonly string[]): CallToolResult {
   const safe = redact(problem, apiKey) as Record<string, unknown>;
   return {
     isError: true,
@@ -31,12 +31,12 @@ function errorResult(problem: SafeProblem, apiKey: string): CallToolResult {
   };
 }
 
-function handler(config: Config, callback: () => Promise<CallToolResult>): Promise<CallToolResult> {
-  return callback().catch((error: unknown) => {
-    if (error instanceof UpstreamError) return errorResult(error.problem, config.apiKey);
-    if (error instanceof ToolInputError) return errorResult({ status: 400, code: error.code, detail: error.message }, config.apiKey);
-    safeStderr("Handigraphs Stats API MCP error:", error, config.apiKey);
-    return errorResult({ status: 500, code: "mcp_internal_error", detail: "The MCP server could not complete the request." }, config.apiKey);
+function handler(secrets: readonly string[], callback: () => Promise<CallToolResult>): Promise<CallToolResult> {
+  return callback().then((result) => redactCredentialEchoes(result, secrets)).catch((error: unknown) => {
+    if (error instanceof UpstreamError) return errorResult(error.problem, secrets);
+    if (error instanceof ToolInputError) return errorResult({ status: 400, code: error.code, detail: error.message }, secrets);
+    safeStderr("Handigraphs Stats API MCP error:", error, secrets);
+    return errorResult({ status: 500, code: "mcp_internal_error", detail: "The MCP server could not complete the request." }, secrets);
   });
 }
 
@@ -45,11 +45,15 @@ export interface ServerDependencies {
   now?: () => number;
   enableLocalSetup?: boolean;
   setupLauncher?: SetupLauncher;
+  publicDiscovery?: DiscoveryClient;
+  redactionSecrets?: readonly string[];
+  signal?: AbortSignal;
 }
 
 export function createServer(config: Config, dependencies: ServerDependencies = {}): McpServer {
-  const http = new StatsApiHttpClient(config, dependencies.fetchImpl);
-  const discovery = new DiscoveryClient(http, config.discoveryTtlMs, dependencies.now);
+  const http = new StatsApiHttpClient(config, dependencies.fetchImpl, dependencies.signal);
+  const discovery = dependencies.publicDiscovery ?? new DiscoveryClient(http, config.discoveryTtlMs, dependencies.now);
+  const secrets = Object.freeze([config.apiKey, ...(dependencies.redactionSecrets ?? [])]);
   const agent = new AgentReadClient(http, discovery);
   const actions = new AgentActionClient(http, discovery);
   const server = new McpServer({ name: "handigraphs-stats-api", version: SERVER_VERSION });
@@ -59,7 +63,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     description: "List live sports and stats resources from public Handigraphs discovery.",
     inputSchema: { sport: sportSchema.optional() },
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, ({ sport }) => handler(config, async () => {
+  }, ({ sport }) => handler(secrets, async () => {
     if (sport) {
       try { return success({ sport, resources: await discovery.resources(sport) }); }
       catch (error) {
@@ -77,7 +81,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     description: "Return live resource, metric, split, unit, and filter discovery.",
     inputSchema: { sport: sportSchema, resource: resourceSchema },
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, ({ sport, resource }) => handler(config, async () => {
+  }, ({ sport, resource }) => handler(secrets, async () => {
     try { return success(await discovery.describe(sport, resource)); }
     catch (error) {
       if (!(error instanceof ToolInputError)) throw error;
@@ -119,7 +123,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
       location: z.string().trim().min(1).max(40).optional(),
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, (input) => handler(config, async () => {
+  }, (input) => handler(secrets, async () => {
     const query = await validateAndBuildQuery(discovery, input as QueryInput);
     const response = await http.get(query.url, { protectedData: true });
     if ("notModified" in response) throw new Error("Protected data unexpectedly returned 304.");
@@ -135,7 +139,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
       description: tool.description,
       inputSchema: tool.inputSchema,
       annotations: tool.annotations,
-    }, (input: unknown) => handler(config, async () => {
+    }, (input: unknown) => handler(secrets, async () => {
       const response = await tool.execute(input);
       // Preserve opaque evaluation/cursor tokens while removing exact credential
       // echoes from arbitrary stored text as well as structured metadata.

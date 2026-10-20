@@ -42,6 +42,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:test": "tsc -p tsconfig.test.json",
+    "start:hosted": "node dist/hosted-index.js",
     "audit:prod": "npm audit --omit=dev --audit-level=moderate",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "npm run build:test && node --test .test-dist/tests/*.test.js",
