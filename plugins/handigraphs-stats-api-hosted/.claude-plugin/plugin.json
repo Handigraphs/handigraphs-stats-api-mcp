@@ -1,0 +1,23 @@
+{
+  "name": "handigraphs-stats-api-hosted",
+  "displayName": "Handigraphs Hosted (candidate)",
+  "version": "0.3.0",
+  "description": "Unreleased hosted OAuth candidate for the same MLB/NHL stats, filters and research. Not available or recommended until hosted_mcp_oauth PR-09 acceptance and explicit launch approval.",
+  "author": {
+    "name": "Handigraphs",
+    "email": "support@handigraphs.com",
+    "url": "https://www.handigraphs.com"
+  },
+  "homepage": "https://www.handigraphs.com/developers#mcp",
+  "repository": "https://github.com/Handigraphs/handigraphs-stats-api-mcp",
+  "license": "Apache-2.0",
+  "keywords": [
+    "sports-analytics",
+    "mlb",
+    "nhl",
+    "stats",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./mcp.claude.json"
+}

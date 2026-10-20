@@ -15,6 +15,18 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Data"
+    },
+    {
+      "name": "handigraphs-stats-api-hosted",
+      "source": {
+        "source": "local",
+        "path": "./plugins/handigraphs-stats-api-hosted"
+      },
+      "policy": {
+        "installation": "NOT_AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Data"
     }
   ]
 }

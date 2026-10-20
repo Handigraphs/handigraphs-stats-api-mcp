@@ -1,0 +1,4 @@
+interface:
+  display_name: "Research Handigraphs Filters (hosted candidate)"
+  short_description: "Test and save MLB and NHL filter ideas"
+  default_prompt: "Use $research-handigraphs-filters to compare SOG filter ideas and save a supported choice with its test settings only after my separately authorized sandbox test connection is available."

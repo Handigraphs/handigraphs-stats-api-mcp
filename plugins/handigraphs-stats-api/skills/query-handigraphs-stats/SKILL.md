@@ -5,6 +5,18 @@ description: Use the Handigraphs Stats API MCP tools to discover and query live 
 
 # Query Handigraphs Stats
 
+## Connection
+
+Use this plugin's local `handigraphs-stats` server. Never switch to a different
+connection or account without the user's choice. Never ask for or repeat a Stats API key in chat.
+If the local server is not configured, invoke the bundled
+`setup-handigraphs-stats-api` skill and follow its platform-specific masked setup
+workflow. Do not accept the key as a tool argument or automate entry into the
+setup window. Local keys and hosted grants are separate; revoking a hosted
+connection does not rotate or revoke a local key.
+
+## Shared business workflow
+
 Use live discovery instead of guessing resource, metric, split, unit, or filter names.
 
 For native saved filters, Angles historical tests, or research-and-save requests,
@@ -36,10 +48,10 @@ items and submit research when authorized; ordinary stats queries remain read-on
 - Do not replace a null freshness timestamp, metric value, or tier with an estimate.
 - Separate the API result from any analysis or recommendation derived from it.
 
-## Errors and credentials
+## Errors
 
-- Never ask for or repeat a Stats API key in chat. If the local server is not configured, invoke the bundled `setup-handigraphs-stats-api` skill and follow its platform-specific masked setup workflow. Do not accept the key as a tool argument or automate entry into the setup window.
+- Never expose credentials, authorization headers or private connection details in results or logs.
 - Do not automatically retry `429` or `503` responses. Report the safe error code and honor any retry guidance returned by the tool.
 - Keep this stats-query workflow read-only. Use the research skill for account
   saves and historical jobs; explicit save intent and confirmed replacements are
-  required even when the key's default-on permissions are enabled.
+  required even when optional permissions are granted.

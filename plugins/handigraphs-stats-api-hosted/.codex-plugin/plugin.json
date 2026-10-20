@@ -1,0 +1,41 @@
+{
+  "name": "handigraphs-stats-api-hosted",
+  "version": "0.3.0",
+  "description": "Unreleased hosted OAuth candidate for the same MLB/NHL stats, filters and research. Not available or recommended until hosted_mcp_oauth PR-09 acceptance and explicit launch approval.",
+  "author": {
+    "name": "Handigraphs",
+    "email": "support@handigraphs.com",
+    "url": "https://www.handigraphs.com"
+  },
+  "homepage": "https://www.handigraphs.com/developers#mcp",
+  "repository": "https://github.com/Handigraphs/handigraphs-stats-api-mcp",
+  "license": "Apache-2.0",
+  "keywords": [
+    "sports-analytics",
+    "mlb",
+    "nhl",
+    "stats",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Handigraphs Hosted (candidate)",
+    "shortDescription": "Candidate only; hosted access is unavailable",
+    "longDescription": "Unreleased hosted OAuth candidate for the same MLB/NHL stats, filters and research. Not available or recommended until hosted_mcp_oauth PR-09 acceptance and explicit launch approval.",
+    "developerName": "Handigraphs",
+    "category": "Data",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://www.handigraphs.com/developers#mcp",
+    "privacyPolicyURL": "https://www.handigraphs.com/privacy",
+    "termsOfServiceURL": "https://www.handigraphs.com/terms",
+    "defaultPrompt": [
+      "Show the hosted candidate status and connection prerequisites.",
+      "Compare MLB and NHL stats after my approved hosted connection is available.",
+      "Research filter ideas without saving unless I ask."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

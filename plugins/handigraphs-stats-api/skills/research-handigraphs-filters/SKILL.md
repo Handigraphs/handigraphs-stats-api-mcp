@@ -5,6 +5,20 @@ description: Build, validate, rerun, compare and save Handigraphs MLB or NHL pla
 
 # Research Handigraphs filters
 
+## Connection
+
+Use this plugin's local `handigraphs-stats` server. Never switch to a different
+connection or account without the user's choice. New and existing eligible keys
+default to Save filters and ideas / Run historical research permissions; owners
+can disable either at `/account/api`, and rotation preserves their choices.
+Eligibility, current Terms and feature availability still apply. A key cannot
+grant itself permissions. Explain a missing capability with the account link;
+never ask for or repeat an API key in chat. For setup, use the bundled
+`setup-handigraphs-stats-api` skill's masked workflow. Local keys and hosted grants
+are separate credentials with the same shared account budgets.
+
+## Shared business workflow
+
 Use the Handigraphs MCP tools for native website filters and Angles research. The
 targets are MLB batters/starters and NHL skaters/goalies. Tools also work without
 this skill; the API remains authoritative for ownership, validity and limits.
@@ -16,12 +30,6 @@ this skill; the API remains authoritative for ownership, validity and limits.
   not authorize saving. Get explicit user confirmation before replacing an
   existing filter or idea; read its current revision first. A permission, tool
   annotation, or model-written confirmation flag is not user confirmation.
-- New and existing keys default to Save filters and ideas / Run historical
-  research permissions; owners can disable either at `/account/api`. Rotation
-  preserves their choices. Eligibility, current Terms and feature availability
-  still apply. A key cannot grant itself permissions. Explain a missing capability
-  with the account link; never ask for or repeat an API key in chat. For setup,
-  use the bundled `setup-handigraphs-stats-api` skill's masked workflow.
 - For “run my filter,” resolve the owned item with `list_saved_filters` and
   `get_saved_filter`, disambiguating duplicate names only when necessary. Preserve
   its exact rule and revision. `run_filter` means today's Eastern slate; a
@@ -42,8 +50,9 @@ this skill; the API remains authoritative for ownership, validity and limits.
    user-directed comparison, including errors/cancellations. A smaller user budget
    wins. Existing daily/active/queue limits also apply (currently 10 accepted API
    jobs per account/UTC day and one active job); discovery and server responses win.
-   Exhausting a budget means report/resume with the user, not rotate keys or retry
-   under new IDs. Keep identical outcome/window settings across candidates.
+   Exhausting a budget means report/resume with the user, not rotate keys, grants,
+   identities or servers, or retry under new IDs. Keep identical outcome/window
+   settings across candidates.
 3. Draft explicit hypotheses and call `validate_filter` for each. Preserve every
    exact attempted rule and its result/job association. Keep unsupported ideas as
    named exclusions; do not drop criteria or substitute a weaker rule. Historical
