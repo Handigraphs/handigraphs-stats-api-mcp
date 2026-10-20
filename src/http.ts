@@ -71,7 +71,7 @@ function responseTooLarge(): UpstreamError {
   });
 }
 
-async function readJsonBody(response: Response, maxBytes: number): Promise<unknown> {
+export async function readJsonBody(response: Response, maxBytes: number): Promise<unknown> {
   const declared = response.headers.get("content-length");
   if (declared && /^\d+$/.test(declared) && Number(declared) > maxBytes) {
     await response.body?.cancel().catch(() => undefined);
@@ -111,7 +111,8 @@ async function readJsonBody(response: Response, maxBytes: number): Promise<unkno
 }
 
 export class StatsApiHttpClient {
-  constructor(private readonly config: Config, private readonly fetchImpl: typeof fetch = fetch) {}
+  constructor(private readonly config: Config, private readonly fetchImpl: typeof fetch = fetch,
+    private readonly signal?: AbortSignal) {}
 
   resolve(pathOrUrl: string): URL {
     const candidate = pathOrUrl === ""
@@ -154,7 +155,7 @@ export class StatsApiHttpClient {
         headers,
         ...(body === undefined ? {} : { body }),
         redirect: "manual",
-        signal: AbortSignal.timeout(this.config.timeoutMs),
+        signal: this.signal ? AbortSignal.any([this.signal, AbortSignal.timeout(this.config.timeoutMs)]) : AbortSignal.timeout(this.config.timeoutMs),
       });
     } catch (error) {
       const detail = error instanceof Error && error.name === "TimeoutError"
