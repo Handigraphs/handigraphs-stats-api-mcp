@@ -11,3 +11,10 @@ docs/hosted-operations.md. Source validation is offline; never dispatch a
 deployment, provision credentials/resources, activate OAuth or publish a release
 without separate explicit authorization. Missing private PR-09 evidence is a
 hard production blocker, including when all source CI is green.
+
+Synthetic denial-witness instrumentation is separately authorized source only,
+default off, fixed-sandbox and capped to a four-hour window and 100 events.
+Follow AGENTS.md and docs/hosted-operations.md; never turn source tests or a
+native disconnected state into bearer-401 evidence. This source pair needs fresh
+acceptance. The pinned SDK 1.32.1 hosted-only 10,000-element guard supplements
+the existing body-byte limit and leaves the local stdio setting unchanged.

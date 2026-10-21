@@ -48,6 +48,7 @@ export interface ServerDependencies {
   publicDiscovery?: DiscoveryClient;
   redactionSecrets?: readonly string[];
   signal?: AbortSignal;
+  maxToolInputElements?: number;
 }
 
 export function createServer(config: Config, dependencies: ServerDependencies = {}): McpServer {
@@ -56,7 +57,8 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   const secrets = Object.freeze([config.apiKey, ...(dependencies.redactionSecrets ?? [])]);
   const agent = new AgentReadClient(http, discovery);
   const actions = new AgentActionClient(http, discovery);
-  const server = new McpServer({ name: "handigraphs-stats-api", version: SERVER_VERSION });
+  const server = new McpServer({ name: "handigraphs-stats-api", version: SERVER_VERSION },
+    dependencies.maxToolInputElements === undefined ? {} : { maxToolInputElements: dependencies.maxToolInputElements });
 
   server.registerTool("list_resources", {
     title: "List Handigraphs Stats API resources",
