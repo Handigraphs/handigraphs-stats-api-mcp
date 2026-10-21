@@ -10,8 +10,9 @@
 - Status: source complete, final exact validation and independent application-
   counterpart source review passed. No PR, live operation, deployment,
   publication or manual merge.
-- Code checkpoint: this implementation commit; its full SHA will be recorded by
-  a subsequent continuity-only commit after checkpoint creation.
+- Code checkpoint: `ffb5ce73e09db80d5e9af4f28f76fbd9efbe5a19`.
+  This subsequent continuity-only commit has its own final SHA, reported at
+  handoff after push verification. No PR is authorized yet.
 
 ## Contract and boundaries
 
@@ -102,7 +103,11 @@ Independent application-counterpart reviewer approved actual source/tests,
 including the exact SDK delta and hosted-only opt-in guard. No extra live test
 or operational acceptance was performed for review.
 
-Remaining: create source and continuity
-checkpoints, push and verify the exact remote SHA. Parent review precedes any PR;
+Fresh remote main still equals the recorded base; ancestor/conflict and whitespace
+checks passed before checkpoint. Normal Git hooks remained enabled. Only the
+12 reviewed task files were staged; untracked local logs remain excluded.
+
+Remaining: push and verify the continuity checkpoint's exact remote SHA.
+Parent review precedes any PR;
 external merge is human-controlled. Source merge is distinct from sandbox
 deployment, instrumentation activation, native acceptance and npm/MCPB release.
