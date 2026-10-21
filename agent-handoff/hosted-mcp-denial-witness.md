@@ -8,11 +8,13 @@
 - Sole writer: Codex `graph_review`, Windows / PowerShell, Node 22.14.0.
   Application counterpart belongs to the separate application writer.
 - Status: source complete, final exact validation and independent application-
-  counterpart source review passed. No PR, live operation, deployment,
-  publication or manual merge.
+  counterpart source review passed. Parent authorized Ready source PR
+  [#31](https://github.com/Handigraphs/handigraphs-stats-api-mcp/pull/31);
+  platform CI is pending. No live operation, deployment, publication or merge.
 - Code checkpoint: `ffb5ce73e09db80d5e9af4f28f76fbd9efbe5a19`.
   This subsequent continuity-only commit has its own final SHA, reported at
-  handoff after push verification. No PR is authorized yet.
+  handoff after push verification. Ready PR creation was subsequently authorized;
+  manual merge and deployment remain separate human decisions.
 
 ## Contract and boundaries
 
@@ -113,6 +115,6 @@ push failed in Git Bash/credential-manager with Windows object-access denial;
 the exact host-context retry succeeded. This note-only follow-up has a distinct
 final SHA reported at handoff. No hook bypass or authentication workaround.
 
-Remaining: parent review precedes any PR;
-external merge is human-controlled. Source merge is distinct from sandbox
+Remaining: watch required all-platform CI and verify mergeability. External
+merge is human-controlled; no merge authorization exists. Source merge is distinct from sandbox
 deployment, instrumentation activation, native acceptance and npm/MCPB release.
