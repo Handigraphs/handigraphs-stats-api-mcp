@@ -107,7 +107,12 @@ Fresh remote main still equals the recorded base; ancestor/conflict and whitespa
 checks passed before checkpoint. Normal Git hooks remained enabled. Only the
 12 reviewed task files were staged; untracked local logs remain excluded.
 
-Remaining: push and verify the continuity checkpoint's exact remote SHA.
-Parent review precedes any PR;
+Source and continuity checkpoint `cccf430cae1b37ea5100367bdee11fd71656c64a`
+were pushed and independently matched with `git ls-remote`. The first sandboxed
+push failed in Git Bash/credential-manager with Windows object-access denial;
+the exact host-context retry succeeded. This note-only follow-up has a distinct
+final SHA reported at handoff. No hook bypass or authentication workaround.
+
+Remaining: parent review precedes any PR;
 external merge is human-controlled. Source merge is distinct from sandbox
 deployment, instrumentation activation, native acceptance and npm/MCPB release.
