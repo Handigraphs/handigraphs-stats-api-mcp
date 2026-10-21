@@ -7,6 +7,61 @@ Its matching v2 issue-approval implementation, real acceptance, approved access
 and operational configuration must exist or production preflight **fails closed**. Mock tests and a green
 MCP build never substitute for acceptance.
 
+## Optional synthetic revocation-denial witness
+
+This instrumentation is default off. Source does not authorize its configuration,
+deployment, fresh synthetic account creation, native login/read/revocation, or any
+production operation. A changed runtime app/MCP pair requires fresh acceptance;
+earlier pair results cannot be relabeled. The SDK is pinned to 1.32.1, with the
+hosted-only `maxToolInputElements=10000` validation guard alongside the existing
+128 KiB byte bound. Stdio keeps its previous element-limit default.
+
+Only the exact sandbox app `handigraphs-mcp-sandbox`, resource
+`https://mcp-sandbox.handigraphs.com/mcp` and issuer
+`https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com` can opt in. The
+optional runtime variables share prefix `HANDIGRAPHS_MCP_DENIAL_WITNESS_`:
+
+| Suffix | Required value |
+| --- | --- |
+| `ENABLED` | Exact `true`; missing/false/invalid configuration is inert. |
+| `RUN_REF` | Fresh noncredential 64-character lowercase hexadecimal reference, never a token or token-derived digest. |
+| `STARTED_AT`, `UNTIL` | Exact UTC `Z` timestamps (seconds or milliseconds), positive window of at most four hours. Requests and completed responses must be within it. |
+| `EVENT_CAP` | Explicit integer 1 through 100; process-local output budget. |
+
+The application independently requires its matching run/cohort/configuration,
+fresh noncustomer owner/client/grant/access records, future access expiry and
+confirmed grant revocation. Its shared Redis run budget/dedupe must be prepared
+under separate operator approval and remain available; missing or ambiguous
+audit state produces no confirmation. This application budget is authoritative
+across gateway processes/restarts; the gateway also limits its own output.
+The reviewed fresh-fixture operator must journal and perform the application's
+one-time NX seed of `oauth:denial-witness:v1:<run_ref>`: only canonical `start`
+and `until` epoch-millisecond strings plus `cap`, with absolute expiry at `until`.
+The application's fixed seed script rejects an existing run. Requests never
+seed/recreate a missing key, and the gateway never connects to Redis. Lost or
+evicted state blocks evidence; do not replay a seed to reset the budget.
+
+For each authenticated protocol request, the gateway creates a cryptographic
+UUIDv4. It ignores incoming acceptance/request IDs, and sends only its generated
+`X-Handigraphs-Acceptance-Request-Id` and configured
+`X-Handigraphs-Acceptance-Run-Ref` on the existing fixed, service-authenticated
+HTTPS `/oauth/token` exchange. No redirects, new endpoint or new audience is
+introduced. No acceptance header is added to native client configuration.
+
+Confirmation requires the ordinary OAuth `400 invalid_grant` response plus all
+three exact internal response headers: `X-Handigraphs-Acceptance-Witness` equal to
+`revoked-grant-v1`, and both request-ID/run-reference echoes. Only after the
+gateway response actually finishes HTTP 401 does it emit one bounded JSON line
+to stderr: `schema_version=1`, `event=hosted_mcp_denial_witness`, `run_ref`,
+`request_id`, `status=401`, `response_finished=true`, and UTC `observed_at`.
+It logs no token, credential digest, grant/client/account identity, header, body
+or error. Confirmation headers never reach the MCP client. Missing/mismatched
+confirmation, other statuses, unfinished/aborted responses, expired windows,
+exhausted budget or output failure yield no usable witness and do not change the
+normal authorization denial. Logs do not prove remote ingestion or client
+cache behavior; acceptance must correlate both complete server events and the
+actual native attempt within the approved window.
+
 ## Fixed proposed targets
 
 | Target | Heroku app | Resource / readiness |

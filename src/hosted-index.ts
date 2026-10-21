@@ -10,8 +10,9 @@ import { challenge, exchangeToken, HostedFailure, serviceAuthorization, subjectT
 import { redactCredentialEchoes } from "./redaction.js";
 import { createServer } from "./server.js";
 import { SERVER_VERSION } from "./version.js";
+import { createDenialWitness, type DenialWitnessAttempt, type DenialWitnessDependencies } from "./hosted-witness.js";
 
-export interface HostedDependencies { fetchImpl?: typeof fetch; }
+export interface HostedDependencies { fetchImpl?: typeof fetch; witness?: DenialWitnessDependencies; }
 
 function json(response: ServerResponse, status: number, value: unknown): void {
   if (response.writableEnded || response.destroyed) return;
@@ -64,6 +65,7 @@ async function body(request: IncomingMessage, config: HostedConfig, signal: Abor
 /** One gateway can span many users; only unauthenticated discovery is shared. */
 export function createHostedGateway(config: HostedConfig, dependencies: HostedDependencies = {}) {
   const fetchImpl = dependencies.fetchImpl ?? fetch;
+  const denialWitness = createDenialWitness(config, dependencies.witness);
   const discoveryLifetime = new AbortController();
   const publicDiscovery = new DiscoveryClient(new StatsApiHttpClient(requestConfig(config, ""), fetchImpl, discoveryLifetime.signal), 300000);
   const active = new Map<AbortController, Promise<void>>();
@@ -97,10 +99,12 @@ export function createHostedGateway(config: HostedConfig, dependencies: HostedDe
     response.once("close", disconnected);
     let mcp: ReturnType<typeof createServer> | undefined;
     let transport: StreamableHTTPServerTransport | undefined;
+    let witness: DenialWitnessAttempt | undefined;
     try {
       const subject = subjectToken(request);
       const parsed = request.method === "POST" ? await body(request, config, controller.signal) : undefined;
-      const delegated = await exchangeToken(config, subject, controller.signal, fetchImpl);
+      witness = denialWitness.begin();
+      const delegated = await exchangeToken(config, subject, controller.signal, fetchImpl, witness);
       if (request.method !== "POST") {
         response.setHeader("Allow", "POST"); json(response, 405, { error: "method_not_allowed" }); return;
       }
@@ -130,11 +134,11 @@ export function createHostedGateway(config: HostedConfig, dependencies: HostedDe
         return Reflect.apply(writeHead, response, [status, ...args]);
       }) as typeof response.writeHead;
       mcp = createServer(requestConfig(config, delegated), { publicDiscovery, fetchImpl: privateFetch,
-        signal: controller.signal, redactionSecrets: secrets });
+        signal: controller.signal, redactionSecrets: secrets, maxToolInputElements: 10000 });
       transport = new StreamableHTTPServerTransport({ enableJsonResponse: true, maxRequestBodySize: config.maxBodyBytes });
       const send = transport.send.bind(transport);
       transport.send = (message, options) => send(redactCredentialEchoes(message, secrets), options);
-      // SDK 1.31.0's accessor declarations include undefined, whereas its
+      // SDK 1.x's accessor declarations include undefined, whereas its
       // Transport optional callbacks omit it under exactOptionalPropertyTypes.
       // The SDK itself implements Transport and installs these callbacks here.
       await mcp.connect(transport as Transport);
@@ -147,6 +151,7 @@ export function createHostedGateway(config: HostedConfig, dependencies: HostedDe
         response.setHeader("WWW-Authenticate", challenge(config, failure.code === "unauthorized" ? undefined : failure.code, failure.scope));
       }
       if (failure.status === 503) response.setHeader("Retry-After", "1");
+      if (failure.status === 401) witness?.observeDeniedResponse(response);
       json(response, failure.status, { error: failure.code });
     } finally {
       release(); response.off("finish", release); response.off("close", release);

@@ -1,4 +1,5 @@
 import { validateBaseUrl, type Config } from "./config.js";
+import { loadDenialWitnessConfig, type DenialWitnessConfig } from "./hosted-witness.js";
 
 export interface HostedConfig {
   readonly resource: string;
@@ -14,6 +15,7 @@ export interface HostedConfig {
   readonly requestTimeoutMs: number;
   readonly exchangeTimeoutMs: number;
   readonly maxConcurrentRequests: number;
+  readonly denialWitness?: DenialWitnessConfig;
 }
 
 function integer(value: string | undefined, fallback: number, maximum: number): number {
@@ -51,7 +53,9 @@ export function loadHostedConfig(env: NodeJS.ProcessEnv = process.env): HostedCo
   }
   const origins = [resource.origin, ...(env.HANDIGRAPHS_HOSTED_ALLOWED_ORIGINS?.split(",") ?? [])];
   if (origins.some((origin) => url(origin).origin !== origin)) throw new Error("Hosted Origin allowlist requires exact origins.");
+  const denialWitness = loadDenialWitnessConfig(env, resource.href, issuer.origin, serviceSecret);
   return Object.freeze({ resource: resource.href, issuer: issuer.origin, apiBaseUrl: apiBase.href,
+    ...(denialWitness ? { denialWitness } : {}),
     serviceClientId, serviceSecret, allowedHosts: Object.freeze([...new Set(hosts.map((host) => host.toLowerCase()))]),
     allowedOrigins: Object.freeze([...new Set(origins)]), port: integer(env.PORT, 3000, 65535),
     maxBodyBytes: integer(env.HANDIGRAPHS_HOSTED_MAX_BODY_BYTES, 128 * 1024, 128 * 1024),

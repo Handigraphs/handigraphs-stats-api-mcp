@@ -57,6 +57,20 @@ seconds. `/health/ready` is local config/process readiness, not live backend,
 worker, deployment or launch proof. Run the complete mcp profile including
 official-client HTTP/stdio isolation tests and all packaging checks.
 
+## Synthetic denial witness
+
+The separately reviewed denial witness is default off and confined to the fixed
+sandbox app/issuer/resource. Follow docs/hosted-operations.md for its finite
+noncredential run-reference, generated request-ID and confirmed-response contract.
+It never reads native credential stores, changes client headers/caches, or logs
+tokens/token hashes, grant/client IDs, bodies or account data. A completed gateway
+401 is evidence only when it matches the application's confirmed revoked-grant
+event; an unauthenticated discovery 401 is not equivalent. Source/mock tests are
+not live acceptance, and this runtime change requires a fresh app/MCP pair.
+The SDK is pinned to 1.32.1; hosted servers additionally set the opt-in 10,000
+tool-input-element ceiling while retaining the 128 KiB request-byte ceiling.
+Local stdio has no new element-limit setting.
+
 ## Hosted deployment source boundary
 
 The authorized hosted_mcp_oauth PR-07 adds fixed-target workflows and a hosted

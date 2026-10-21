@@ -1,6 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import type { HostedConfig } from "./hosted-config.js";
 import { readJsonBody } from "./http.js";
+import type { DenialWitnessAttempt } from "./hosted-witness.js";
 
 const ACCESS_TYPE = "urn:ietf:params:oauth:token-type:access_token";
 export class HostedFailure extends Error {
@@ -30,17 +31,20 @@ export function serviceAuthorization(config: HostedConfig): string {
 }
 
 export async function exchangeToken(config: HostedConfig, subject: string, signal: AbortSignal,
-  fetchImpl: typeof fetch = fetch): Promise<string> {
+  fetchImpl: typeof fetch = fetch, witness?: DenialWitnessAttempt): Promise<string> {
   let response: Response;
   try {
     response = await fetchImpl(config.issuer + "/oauth/token", { method: "POST", redirect: "manual",
       signal: AbortSignal.any([signal, AbortSignal.timeout(config.exchangeTimeoutMs)]),
-      headers: { Authorization: serviceAuthorization(config), "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      headers: { ...witness?.headers, Authorization: serviceAuthorization(config), "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
       body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", subject_token: subject,
         subject_token_type: ACCESS_TYPE, requested_token_type: ACCESS_TYPE, audience: config.apiBaseUrl, resource: config.apiBaseUrl }).toString() });
     const body = await readJsonBody(response, 16384);
     const data = body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : {};
-    if (response.status === 400 && data.error === "invalid_grant") throw new HostedFailure(401, "invalid_token");
+    if (response.status === 400 && data.error === "invalid_grant") {
+      try { witness?.confirmInvalidGrant(response); } catch { /* Optional auditing cannot replace an invalid grant. */ }
+      throw new HostedFailure(401, "invalid_token");
+    }
     if (response.status === 400 && data.error === "invalid_scope") throw new HostedFailure(403, "insufficient_scope", "stats:read");
     if (!response.ok || response.status !== 200 || data.token_type !== "Bearer" || data.issued_token_type !== ACCESS_TYPE
       || typeof data.access_token !== "string" || data.access_token.length > 4096
