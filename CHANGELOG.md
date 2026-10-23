@@ -17,6 +17,9 @@
   abstention, exact saved settings, report expiry and explicit save/replace intent.
 - Align plugin and Desktop tool manifests; add a read-only agent sandbox audit entry.
 - Retain stats compatibility on older servers and update the MCP SDK to 1.31.0.
+- Describe hosted OAuth access as the default `stats:read`, `filters:write` and
+  `research:run` grant, shown as separate pre-ticked consent choices that owners
+  can untick or revoke. Scope handling in source is unchanged.
 - This is prepared source, not a published release or live launch sign-off.
 
 ## 0.2.7 - 2026-10-06

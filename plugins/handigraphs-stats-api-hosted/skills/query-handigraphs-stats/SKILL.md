@@ -22,11 +22,14 @@ token or service secret in chat, tool arguments, headers or configuration.
 No local key setup helpers are included. The client discovers public registration
 and authorization metadata; do not ask users to register a confidential client.
 
-`stats:read` is required; `filters:write` and `research:run` are independent opt-in
-consent choices. A connection grants only approved scopes and current eligibility,
-Terms, rollout and worker policy still apply. For 401 or revoked/expired consent,
-use the client's reconnect/login flow. For missing scopes, explain the denial;
-the owner can revoke the app at `/account/api` and reconnect with explicit consent.
+Hosted connections get the default access `stats:read`, `filters:write` and
+`research:run`. The consent page shows each scope as a separate, pre-ticked
+choice; `stats:read` is required, and the owner can untick `filters:write` or
+`research:run` there or revoke the connection later at `/account/api`. A
+connection grants only the scopes left approved, and current eligibility, Terms,
+rollout and worker policy still apply. For 401 or revoked/expired consent, use
+the client's reconnect/login flow. For a missing scope, explain the denial; the
+owner can revoke the app at `/account/api` and reconnect with that scope ticked.
 Never approve broader scopes automatically. A lapsed account can still inspect
 and revoke connections. Do not fall back to an API key or another account to
 bypass policy, quotas, errors or an unavailable worker. Switching to local is a

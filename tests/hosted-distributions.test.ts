@@ -55,7 +55,8 @@ test('transport-specific skills preserve the exact common business workflow and 
   const { skills } = await readHostedDistribution();
   for (const skill of Object.values(skills) as any[]) {
     assert.equal(businessWorkflow(skill.hosted), businessWorkflow(skill.local));
-    assert.match(skill.hosted, /browser OAuth/); assert.match(skill.hosted, /independent opt-in/);
+    assert.match(skill.hosted, /browser OAuth/); assert.match(skill.hosted, /separate, pre-ticked\s+choice/);
+    assert.doesNotMatch(skill.hosted, /independent opt-in|approve only intended scopes/i);
     assert.match(skill.hosted, /Never approve broader scopes automatically/);
     assert.match(skill.hosted, /Do not fall back to an API key/);
     assert.match(skill.local, /setup-handigraphs-stats-api/);

@@ -94,8 +94,11 @@ codex mcp login handigraphs-stats-hosted
 These commands are conditional test instructions, not commands to run against an
 available service today. Sign in as the intended Handigraphs account in the
 browser, verify the unverified app name and return destination, accept current
-API Terms explicitly if needed, and approve only intended scopes. `stats:read` is
-required; `filters:write` and `research:run` are independent choices. No fixed
+API Terms explicitly if needed, and review the requested scopes. Hosted clients
+get the default access `stats:read`, `filters:write` and `research:run`; the
+consent page shows each as a separate, pre-ticked choice. `stats:read` is
+required, and the owner can untick `filters:write` or `research:run` there or
+revoke the connection later in Account → API access. No fixed
 client ID, callback port, client secret, bearer header or key setting is needed:
 the client discovers the public registration and OAuth metadata. The plugin's
 compatibility `.mcp.json` uses `type: "http"` and the exact resource URL; the
@@ -130,8 +133,8 @@ Claude Desktop remains on the supported local MCPB path.
 ### Reconnect, permissions and choosing local
 
 For expired/revoked authorization or `401`, use the client's login/reconnect flow
-as the intended owner. For missing scopes, explain the denial; revoke the app in
-Account → API access and reconnect with explicit consent to change permissions.
+as the intended owner. For a missing scope, explain the denial; revoke the app in
+Account → API access and reconnect with that scope ticked to change permissions.
 Eligibility/Terms/rollout failures do not justify broader consent, a different
 account, repeated submissions or silently using a local key. A lapsed owner can
 still inspect and revoke connections. Never paste API keys, website JWTs,

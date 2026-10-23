@@ -82,7 +82,7 @@ export function validateHostedDistribution(value) {
     assert.match(skill.hosted, new RegExp(`^name: ${name}$`, "m"));
     assert.equal(businessWorkflow(skill.hosted), businessWorkflow(skill.local), "local/hosted business rules must not drift");
     assert.match(skill.hosted, /handigraphs-stats-hosted/);
-    assert.match(skill.hosted, /independent opt-in/);
+    assert.match(skill.hosted, /separate, pre-ticked\s+choice/);
     assert.match(skill.hosted, /never silently switch connections/i);
     assert.doesNotMatch(skill.hosted, /setup-handigraphs-stats-api|configure_api_key|user_config|HANDIGRAPHS_API_KEY/);
     assert.match(skill.interface, new RegExp(`\\$${name}`)); assert.match(skill.interface, /hosted candidate/);

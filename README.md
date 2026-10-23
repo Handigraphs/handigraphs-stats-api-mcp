@@ -44,7 +44,7 @@ and obtain explicit launch/release approval before recommending or publishing it
 | Choice | Plugin / server identity | Authentication | Current status |
 | --- | --- | --- | --- |
 | Local | `handigraphs-stats-api` / `handigraphs-stats` | Existing personal key and secure local setup | Supported installation path below; new 0.3.0 features remain unreleased. |
-| Hosted | `handigraphs-stats-api-hosted` / `handigraphs-stats-hosted` | Browser OAuth with independent consent | Candidate source only; Codex marketplace policy is `NOT_AVAILABLE`, Claude entry is explicitly labeled unavailable candidate. |
+| Hosted | `handigraphs-stats-api-hosted` / `handigraphs-stats-hosted` | Browser OAuth; `stats:read`, `filters:write` and `research:run` pre-ticked by default, owner can untick either optional scope or revoke | Candidate source only; Codex marketplace policy is `NOT_AVAILABLE`, Claude entry is explicitly labeled unavailable candidate. |
 
 Hosted candidate files contain only HTTP URL configuration and two business
 skills; they include no key placeholder, local setup helper or secret setting.

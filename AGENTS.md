@@ -101,3 +101,9 @@ their choices. Eligibility and rollout gates remain enforced. Permissions never
 substitute for user intent: explicit create requests authorize a new save;
 replacements require confirmation. PR-07 adds reads only; actions, workflow skill
 and distribution version changes belong to PR-08. Publication is separate.
+
+For hosted_mcp_oauth, the owner's 2026-10-23 decision likewise supersedes the
+copied plan's and PR-08 notes' opt-in scope wording: every hosted OAuth client
+gets the default access stats:read, filters:write and research:run. Consent shows
+each scope as a separate, pre-ticked choice; owners can untick filters:write or
+research:run, or revoke later. Agents never complete or widen consent themselves.
