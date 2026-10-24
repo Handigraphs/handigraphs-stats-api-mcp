@@ -77,7 +77,8 @@ The authorized hosted_mcp_oauth PR-07 adds fixed-target workflows and a hosted
 Procfile. Follow docs/hosted-operations.md. Sandbox deployment is DEFAULT OFF
 unless an operator separately enables HOSTED_SANDBOX_DEPLOY_ENABLED. Production
 is main-only, exact-SHA and requires human production-environment approval plus
-same-pair private acceptance provenance; absent PR-09 evidence/access blocks it.
+the owner acceptance in deploy/owner-acceptance.json and a runtime identical to its
+accepted MCP commit (owner decision 2026-10-24, docs/hosted-operations.md).
 Never run either deployment workflow, create apps/domains, configure environments
 or credentials, enable flags, or publish a release from source-only authorization.
 No source validation job receives deployment, evidence or OAuth credentials.

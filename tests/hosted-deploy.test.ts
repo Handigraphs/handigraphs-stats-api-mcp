@@ -8,7 +8,8 @@ import test from 'node:test';
 import { parse } from 'yaml';
 
 // The executable is deliberately dependency-free and outside the runtime source.
-const { validateRequest, validateManifest, evidenceDigest, serializeEvidence, readEvidenceZip, createControlPlane, CHECKS, TARGETS, approvalRequest, approvalDigest, approvalIssueBody, validateIssueApproval } =
+const { validateRequest, validateManifest, evidenceDigest, serializeEvidence, readEvidenceZip, createControlPlane, CHECKS, TARGETS, approvalRequest, approvalDigest, approvalIssueBody, validateIssueApproval,
+  OWNER_ACCEPTANCE_FILE, validateOwnerAcceptance, parseOwnerAcceptance, validateRuntimeComparison, nonRuntimePath } =
   await import(pathToFileURL(resolve('scripts/check-hosted-deploy.mjs')).href);
 const mcp = 'a'.repeat(40); const app = 'b'.repeat(40);
 const env = { DEPLOY_TARGET: 'production', GITHUB_REPOSITORY: 'Handigraphs/handigraphs-stats-api-mcp',
@@ -16,6 +17,12 @@ const env = { DEPLOY_TARGET: 'production', GITHUB_REPOSITORY: 'Handigraphs/handi
   MCP_SHA: mcp, APP_SHA: app, GITHUB_EVENT_NAME: 'workflow_dispatch', DEPLOY_CONFIRM: 'deploy-production',
   GH_TOKEN: 'synthetic-public-read', APP_EVIDENCE_TOKEN: 'synthetic-private-read', HEROKU_SANDBOX_READ_API_KEY: 'synthetic-platform-read',
   HEROKU_DEPLOY_API_KEY: 'synthetic-platform-deploy' };
+const tested = '9'.repeat(40); const accepted = 'e'.repeat(40);
+function acceptance(changes: Record<string, unknown> = {}) {
+  return { schema_version: 1, purpose: 'hosted-mcp-owner-acceptance', owner: 'cjbuskey', decided_on: '2026-10-24',
+    tested_app_sha: 'd'.repeat(40), accepted_app_sha: app, tested_mcp_sha: tested, accepted_mcp_sha: accepted, record_sha256: 'f'.repeat(64),
+    clients: { codex_desktop: '26.1016.61520', codex_cli: '0.163.0', claude_code: '2.1.283' }, summary: 'Synthetic owner acceptance.', ...changes };
+}
 function manifest() {
   const value = { schema_version: 2, app_sha: app, mcp_sha: mcp, checked_at: new Date(Date.now() - 30000).toISOString(),
     source: { workflow: 'hosted-mcp-oauth-evidence.yml', run_id: 88, run_attempt: 1 },
@@ -81,7 +88,7 @@ test('bounded archive accepts one JSON member and rejects paths, multiple member
 
 function fixture(change: { path?: string; value?: unknown; mutate?: (path: string, value: any) => unknown; blob?: Buffer;
   healthFailures?: number; pendingBuild?: boolean; commentsLink?: string; apiError?: { path: string; status: number };
-  timing?: { now: () => number; sleep: (ms: number) => Promise<void> } } = {}) {
+  timing?: { now: () => number; sleep: (ms: number) => Promise<void> }; acceptance?: string; comparison?: unknown } = {}) {
   const evidence = manifest(); const archive = change.blob || zip(evidence); const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
   const run = { workflow_id: 44, path: '.github/workflows/hosted-mcp-oauth-evidence.yml', event: 'workflow_dispatch', head_branch: 'main', head_sha: app,
     repository: { id: 99 }, head_repository: { id: 99 }, status: 'completed', conclusion: 'success', run_attempt: 1,
@@ -98,6 +105,8 @@ function fixture(change: { path?: string; value?: unknown; mutate?: (path: strin
     let value: any;
     if (path.endsWith('/git/ref/heads/main')) value = { object: { sha: path.includes('/repos/cjbuskey/') ? app : mcp } };
     else if (path === '/repos/cjbuskey/handigraphs-app') value = { id: 99, full_name: 'cjbuskey/handigraphs-app', private: true };
+    else if (path === `/repos/Handigraphs/handigraphs-stats-api-mcp/compare/${accepted}...${mcp}`) value = change.comparison
+      ?? { status: 'ahead', behind_by: 0, total_commits: 1, files: [{ filename: 'deploy/owner-acceptance.json' }, { filename: 'docs/hosted-operations.md' }] };
     else if (path.endsWith('/actions/workflows/hosted-mcp-oauth-evidence.yml')) value = { id: 44, path: '.github/workflows/hosted-mcp-oauth-evidence.yml', state: 'active' };
     else if (path.includes('/actions/workflows/44/runs?')) value = { workflow_runs: [{ id: 88 }] };
     else if (path.endsWith('/actions/runs/88')) value = run;
@@ -125,7 +134,8 @@ function fixture(change: { path?: string; value?: unknown; mutate?: (path: strin
       headers: { 'Content-Type': 'application/json',
       ...(change.commentsLink && path.includes('/issues/501/comments?') ? { Link: change.commentsLink } : {}) } });
   };
-  return { plane: createControlPlane(fetchImpl, change.timing), calls, evidence, run, issue, comments };
+  const readAcceptance = () => change.acceptance ?? serializeEvidence(acceptance());
+  return { plane: createControlPlane(fetchImpl, change.timing, { readAcceptance }), calls, evidence, run, issue, comments };
 }
 test('API-backed evidence authenticates exact workflow, human approval, archive and current healthy source pair', async () => {
   const { plane, calls, evidence } = fixture();
@@ -249,7 +259,7 @@ test('missing access, missing future workflow/evidence and unsafe provenance fai
   await assert.rejects(fixture({ path: '/slugs/', value: { commit: 'c'.repeat(40) } }).plane.verifyEvidence(env));
   await assert.rejects(fixture({ path: '/health/ready', value: { ready: false } }).plane.verifyEvidence(env));
 });
-test('actual deploy rechecks current approval and evidence, pins build source and exposes no credentials in URL/body', async () => {
+test('actual deploy rechecks environment approval and owner acceptance, pins build source and exposes no credentials in URL/body', async () => {
   const { plane, calls } = fixture(); await plane.deploy(env);
   const posts = calls.filter(call => call.init?.method === 'POST'); assert.equal(posts.length, 1);
   assert.equal(posts[0]!.url, 'https://api.heroku.com/apps/handigraphs-mcp/builds');
@@ -282,7 +292,7 @@ test('workflow boundaries retain pinned source, default-off sandbox, production 
   assert.deepEqual(parsedSandbox.on.push.branches, ['main']);
   assert.deepEqual(Object.keys(parsedProd.on), ['workflow_dispatch']);
   assert.equal(parsedProd.jobs.deploy.environment, 'production');
-  assert.deepEqual(parsedProd.jobs.deploy.needs, ['validate', 'evidence']);
+  assert.deepEqual(parsedProd.jobs.deploy.needs, ['validate', 'acceptance']);
   assert.deepEqual(Object.keys(parsedProd.on.workflow_dispatch.inputs).sort(), ['app_sha', 'confirm', 'mcp_sha']);
   for (const workflow of [parsedSandbox, parsedProd]) {
     assert.equal(workflow.permissions.contents, 'read');
@@ -301,19 +311,75 @@ test('workflow boundaries retain pinned source, default-off sandbox, production 
     assert.ok(!body.includes('npm publish') && !body.includes('workflow_call:') && !body.includes('pull_request_target:'));
   }
   assert.ok(sandbox.includes("vars.HOSTED_SANDBOX_DEPLOY_ENABLED == 'true'"));
-  assert.ok(prod.includes('environment: production') && prod.includes('needs: [validate, evidence]'));
-  for (const permission of ['actions', 'contents', 'deployments', 'issues']) assert.ok(prod.includes(`permission-${permission}: read`));
-  const mints = Object.values(parsedProd.jobs).flatMap((job: any) => job.steps.filter((step: any) => step.id === 'evidence-token')) as any[];
-  assert.equal(mints.length, 2);
-  for (const mint of mints) {
-    assert.equal(mint.with.owner, 'cjbuskey'); assert.equal(mint.with.repositories, 'handigraphs-app');
-    for (const permission of ['actions', 'contents', 'deployments', 'issues']) assert.equal(mint.with[`permission-${permission}`], 'read');
-    assert.ok(Object.entries(mint.with).filter(([key]) => key.startsWith('permission-')).every(([, value]) => value === 'read'));
-  }
-  assert.ok(prod.includes('repositories: handigraphs-app') && prod.includes('owner: cjbuskey'));
+  assert.ok(prod.includes('environment: production') && prod.includes('needs: [validate, acceptance]'));
+  // Owner decision 2026-10-24: no private evidence token, sandbox read key or artifact in production.
+  assert.ok(prod.includes('node scripts/check-hosted-deploy.mjs acceptance') && !prod.includes('check-hosted-deploy.mjs evidence'));
+  for (const removed of ['evidence-token', 'APP_EVIDENCE_TOKEN', 'HOSTED_EVIDENCE_APP_PRIVATE_KEY', 'HEROKU_SANDBOX_READ_API_KEY']) assert.ok(!prod.includes(removed));
+  assert.deepEqual(Object.keys(parsedProd.jobs.deploy.steps.at(-1).env).sort(), ['GH_TOKEN', 'HEROKU_DEPLOY_API_KEY']);
   assert.equal((await readFile('Procfile', 'utf8')).trim(), 'web: npm run start:hosted');
   const pkg = JSON.parse(await readFile('package.json', 'utf8'));
   assert.equal(pkg.scripts['heroku-postbuild'], 'npm run build'); assert.equal(pkg.engines.node, '22.x');
   assert.equal(pkg.bin['handigraphs-stats-api-mcp'], 'dist/index.js');
   const publish = await readFile('.github/workflows/publish.yml', 'utf8'); assert.ok(!publish.includes('deploy-mcp') && publish.includes('npm publish --access public'));
+});
+
+test('committed owner acceptance names exactly the accepted pair, record and client versions', async () => {
+  const value = parseOwnerAcceptance((await readFile(OWNER_ACCEPTANCE_FILE, 'utf8')).replace(/\r\n/g, '\n'));
+  assert.equal(value.owner, 'cjbuskey');
+  assert.equal(value.tested_app_sha, '3dd38c3405d22d694d92e9bd076a8d4dfea87990');
+  assert.equal(value.accepted_app_sha, 'b38cc79ebd71625ba93fe7f3e1fef20342a47c54');
+  assert.equal(value.tested_mcp_sha, 'a2909a6e84d8b4ea5b30162f2999eeca0ef5a8ef');
+  assert.equal(value.accepted_mcp_sha, '15a21d02c8e48239297e8316613537c88b15f017');
+  assert.equal(value.record_sha256, '5fb155e793175bb6ce1f649ca7f0d10483ff224c14fa860406fbcdd4f4c144ec');
+  assert.deepEqual(value.clients, { codex_desktop: '26.1016.61520', codex_cli: '0.163.0', claude_code: '2.1.283' });
+});
+test('owner acceptance is strict, canonical and owner-bound', () => {
+  assert.doesNotThrow(() => parseOwnerAcceptance(serializeEvidence(acceptance())));
+  for (const change of [{ owner: 'someone-else' }, { purpose: 'hosted-mcp-acceptance' }, { schema_version: 2 }, { tested_mcp_sha: 'main' },
+    { accepted_mcp_sha: undefined }, { accepted_mcp_sha: 'E'.repeat(40) },
+    { accepted_app_sha: app.slice(0, 7) }, { record_sha256: 'x'.repeat(64) }, { decided_on: '24/10/2026' }, { summary: '' },
+    { summary: 'x'.repeat(1001) }, { token: 'synthetic-secret' }, { clients: { codex_cli: '0.163.0' } },
+    { clients: { codex_desktop: '26.1016.61520', codex_cli: 'latest', claude_code: '2.1.283' } }]) {
+    assert.throws(() => validateOwnerAcceptance(acceptance(change)));
+  }
+  assert.throws(() => parseOwnerAcceptance(JSON.stringify(acceptance(), null, 2)));
+  assert.throws(() => parseOwnerAcceptance(serializeEvidence(acceptance()).replace('{', '{"owner":"someone-else",')));
+  assert.throws(() => parseOwnerAcceptance('x'.repeat(20000)));
+});
+test('only non-runtime paths may differ from the accepted MCP commit', () => {
+  for (const path of ['.github/workflows/deploy-mcp-prod.yml', 'docs/hosted-operations.md', 'plans/x.md', OWNER_ACCEPTANCE_FILE,
+    'scripts/check-hosted-deploy.mjs', 'tests/hosted-deploy.test.ts', 'AGENTS.md', 'CLAUDE.md']) assert.equal(nonRuntimePath(path), true);
+  for (const path of ['src/hosted-index.ts', 'package.json', 'package-lock.json', 'Procfile', 'tsconfig.json', 'scripts/other.mjs',
+    'tests/other.test.ts', 'README.md', 'docs/../src/x.ts', '', undefined]) assert.equal(nonRuntimePath(path), false);
+  const ok = { status: 'ahead', behind_by: 0, total_commits: 2, files: [{ filename: 'docs/a.md' }] };
+  assert.doesNotThrow(() => validateRuntimeComparison(ok));
+  assert.doesNotThrow(() => validateRuntimeComparison({ status: 'identical', behind_by: 0, total_commits: 0, files: [] }));
+  for (const change of [{ status: 'behind' }, { status: 'diverged' }, { behind_by: 1 }, { total_commits: 250 },
+    { files: [{ filename: 'src/hosted-auth.ts' }] }, { files: [{ filename: 'package-lock.json' }] },
+    { files: [{ filename: 'docs/moved.ts', previous_filename: 'src/moved.ts' }] }, { files: Array.from({ length: 300 }, () => ({ filename: 'docs/a.md' })) },
+    { files: undefined }]) assert.throws(() => validateRuntimeComparison({ ...ok, ...change }));
+});
+test('owner acceptance gate binds app SHA, runtime comparison and an unmoved main', async () => {
+  const { plane, calls } = fixture();
+  assert.deepEqual(await plane.verifyOwnerAcceptance(env), { app_sha: app, mcp_sha: mcp, tested_mcp_sha: tested, accepted_mcp_sha: accepted,
+    record_sha256: 'f'.repeat(64) });
+  assert.ok(calls.every(call => (call.init?.method || 'GET') === 'GET' && !call.url.includes('/repos/cjbuskey/')));
+  await assert.rejects(fixture().plane.verifyOwnerAcceptance({ ...env, APP_SHA: 'c'.repeat(40) }));
+  await assert.rejects(fixture({ acceptance: '{}' }).plane.verifyOwnerAcceptance(env));
+  await assert.rejects(fixture({ comparison: { status: 'ahead', behind_by: 0, total_commits: 1, files: [{ filename: 'src/hosted-index.ts' }] } })
+    .plane.verifyOwnerAcceptance(env));
+  await assert.rejects(fixture({ apiError: { path: '/compare/', status: 404 } }).plane.verifyOwnerAcceptance(env));
+  let refs = 0;
+  const moved = fixture({ mutate: (path, value) => path === '/repos/Handigraphs/handigraphs-stats-api-mcp/git/ref/heads/main' && ++refs === 2
+    ? { object: { sha: 'f'.repeat(40) } } : value });
+  await assert.rejects(moved.plane.verifyOwnerAcceptance(env));
+  await assert.rejects(fixture().plane.verifyOwnerAcceptance({ ...env, DEPLOY_CONFIRM: 'yes' }));
+  await assert.rejects(fixture().plane.verifyOwnerAcceptance({ ...env, GITHUB_RUN_ATTEMPT: '2' }));
+});
+test('a runtime change or missing environment approval never starts a production build', async () => {
+  for (const change of [{ comparison: { status: 'ahead', behind_by: 0, total_commits: 1, files: [{ filename: 'package.json' }] } },
+    { path: '/actions/runs/77/approvals', value: [] }, { acceptance: serializeEvidence(acceptance({ owner: 'someone-else' })) }]) {
+    const { plane, calls } = fixture(change); await assert.rejects(plane.deploy(env));
+    assert.equal(calls.some(call => call.init?.method === 'POST'), false);
+  }
 });

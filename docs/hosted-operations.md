@@ -3,9 +3,37 @@
 This is a deployment-source contract, not a deployed endpoint or launch sign-off.
 PR-07 creates no apps, domains, secrets, environments, registrations or releases.
 The private `hosted-mcp-oauth-evidence.yml` workflow belongs to the application.
-Its matching v2 issue-approval implementation, real acceptance, approved access
-and operational configuration must exist or production preflight **fails closed**. Mock tests and a green
-MCP build never substitute for acceptance.
+Production now uses the owner acceptance gate below (owner decision 2026-10-24);
+without a valid acceptance file and identical runtime, production preflight
+**fails closed**. Mock tests and a green MCP build never substitute for acceptance.
+
+## Production gate: owner acceptance (owner decision 2026-10-24)
+
+The hosted sandbox acceptance was completed on 2026-10-23/24 with every check
+observed and passed on app `3dd38c34` / MCP `a2909a6e` (validated record sha256
+`5fb155e7...`). Publishing it through the private evidence workflow was blocked
+only by a stray gitlink on app main, removed in `b38cc79e` with no runtime change.
+The owner (cjbuskey) chose a recorded sign-off over another campaign.
+
+Production deploys therefore no longer read the private evidence artifact,
+approval issue, sandbox releases or app main. They require all of:
+
+1. `deploy/owner-acceptance.json`: canonical, owner `cjbuskey`, naming the tested
+   app and MCP commits, the accepted app SHA (the `app_sha` input must equal it),
+   the accepted MCP runtime commit, the record digest and client versions.
+2. Main-only, first-attempt `workflow_dispatch` with confirmation `deploy-production`.
+3. A deployed commit whose runtime is identical to `accepted_mcp_sha`: the GitHub
+   compare from that commit may only touch `.github/`, `docs/`, `plans/`, the
+   acceptance file, the gate script, its test, `AGENTS.md` or `CLAUDE.md`. Any
+   change under `src/`, the package manifests, lockfile, Procfile or build inputs
+   fails closed and needs a new owner decision.
+4. The native GitHub `production` environment approval, rechecked after the wait.
+
+The accepted runtime is the tested commit plus owner-approved non-breaking
+security updates (zod, body-parser, fast-uri, ip-address, qs). The sandbox
+target is unchanged. Runtime OAuth activation remains a separate operation.
+The private PR-09 interface below is retained for reference and future releases.
+
 
 ## Optional synthetic revocation-denial witness
 
@@ -148,15 +176,15 @@ public-repository token has no private application access.
    build alone is insufficient: the latest release's slug commit and fixed-host
    readiness must match. A timeout after a release may mean deployment happened;
    inspect the actual release before any further mutation.
-6. Run separately authorized real sandbox acceptance and publish private PR-09
-   evidence. For production manually select main and supply exact `mcp_sha`,
-   `app_sha`, and confirmation `deploy-production`. The private same-pair preflight
-   must pass before the production job reaches its human environment gate.
-7. After that gate, mint fresh read access and recheck current main, the actual
-   human approval, all evidence, both sandbox releases and health. A changed pair,
-   expired artifact, absent approval or unavailable dependency blocks the build.
-   Production never falls back to a build status, caller success boolean or old
-   preflight artifact. Runtime OAuth activation remains a separate operation.
+6. For production manually select main and supply exact `mcp_sha` (current main),
+   the accepted `app_sha` from `deploy/owner-acceptance.json`, and confirmation
+   `deploy-production`. The owner acceptance preflight must pass before the
+   production job reaches its human environment gate.
+7. After that gate, recheck current main, the owner acceptance and the runtime
+   comparison. A runtime change, malformed acceptance, moved main or absent
+   approval blocks the build. Production never falls back to a build status,
+   caller success boolean or old preflight result. Runtime OAuth activation
+   remains a separate operation.
 
 ## Private PR-09 evidence interface
 

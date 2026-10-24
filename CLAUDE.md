@@ -9,8 +9,9 @@ manual merge or npm/MCPB publication.
 PR-07 deployment controls and operator prerequisites are in
 docs/hosted-operations.md. Source validation is offline; never dispatch a
 deployment, provision credentials/resources, activate OAuth or publish a release
-without separate explicit authorization. Missing private PR-09 evidence is a
-hard production blocker, including when all source CI is green.
+without separate explicit authorization. Production requires the owner
+acceptance file and a runtime identical to its accepted MCP commit (owner
+decision 2026-10-24); a runtime change needs a new owner decision.
 
 Synthetic denial-witness instrumentation is separately authorized source only,
 default off, fixed-sandbox and capped to a four-hour window and 100 events.
