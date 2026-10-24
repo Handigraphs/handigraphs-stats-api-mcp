@@ -1,5 +1,6 @@
 // Deployment-only control plane. Never import application code or log API bodies.
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { inflateRawSync } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 
@@ -18,6 +19,20 @@ const MAX_MANIFEST = 16 * 1024;
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 export const CHECKS = Object.freeze(['codex_desktop', 'codex_cli', 'claude_code', 'refresh', 'revocation', 'queued_job_revocation',
   'cross_user_isolation', 'shared_limits', 'rolling_worker', 'local_stdio', 'tool_refresh', 'capacity']);
+// Owner decision 2026-10-24: production deploys require the owner's recorded acceptance
+// of the completed sandbox acceptance plus a runtime identical to the accepted MCP commit,
+// in place of a published same-pair evidence artifact. The accepted commit is the tested
+// commit plus owner-approved non-breaking security updates. The production environment
+// gate stays.
+export const OWNER_ACCEPTANCE_FILE = 'deploy/owner-acceptance.json';
+const OWNER_LOGIN = 'cjbuskey';
+const NON_RUNTIME_PREFIXES = Object.freeze(['.github/', 'docs/', 'plans/']);
+const NON_RUNTIME_FILES = Object.freeze(new Set([OWNER_ACCEPTANCE_FILE, 'scripts/check-hosted-deploy.mjs',
+  'tests/hosted-deploy.test.ts', 'AGENTS.md', 'CLAUDE.md']));
+export function nonRuntimePath(value) {
+  return typeof value === 'string' && value.length > 0 && !value.includes('..')
+    && (NON_RUNTIME_FILES.has(value) || NON_RUNTIME_PREFIXES.some(prefix => value.startsWith(prefix)));
+}
 function requireThat(value) { if (!value) throw new Error('Hosted deployment gate failed. See the operations prerequisites.'); }
 function sha(value) { return typeof value === 'string' && /^[a-f0-9]{40}$/.test(value); }
 function id(value) { return Number.isSafeInteger(value) && value > 0; }
@@ -77,6 +92,36 @@ export function validateIssueApproval(manifest, run, issue, comments, selected) 
   // edits or a later approval must not be hidden by a stale manifest pointer.
   requireThat(selected.id === latest.id && selected.user?.id === 39887731 && selected.user.type === 'User'
     && selected.body === latest.body && selected.created_at === latest.created_at && selected.updated_at === latest.updated_at);
+}
+export function validateOwnerAcceptance(value) {
+  keys(value, ['schema_version', 'purpose', 'owner', 'decided_on', 'tested_app_sha', 'accepted_app_sha', 'tested_mcp_sha',
+    'accepted_mcp_sha', 'record_sha256', 'clients', 'summary']);
+  requireThat(value.schema_version === 1 && value.purpose === 'hosted-mcp-owner-acceptance' && value.owner === OWNER_LOGIN);
+  requireThat(typeof value.decided_on === 'string' && /^\d{4}-\d\d-\d\d$/.test(value.decided_on)
+    && Number.isFinite(Date.parse(value.decided_on + 'T00:00:00Z')));
+  requireThat(sha(value.tested_app_sha) && sha(value.accepted_app_sha) && sha(value.tested_mcp_sha) && sha(value.accepted_mcp_sha));
+  requireThat(typeof value.record_sha256 === 'string' && /^[a-f0-9]{64}$/.test(value.record_sha256));
+  keys(value.clients, ['codex_desktop', 'codex_cli', 'claude_code']);
+  requireThat(Object.values(value.clients).every(version => typeof version === 'string'
+    && /^[0-9]{1,10}(?:\.[0-9]{1,10}){1,3}(?:-(?:alpha|beta|rc)\.[0-9]{1,5})?$/.test(version)));
+  requireThat(typeof value.summary === 'string' && value.summary.length > 0 && value.summary.length <= 1000);
+  return value;
+}
+// One canonical serialization, like the evidence manifest: no duplicate or hidden keys.
+export function parseOwnerAcceptance(text) {
+  requireThat(typeof text === 'string' && text.length <= MAX_MANIFEST);
+  const value = JSON.parse(text);
+  requireThat(text === serializeEvidence(value));
+  return validateOwnerAcceptance(value);
+}
+// The deployed MCP commit may differ from the accepted one only outside the runtime.
+export function validateRuntimeComparison(comparison) {
+  requireThat(comparison && (comparison.status === 'identical' || comparison.status === 'ahead') && comparison.behind_by === 0);
+  requireThat(Number.isSafeInteger(comparison.total_commits) && comparison.total_commits >= 0 && comparison.total_commits < 250);
+  requireThat(Array.isArray(comparison.files) && comparison.files.length < 300);
+  requireThat(comparison.files.every(file => nonRuntimePath(file?.filename)
+    && (file.previous_filename === undefined || nonRuntimePath(file.previous_filename))));
+  return comparison;
 }
 export function validateRequest(env) {
   const target = env.DEPLOY_TARGET;
@@ -160,8 +205,10 @@ async function bounded(response, maximum) {
     return Buffer.concat(parts);
   } finally { await reader.cancel().catch(() => {}); }
 }
-export function createControlPlane(fetchImpl = fetch, timing = {}) {
+export function createControlPlane(fetchImpl = fetch, timing = {}, options = {}) {
   const clock = timing.now ?? Date.now;
+  // Windows checkouts may convert line endings; the canonical check applies to LF text.
+  const readAcceptance = options.readAcceptance ?? (() => readFileSync(OWNER_ACCEPTANCE_FILE, 'utf8').replace(/\r\n/g, '\n'));
   const pause = timing.sleep ?? (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
   async function request(url, token, { method = 'GET', body, raw = false, maximum = MAX_JSON, extraHeaders = {} } = {}) {
     const signal = AbortSignal.timeout(15000);
@@ -263,12 +310,22 @@ export function createControlPlane(fetchImpl = fetch, timing = {}) {
     // Only public source pair + digest may leave this process; private provenance stays private.
     return { app_sha: env.APP_SHA, mcp_sha: env.MCP_SHA, evidence_sha256: manifest.evidence_sha256 };
   }
+  async function verifyOwnerAcceptance(env) {
+    await requireMain(env);
+    requireThat(env.DEPLOY_TARGET === 'production');
+    const acceptance = parseOwnerAcceptance(readAcceptance());
+    requireThat(env.APP_SHA === acceptance.accepted_app_sha);
+    validateRuntimeComparison(await github(MCP_REPO, `compare/${acceptance.accepted_mcp_sha}...${env.MCP_SHA}`, env.GH_TOKEN));
+    await requireMain(env); // Main must not move while the comparison was read.
+    return { app_sha: env.APP_SHA, mcp_sha: env.MCP_SHA, tested_mcp_sha: acceptance.tested_mcp_sha,
+      accepted_mcp_sha: acceptance.accepted_mcp_sha, record_sha256: acceptance.record_sha256 };
+  }
   async function deploy(env) {
     const target = validateRequest(env);
     await requireMain(env);
     if (env.DEPLOY_TARGET === 'production') {
       await approved(MCP_REPO, Number(env.GITHUB_RUN_ID), 'production', env.GH_TOKEN);
-      await verifyEvidence(env); // Recheck after the approval wait; no stale preflight artifact trust.
+      await verifyOwnerAcceptance(env); // Recheck after the approval wait.
     }
     requireThat(env.HEROKU_DEPLOY_API_KEY);
     const result = await heroku(target.app, 'builds', env.HEROKU_DEPLOY_API_KEY, { method: 'POST', body: {
@@ -293,15 +350,15 @@ export function createControlPlane(fetchImpl = fetch, timing = {}) {
     }
     requireThat(false);
   }
-  return { requireMain, verifyEvidence, deploy };
+  return { requireMain, verifyEvidence, verifyOwnerAcceptance, deploy };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const plane = createControlPlane();
   const mode = process.argv[2];
   Promise.resolve().then(async () => {
-    requireThat(process.argv.length === 3 && ['request', 'evidence', 'deploy'].includes(mode));
+    requireThat(process.argv.length === 3 && ['request', 'acceptance', 'deploy'].includes(mode));
     if (mode === 'request') await plane.requireMain(process.env);
-    else if (mode === 'evidence') console.log(JSON.stringify(await plane.verifyEvidence(process.env)));
+    else if (mode === 'acceptance') console.log(JSON.stringify(await plane.verifyOwnerAcceptance(process.env)));
     else await plane.deploy(process.env);
-  }).catch(() => { console.error('Hosted deployment blocked: required source, approval, evidence, access or health check failed.'); process.exitCode = 1; });
+  }).catch(() => { console.error('Hosted deployment blocked: required source, approval, owner acceptance, access or health check failed.'); process.exitCode = 1; });
 }

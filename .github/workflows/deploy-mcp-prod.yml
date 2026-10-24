@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       app_sha:
-        description: Exact 40-character app SHA with same-pair approved sandbox evidence
+        description: Exact 40-character app SHA named as accepted_app_sha in deploy/owner-acceptance.json
         required: true
         type: string
       confirm:
@@ -56,7 +56,10 @@ jobs:
       - run: npm run distributions:check
       - run: npm run mcpb:check
 
-  evidence:
+  # Owner decision 2026-10-24: the owner's recorded acceptance of the completed sandbox
+  # acceptance replaces the published evidence artifact. The deployed runtime must equal
+  # the accepted MCP commit, and the production environment approval below still applies.
+  acceptance:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -68,27 +71,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Mint narrowly scoped read-only private evidence access
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
-        id: evidence-token
-        with:
-          client-id: ${{ vars.HOSTED_EVIDENCE_APP_CLIENT_ID }}
-          private-key: ${{ secrets.HOSTED_EVIDENCE_APP_PRIVATE_KEY }}
-          owner: cjbuskey
-          repositories: handigraphs-app
-          permission-actions: read
-          permission-contents: read
-          permission-deployments: read
-          permission-issues: read
-      - name: Require private same-pair acceptance provenance and current healthy sandbox releases
-        run: node scripts/check-hosted-deploy.mjs evidence
+      - name: Require the owner acceptance and a runtime identical to the accepted MCP commit
+        run: node scripts/check-hosted-deploy.mjs acceptance
         env:
           GH_TOKEN: ${{ github.token }}
-          APP_EVIDENCE_TOKEN: ${{ steps.evidence-token.outputs.token }}
-          HEROKU_SANDBOX_READ_API_KEY: ${{ secrets.HEROKU_SANDBOX_READ_API_KEY }}
 
   deploy:
-    needs: [validate, evidence]
+    needs: [validate, acceptance]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -100,22 +89,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Mint fresh read-only evidence access after environment approval
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
-        id: evidence-token
-        with:
-          client-id: ${{ vars.HOSTED_EVIDENCE_APP_CLIENT_ID }}
-          private-key: ${{ secrets.HOSTED_EVIDENCE_APP_PRIVATE_KEY }}
-          owner: cjbuskey
-          repositories: handigraphs-app
-          permission-actions: read
-          permission-contents: read
-          permission-deployments: read
-          permission-issues: read
-      - name: Recheck human approval and same pair, then build fixed production source
+      - name: Recheck environment approval and owner acceptance, then build fixed production source
         run: node scripts/check-hosted-deploy.mjs deploy
         env:
           GH_TOKEN: ${{ github.token }}
-          APP_EVIDENCE_TOKEN: ${{ steps.evidence-token.outputs.token }}
-          HEROKU_SANDBOX_READ_API_KEY: ${{ secrets.HEROKU_SANDBOX_READ_API_KEY }}
           HEROKU_DEPLOY_API_KEY: ${{ secrets.HEROKU_MCP_PRODUCTION_API_KEY }}
