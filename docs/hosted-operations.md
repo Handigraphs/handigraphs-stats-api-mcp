@@ -24,7 +24,10 @@ approval issue, sandbox releases or app main. They require all of:
 2. Main-only, first-attempt `workflow_dispatch` with confirmation `deploy-production`.
 3. A deployed commit whose runtime is identical to `accepted_mcp_sha`: the GitHub
    compare from that commit may only touch `.github/`, `docs/`, `plans/`, the
-   acceptance file, the gate script, its test, `AGENTS.md` or `CLAUDE.md`. Any
+   acceptance file, the gate script, its test, `AGENTS.md`, `CLAUDE.md`, or the
+   distribution-only `plugins/`, `.agents/plugins/`, `.claude-plugin/`,
+   `README.md`, `CHANGELOG.md`, `scripts/check-distributions.mjs` and
+   `tests/hosted-distributions.test.ts` (added 2026-10-25 for the plugin release). Any
    change under `src/`, the package manifests, lockfile, Procfile or build inputs
    fails closed and needs a new owner decision.
 4. The native GitHub `production` environment approval, rechecked after the wait.

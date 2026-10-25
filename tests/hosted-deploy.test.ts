@@ -348,9 +348,12 @@ test('owner acceptance is strict, canonical and owner-bound', () => {
 });
 test('only non-runtime paths may differ from the accepted MCP commit', () => {
   for (const path of ['.github/workflows/deploy-mcp-prod.yml', 'docs/hosted-operations.md', 'plans/x.md', OWNER_ACCEPTANCE_FILE,
-    'scripts/check-hosted-deploy.mjs', 'tests/hosted-deploy.test.ts', 'AGENTS.md', 'CLAUDE.md']) assert.equal(nonRuntimePath(path), true);
+    'scripts/check-hosted-deploy.mjs', 'tests/hosted-deploy.test.ts', 'AGENTS.md', 'CLAUDE.md', 'README.md', 'CHANGELOG.md',
+    'plugins/handigraphs-stats-api-hosted/.codex-plugin/plugin.json', '.agents/plugins/marketplace.json', '.claude-plugin/marketplace.json',
+    'scripts/check-distributions.mjs', 'tests/hosted-distributions.test.ts']) assert.equal(nonRuntimePath(path), true);
   for (const path of ['src/hosted-index.ts', 'package.json', 'package-lock.json', 'Procfile', 'tsconfig.json', 'scripts/other.mjs',
-    'tests/other.test.ts', 'README.md', 'docs/../src/x.ts', '', undefined]) assert.equal(nonRuntimePath(path), false);
+    'tests/other.test.ts', 'runtime/configure-macos.mjs', 'mcpb/manifest.json', 'docs/../src/x.ts', 'plugins/../src/x.ts', '', undefined])
+    assert.equal(nonRuntimePath(path), false);
   const ok = { status: 'ahead', behind_by: 0, total_commits: 2, files: [{ filename: 'docs/a.md' }] };
   assert.doesNotThrow(() => validateRuntimeComparison(ok));
   assert.doesNotThrow(() => validateRuntimeComparison({ status: 'identical', behind_by: 0, total_commits: 0, files: [] }));

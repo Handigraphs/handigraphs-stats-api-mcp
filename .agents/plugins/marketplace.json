@@ -23,7 +23,7 @@
         "path": "./plugins/handigraphs-stats-api-hosted"
       },
       "policy": {
-        "installation": "NOT_AVAILABLE",
+        "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
       },
       "category": "Data"

@@ -3,8 +3,8 @@
 The normal Windows and macOS setup requires one Codex starter and one masked paste. You do not need to edit `config.toml`, write shell commands, or send your API key to an agent.
 
 The normal installation below is the supported **local** `handigraphs-stats-api`
-plugin. The separate hosted candidate is unavailable; its gated pre-release
-instructions are at the end of this guide. Do not put a local key into an HTTP
+plugin. The hosted plugin (browser sign-in, no API key) is described in
+[Hosted connection](#hosted-connection). Do not put a local key into an HTTP
 connection or replace an existing local installation.
 
 ## Install
@@ -61,71 +61,56 @@ Select **Connect my Handigraphs account** again. The same masked setup window re
 - If a test key reaches the production API, reinstall the latest plugin and run **Connect my Handigraphs account** again so it saves the sandbox environment selection.
 - Never paste a real key into a conversation, issue, screenshot, committed configuration file, or support log.
 
-## Hosted candidate: pre-release testing
+## Hosted connection
 
-**Not available for normal installation.** `handigraphs-stats-api-hosted` is
-unreleased candidate source, with proposed production URL
-`https://mcp.handigraphs.com/mcp`. Neither this domain nor the proposed sandbox
-domain is provisioned by this change. The Codex marketplace entry is
-`NOT_AVAILABLE`; the Claude marketplace entry is labeled unavailable candidate
-because its schema has no assumed equivalent install-policy gate. Do not treat
-either entry as an available endpoint or interoperability sign-off.
+The hosted plugin connects to `https://mcp.handigraphs.com/mcp` with browser sign-in; there is no
+API key, local helper or secret setting. It is available to eligible Handigraphs
+All Access members (paid, non-trial, current API Terms).
 
-Only proceed when an operator has separately authorized and provisioned the exact
-sandbox environment, configured its paired backend/gateway/worker revision and
-approved disposable test accounts. **hosted_mcp_oauth PR-09** requires actual
-Codex desktop, Codex CLI and Claude Code consent/refresh/revocation, isolation,
-quotas, worker and measured load evidence. Public hosted recommendation,
-publication and activation require that evidence and **explicit launch/release
-approval**. No live acceptance or account mutation was performed to write this
-guide; listing a client format is not proof the client flow has passed.
-
-### Direct sandbox URL with Codex
-
-After those operator prerequisites, record the actual client version, then add
-the separately provisioned **sandbox** URL under the distinct name:
+### Codex
 
 ```console
-codex --version
-codex mcp add handigraphs-stats-hosted --url https://mcp-sandbox.handigraphs.com/mcp
+codex plugin marketplace add Handigraphs/handigraphs-stats-api-mcp
+codex plugin add handigraphs-stats-api-hosted@handigraphs
+```
+
+Start a new task. When Codex asks to connect, sign in as your Handigraphs account
+in the browser, review the API Terms if asked and choose permissions. `stats:read`
+is required; `filters:write` and `research:run` are independent choices. The
+desktop app and CLI share this configuration, as described in the
+[official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+
+### Claude Code
+
+```console
+claude plugin marketplace add Handigraphs/handigraphs-stats-api-mcp
+claude plugin install handigraphs-stats-api-hosted@handigraphs
+```
+
+Start a new session, run `/mcp`, select `handigraphs-stats-hosted` and follow the
+browser sign-in. Do not use the local plugin's sensitive-key configuration screen
+for hosted OAuth. See the [official Claude Code MCP guide](https://code.claude.com/docs/en/mcp)
+and [plugin reference](https://code.claude.com/docs/en/plugins-reference).
+
+### Direct URL instead of the plugin
+
+You can register the server URL directly. This supplies the 19 tools but not the
+plugin's installed skills:
+
+```console
+codex mcp add handigraphs-stats-hosted --url https://mcp.handigraphs.com/mcp
 codex mcp login handigraphs-stats-hosted
 ```
 
-These commands are conditional test instructions, not commands to run against an
-available service today. Sign in as the intended Handigraphs account in the
-browser, verify the unverified app name and return destination, accept current
-API Terms explicitly if needed, and approve only intended scopes. `stats:read` is
-required; `filters:write` and `research:run` are independent choices. No fixed
-client ID, callback port, client secret, bearer header or key setting is needed:
-the client discovers the public registration and OAuth metadata. The plugin's
-compatibility `.mcp.json` uses `type: "http"` and the exact resource URL; the
-committed candidate points to the proposed production URL, not this sandbox.
-
-The desktop/CLI configuration is shared as described in the
-[official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
-Record each tested product version and observed browser flow separately; do not
-assume one desktop result proves CLI compatibility. The existing native plugin
-compatibility manifest remains supported by the
-[official packaging documentation](https://developers.openai.com/plugins/build/plugins).
-
-### Direct sandbox URL with Claude Code
-
-Under the same separately approved sandbox prerequisites:
-
 ```console
-claude --version
-claude mcp add --transport http handigraphs-stats-hosted https://mcp-sandbox.handigraphs.com/mcp
+claude mcp add --transport http handigraphs-stats-hosted https://mcp.handigraphs.com/mcp
 ```
 
-Inside Claude Code run `/mcp`, select that connection and follow its browser
-authentication flow. Do not use the local plugin's sensitive-key configuration
-screen for hosted OAuth. The hosted plugin's `mcp.claude.json` uses the same plain
-`type: "http"` / URL shape and relies on discovery. See the
-[official Claude Code MCP guide](https://code.claude.com/docs/en/mcp) and
-[plugin manifest reference](https://code.claude.com/docs/en/plugins-reference).
-Direct URL registration supplies tools, not bundled skills; separately load the
-reviewed candidate skills only as part of authorized pre-release testing.
-Claude Desktop remains on the supported local MCPB path.
+In Claude Code, run `/mcp` afterwards to sign in. No fixed client ID, callback
+port, client secret, bearer header or key setting is needed: the client discovers
+the public registration and OAuth metadata. Do not register the same server both
+directly and through the plugin. Claude Desktop remains on the supported local
+MCPB path.
 
 ### Reconnect, permissions and choosing local
 

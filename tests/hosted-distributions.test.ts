@@ -11,7 +11,7 @@ import { createServer } from '../src/server.js';
 const { readHostedDistribution, validateHostedDistribution, businessWorkflow } =
   await import(pathToFileURL(resolve('scripts/check-distributions.mjs')).href);
 
-test('hosted candidate has distinct IDs, discovery-only HTTP configuration and unavailable marketplace policy', async () => {
+test('hosted plugin has distinct IDs, discovery-only HTTP configuration and available marketplace policy', async () => {
   const value = await readHostedDistribution();
   assert.equal(validateHostedDistribution(value), value);
   assert.notEqual(value.codexManifest.name, value.codexMarketplace.plugins[0].name);
@@ -27,7 +27,7 @@ test('hosted candidate has distinct IDs, discovery-only HTTP configuration and u
   });
 });
 
-test('unsafe transport, credential, setup, identity and candidate-policy mutations fail offline', async () => {
+test('unsafe transport, credential, setup, identity and marketplace-policy mutations fail offline', async () => {
   const good = await readHostedDistribution();
   const mutations = [
     (v: any) => { v.codexMcp.mcpServers['handigraphs-stats-hosted'].headers = { Authorization: 'Bearer synthetic' }; },
@@ -42,7 +42,7 @@ test('unsafe transport, credential, setup, identity and candidate-policy mutatio
     (v: any) => { v.claudeManifest.userConfig = { api_key: { required: true } }; },
     (v: any) => { v.codexManifest.hooks = './hooks/secret-helper.json'; },
     (v: any) => { v.files.push('skills/setup-handigraphs-stats-api/SKILL.md'); },
-    (v: any) => { v.codexMarketplace.plugins[1].policy.installation = 'AVAILABLE'; },
+    (v: any) => { v.codexMarketplace.plugins[1].policy.installation = 'NOT_AVAILABLE'; },
     (v: any) => { v.claudeMarketplace.plugins[1].description = 'Install our available hosted default today'; },
     (v: any) => { v.codexMarketplace.plugins[1].source.path = '../other'; },
     (v: any) => { v.skills['query-handigraphs-stats'].hosted += '\nCall configure_api_key for OAuth failures.\n'; },
@@ -103,16 +103,17 @@ test('official SDK clients see identical nineteen business schemas/descriptions 
   assert.deepEqual(hosted, local.filter(tool => tool.name !== 'configure_api_key'));
 });
 
-test('candidate docs distinguish source, endpoint, acceptance, cache refresh and local fallback', async () => {
+test('hosted docs give the released install, direct URL, cache refresh and local fallback', async () => {
   const readme = await readFile('README.md', 'utf8'); const guide = await readFile('docs/codex-setup.md', 'utf8');
   const release = await readFile('docs/releasing.md', 'utf8');
-  for (const text of [readme, guide, release]) {
-    assert.match(text, /hosted_mcp_oauth PR-09/); assert.match(text, /not (?:an )?available|unavailable|unprovisioned/i);
-    assert.match(text.replace(/\s+/g, ' '), /explicit.*(?:launch|release).*approval/i);
+  for (const text of [readme, guide, release]) assert.match(text, /https:\/\/mcp\.handigraphs\.com\/mcp/);
+  for (const text of [readme, guide]) {
+    assert.match(text, /codex plugin add handigraphs-stats-api-hosted@handigraphs/);
+    assert.match(text, /claude plugin install handigraphs-stats-api-hosted@handigraphs/);
   }
-  assert.match(guide, /codex mcp add handigraphs-stats-hosted --url https:\/\/mcp-sandbox\.handigraphs\.com\/mcp/);
-  assert.match(guide, /claude mcp add --transport http handigraphs-stats-hosted https:\/\/mcp-sandbox\.handigraphs\.com\/mcp/);
+  assert.match(guide, /codex mcp add handigraphs-stats-hosted --url https:\/\/mcp\.handigraphs\.com\/mcp/);
+  assert.match(guide, /claude mcp add --transport http handigraphs-stats-hosted https:\/\/mcp\.handigraphs\.com\/mcp/);
   assert.match(guide, /new (?:conversation|task)/i); assert.match(guide, /installed skills/i);
   assert.match(guide, /one connection at a time/i); assert.match(guide, /never automatically disable/i);
-  assert.doesNotMatch(guide, /plugin (?:add|install) handigraphs-stats-api-hosted/);
+  assert.match(release, /2026-10-25/);
 });

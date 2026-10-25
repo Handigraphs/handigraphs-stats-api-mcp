@@ -1,7 +1,7 @@
 {
   "name": "handigraphs-stats-api-hosted",
   "version": "0.3.0",
-  "description": "Unreleased hosted OAuth candidate for the same MLB/NHL stats, filters and research. Not available or recommended until hosted_mcp_oauth PR-09 acceptance and explicit launch approval.",
+  "description": "Hosted Handigraphs MCP server for live MLB and NHL statistics, filters and bounded research. Sign in with your Handigraphs account in the browser (OAuth); no API key or local setup.",
   "author": {
     "name": "Handigraphs",
     "email": "support@handigraphs.com",
@@ -19,9 +19,9 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Handigraphs Hosted (candidate)",
-    "shortDescription": "Candidate only; hosted access is unavailable",
-    "longDescription": "Unreleased hosted OAuth candidate for the same MLB/NHL stats, filters and research. Not available or recommended until hosted_mcp_oauth PR-09 acceptance and explicit launch approval.",
+    "displayName": "Handigraphs (hosted)",
+    "shortDescription": "MLB and NHL stats with browser sign-in",
+    "longDescription": "Hosted Handigraphs MCP server for live MLB and NHL statistics, filters and bounded research. Sign in with your Handigraphs account in the browser (OAuth); no API key or local setup.",
     "developerName": "Handigraphs",
     "category": "Data",
     "capabilities": [
@@ -32,8 +32,8 @@
     "privacyPolicyURL": "https://www.handigraphs.com/privacy",
     "termsOfServiceURL": "https://www.handigraphs.com/terms",
     "defaultPrompt": [
-      "Show the hosted candidate status and connection prerequisites.",
-      "Compare MLB and NHL stats after my approved hosted connection is available.",
+      "Show me which Handigraphs stats and splits I can query.",
+      "Compare MLB and NHL stats for tonight's games.",
       "Research filter ideas without saving unless I ask."
     ]
   },
