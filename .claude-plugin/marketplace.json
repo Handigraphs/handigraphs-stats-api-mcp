@@ -18,7 +18,7 @@
     {
       "name": "handigraphs-stats-api-hosted",
       "source": "./plugins/handigraphs-stats-api-hosted",
-      "description": "Unreleased candidate only; hosted endpoint is not available or recommended. Requires hosted_mcp_oauth PR-09 acceptance and explicit launch approval. Use the supported local plugin.",
+      "description": "Connect to live MLB and NHL statistics, filters and bounded research through the hosted Handigraphs MCP server. Sign in with your Handigraphs account in the browser; no API key needed.",
       "version": "0.3.0",
       "author": {
         "name": "Handigraphs"

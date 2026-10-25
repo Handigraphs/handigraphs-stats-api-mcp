@@ -2,6 +2,11 @@
 
 ## Unreleased — 0.3.0 candidate
 
+- Release the hosted plugin `handigraphs-stats-api-hosted` (2026-10-25): the Codex
+  marketplace entry is `AVAILABLE`, and the manifests, skills and docs describe the live
+  `https://mcp.handigraphs.com/mcp` server with browser sign-in. Supersedes the earlier unavailable-candidate
+  state below. The production gate treats marketplace, plugin and README paths as
+  distribution-only.
 - Add distinct hosted OAuth candidate plugin/server identities for Codex and
   Claude Code, with shared query/research behavior and no local key setup.
 - Keep hosted unavailable and unrecommended pending hosted_mcp_oauth PR-09 real

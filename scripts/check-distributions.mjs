@@ -53,14 +53,12 @@ export function validateHostedDistribution(value) {
     assert.deepEqual(Object.keys(manifest).sort(), allowed.sort(), "unexpected hosted manifest field");
     assert.equal(manifest.name, HOSTED_PLUGIN); assert.equal(manifest.version, value.version);
     assert.equal(manifest.skills, "./skills/");
-    assert.match(manifest.description, /unreleased.*candidate/i);
-    assert.match(manifest.description, /not available or recommended/i);
-    assert.match(manifest.description, /hosted_mcp_oauth PR-09.*explicit launch approval/);
+    assert.match(manifest.description, /Hosted Handigraphs MCP server.*browser \(OAuth\); no API key/);
     assert.equal(manifest.userConfig, undefined);
     assert.equal(manifest.hooks, undefined); assert.equal(manifest.commands, undefined);
   }
-  assert.match(codexManifest.interface.displayName, /candidate/i);
-  assert.match(claudeManifest.displayName, /candidate/i);
+  assert.match(codexManifest.interface.displayName, /\(hosted\)/);
+  assert.match(claudeManifest.displayName, /\(hosted\)/);
   assert.deepEqual(codexManifest.interface.capabilities, ["Read", "Write"]);
   assert.equal(codexManifest.mcpServers, "./.mcp.json"); assert.equal(claudeManifest.mcpServers, "./mcp.claude.json");
   // Deliberately no headers, env, fixed client credentials, scope overrides or
@@ -72,11 +70,11 @@ export function validateHostedDistribution(value) {
   }
   const codex = codexMarketplace.plugins[1]; const claude = claudeMarketplace.plugins[1];
   assert.deepEqual(codex.source, { source: "local", path: `./plugins/${HOSTED_PLUGIN}` });
-  assert.deepEqual(codex.policy, { installation: "NOT_AVAILABLE", authentication: "ON_INSTALL" });
+  assert.deepEqual(codex.policy, { installation: "AVAILABLE", authentication: "ON_INSTALL" });
   assert.equal(codex.category, "Data"); assert.equal(claude.source, `./plugins/${HOSTED_PLUGIN}`);
   assert.equal(claude.version, value.version);
-  assert.match(claude.description, /unreleased candidate.*not available or recommended/i);
-  assert.match(claude.description, /hosted_mcp_oauth PR-09.*explicit launch approval/);
+  assert.match(claude.description, /hosted Handigraphs MCP server/i);
+  assert.match(claude.description, /browser; no API key/);
   assert.deepEqual(Object.keys(value.skills).sort(), ["query-handigraphs-stats", "research-handigraphs-filters"]);
   for (const [name, skill] of Object.entries(value.skills)) {
     assert.match(skill.hosted, new RegExp(`^name: ${name}$`, "m"));
@@ -85,7 +83,7 @@ export function validateHostedDistribution(value) {
     assert.match(skill.hosted, /independent opt-in/);
     assert.match(skill.hosted, /never silently switch connections/i);
     assert.doesNotMatch(skill.hosted, /setup-handigraphs-stats-api|configure_api_key|user_config|HANDIGRAPHS_API_KEY/);
-    assert.match(skill.interface, new RegExp(`\\$${name}`)); assert.match(skill.interface, /hosted candidate/);
+    assert.match(skill.interface, new RegExp(`\\$${name}`)); assert.match(skill.interface, /\(hosted\)/);
   }
   const serialized = JSON.stringify({ codexManifest, claudeManifest, codexMcp, claudeMcp });
   assert.doesNotMatch(serialized, /user_config|HANDIGRAPHS_API_KEY|configure_api_key|setup-handigraphs|hg_(?:live|test)_|Bearer |clientSecret/);
@@ -209,5 +207,5 @@ assert.doesNotMatch(serialized, /hg_(?:live|test)_[A-Za-z0-9_-]+/);
 assert.match(serialized, /https:\/\/www\.handigraphs\.com\/privacy/);
 
 validateHostedDistribution(await readHostedDistribution());
-process.stdout.write("local and candidate hosted distribution checks passed\n");
+process.stdout.write("local and hosted distribution checks passed\n");
 }

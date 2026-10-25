@@ -1,6 +1,6 @@
 # Handigraphs Stats API MCP
 
-Canonical MCP adapter for the Handigraphs Stats API v1, with supported local stdio distributions and separately gated hosted candidate source. The 0.3.0 candidate is unreleased; installing the published package does not yet provide these new research features. The authenticated server exposes 19 business tools, including the original three stats tools:
+Canonical MCP adapter for the Handigraphs Stats API v1, with supported local stdio distributions and a hosted server at `https://mcp.handigraphs.com/mcp`. The 0.3.0 candidate is unreleased; installing the published package does not yet provide these new research features. The authenticated server exposes 19 business tools, including the original three stats tools:
 
 - `list_resources({ sport? })` discovers sports and resources.
 - `describe_resource({ sport, resource })` discovers metrics, canonical units, splits, and supported filters.
@@ -32,21 +32,38 @@ Create/save and job submission require a caller-generated UUID `operation_id`. K
 
 Job results retain independent frequency/outcome stages, partial failures, frozen inputs and expiry. Reports currently expire after 24 hours. Saved ideas retain editable settings and a website Run again action, not a permanent report archive. Return only the IDs and website links actually received. The tools expose these requirements in their schemas/descriptions so other MCP clients can use them without the plugin skill.
 
-## Hosted candidate — not available
+## Hosted connection (recommended)
 
-`handigraphs-stats-api-hosted` is a separate **unreleased candidate**, not an
-available or recommended hosted connection. The proposed
-`https://mcp.handigraphs.com/mcp` endpoint is unprovisioned by this work. Source
-merges, HTTP fixture tests and manifest validation do not prove deployment or
-Codex/Claude Code interoperability. Complete **hosted_mcp_oauth PR-09** acceptance
-and obtain explicit launch/release approval before recommending or publishing it.
+The hosted Handigraphs MCP server is live at `https://mcp.handigraphs.com/mcp` for eligible
+Handigraphs All Access members. Install the hosted plugin and sign in with your
+Handigraphs account in the browser; there is no API key or local setup.
 
-| Choice | Plugin / server identity | Authentication | Current status |
+Codex:
+
+```console
+codex plugin marketplace add Handigraphs/handigraphs-stats-api-mcp
+codex plugin add handigraphs-stats-api-hosted@handigraphs
+```
+
+Claude Code:
+
+```console
+claude plugin marketplace add Handigraphs/handigraphs-stats-api-mcp
+claude plugin install handigraphs-stats-api-hosted@handigraphs
+```
+
+Then start a new task or session and follow the browser sign-in. `stats:read` is
+required; saving filters and running historical research are separate, optional
+permissions you choose on the consent page. See the
+[setup guide](docs/codex-setup.md#hosted-connection) for direct URL registration
+and reconnecting.
+
+| Choice | Plugin / server identity | Authentication | Status |
 | --- | --- | --- | --- |
-| Local | `handigraphs-stats-api` / `handigraphs-stats` | Existing personal key and secure local setup | Supported installation path below; new 0.3.0 features remain unreleased. |
-| Hosted | `handigraphs-stats-api-hosted` / `handigraphs-stats-hosted` | Browser OAuth with independent consent | Candidate source only; Codex marketplace policy is `NOT_AVAILABLE`, Claude entry is explicitly labeled unavailable candidate. |
+| Hosted | `handigraphs-stats-api-hosted` / `handigraphs-stats-hosted` | Browser OAuth with independent consent | Available and recommended. |
+| Local | `handigraphs-stats-api` / `handigraphs-stats` | Existing personal key and secure local setup | Supported; new 0.3.0 package features remain unreleased. |
 
-Hosted candidate files contain only HTTP URL configuration and two business
+Hosted plugin files contain only HTTP URL configuration and two business
 skills; they include no key placeholder, local setup helper or secret setting.
 The same 19 handlers, tool descriptions, owned objects and account-wide budgets
 apply to both transports; only local Codex adds its key setup tool. Local keys and
@@ -55,12 +72,9 @@ are never migrated, disabled or rotated automatically. Choose one connection at 
 time to avoid duplicate tools; changing connections is always the user's choice.
 Claude Desktop retains the local stdio MCPB for this release.
 
-For separately authorized pre-release sandbox testing, see
-[the candidate connection instructions](docs/codex-setup.md#hosted-candidate-pre-release-testing).
-Those instructions require an operator-provisioned environment; they are not a
-working public endpoint announcement. Server updates are centralized, but client
-tool caches may require reconnecting and a new conversation; installed skills
-still require a plugin update. Operational setup and deployment gates remain in
+Server updates are centralized, but client tool caches may require reconnecting
+and a new conversation; installed skills still require a plugin update.
+Operational setup and deployment gates remain in
 [hosted operations](docs/hosted-operations.md).
 
 ## Local credentials

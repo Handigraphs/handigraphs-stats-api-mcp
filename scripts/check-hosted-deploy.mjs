@@ -26,9 +26,11 @@ export const CHECKS = Object.freeze(['codex_desktop', 'codex_cli', 'claude_code'
 // gate stays.
 export const OWNER_ACCEPTANCE_FILE = 'deploy/owner-acceptance.json';
 const OWNER_LOGIN = 'cjbuskey';
-const NON_RUNTIME_PREFIXES = Object.freeze(['.github/', 'docs/', 'plans/']);
+// Distribution-only paths (marketplaces, plugin manifests and skills) never ship in the gateway runtime.
+const NON_RUNTIME_PREFIXES = Object.freeze(['.github/', 'docs/', 'plans/', 'plugins/', '.agents/plugins/', '.claude-plugin/']);
 const NON_RUNTIME_FILES = Object.freeze(new Set([OWNER_ACCEPTANCE_FILE, 'scripts/check-hosted-deploy.mjs',
-  'tests/hosted-deploy.test.ts', 'AGENTS.md', 'CLAUDE.md']));
+  'tests/hosted-deploy.test.ts', 'AGENTS.md', 'CLAUDE.md', 'README.md', 'CHANGELOG.md',
+  'scripts/check-distributions.mjs', 'tests/hosted-distributions.test.ts']));
 export function nonRuntimePath(value) {
   return typeof value === 'string' && value.length > 0 && !value.includes('..')
     && (NON_RUNTIME_FILES.has(value) || NON_RUNTIME_PREFIXES.some(prefix => value.startsWith(prefix)));

@@ -7,14 +7,11 @@ description: Build, validate, rerun, compare and save Handigraphs MLB or NHL pla
 
 ## Connection
 
-This is an unreleased hosted candidate, not an available or recommended public
-service. Production availability requires separately approved provisioning,
-hosted_mcp_oauth PR-09 acceptance and explicit launch approval. Before acceptance,
-separately authorized disposable-sandbox pre-release testing may use these
-reviewed skills after the operator has provisioned that test environment.
-Use only this plugin's `handigraphs-stats-hosted` connection for the environment
-the operator approved; never silently switch connections, identities or local
-credentials following an OAuth failure.
+This plugin connects to the hosted Handigraphs MCP server at
+`https://mcp.handigraphs.com/mcp`, available to eligible Handigraphs All Access members.
+Use only this plugin's `handigraphs-stats-hosted` connection;
+never silently switch connections, identities or local credentials following
+an OAuth failure.
 
 Sign in through the client's browser OAuth flow as the intended Handigraphs
 account. Never ask for, accept or repeat an API key, website JWT, access/refresh
