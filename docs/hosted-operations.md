@@ -7,13 +7,18 @@ Production now uses the owner acceptance gate below (owner decision 2026-10-24);
 without a valid acceptance file and identical runtime, production preflight
 **fails closed**. Mock tests and a green MCP build never substitute for acceptance.
 
-## Production gate: owner acceptance (owner decision 2026-10-24)
+## Production gate: owner acceptance
 
 The hosted sandbox acceptance was completed on 2026-10-23/24 with every check
 observed and passed on app `3dd38c34` / MCP `a2909a6e` (validated record sha256
 `5fb155e7...`). Publishing it through the private evidence workflow was blocked
 only by a stray gitlink on app main, removed in `b38cc79e` with no runtime change.
-The owner (cjbuskey) chose a recorded sign-off over another campaign.
+The owner (cjbuskey) chose a recorded sign-off over another campaign. That record
+is preserved verbatim in [the historical acceptance](owner-acceptance-2026-10-24.json).
+The current acceptance proposal names the 2026-11-07 NHL prop-research source pair;
+it requires the owner's explicit merge approval. See
+[production readiness](nhl-prop-production-readiness.md) for the measured scope,
+historical client-version distinction and separate production operations.
 
 Production deploys therefore no longer read the private evidence artifact,
 approval issue, sandbox releases or app main. They require all of:
@@ -32,9 +37,12 @@ approval issue, sandbox releases or app main. They require all of:
    fails closed and needs a new owner decision.
 4. The native GitHub `production` environment approval, rechecked after the wait.
 
-The accepted runtime is the tested commit plus owner-approved non-breaking
-security updates (zod, body-parser, fast-uri, ip-address, qs). The sandbox
-target is unchanged. Runtime OAuth activation remains a separate operation.
+The current accepted-runtime proposal is the exact tested NHL research commit.
+It carries the earlier OAuth baseline without claiming fresh Desktop/Claude
+UI/refresh tests. In the legacy schema's `clients` map, Codex CLI is freshly
+tested; Desktop and Claude versions are historical and explicitly labeled in
+`summary`. The schema, owner validation and runtime comparison are unchanged.
+The sandbox target is unchanged. Runtime OAuth activation remains a separate operation.
 The private PR-09 interface below is retained for reference and future releases.
 
 
@@ -170,16 +178,18 @@ public-repository token has no private application access.
    full package/test/build/distribution checks. Separate credentialed jobs install
    no package dependencies and execute only the pinned dependency-free control
    script. They never execute PR/fork source with deploy credentials.
-5. The Build API receives the public canonical repository's exact-SHA archive
-   and matching source version. Sandbox first downloads that archive from the
+5. Both targets stage the public canonical repository's exact-SHA archive
+   and matching source version. After the target's existing approval gates, download it from the
    fixed `codeload.github.com` repository/SHA URL without authorization or redirects
    (10 MiB maximum, 15-second request bound, gzip signature required). It reserves
    one Heroku Sources object on the fixed sandbox app, uploads those same bytes
    once to its validated HTTPS S3 URL without an Authorization header, and submits
    the private expiring GET URL plus a SHA-256 checksum. Both S3 URLs must name the
    same origin/object; they stay inside the process and expire after one hour.
-   Current main is rechecked before the build. Production keeps its existing
-   direct canonical GitHub archive path and approval gates. There is one build
+   Current main is rechecked before the build. Production additionally rechecks
+   its human environment approval and owner acceptance after staging and before
+   starting the build; revoked approval, changed acceptance or moved main stops
+   the build even if an expiring source object was already staged. There is one build
    POST, no mutation retries, and no Heroku/GitHub credential in the archive URL.
    The source reservation/upload are not retried. Polling reads fixed build/release endpoints;
    build logs, signed source links and raw API responses are never printed.
