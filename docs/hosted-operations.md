@@ -280,6 +280,12 @@ No authenticated transcripts or real customer data belong in this interface.
 
 ## Health, rollout and rollback
 
+The NHL prop evidence update adds one hosted read tool alongside the shared
+business tools. Its source and acceptance requirements are documented in
+[player prop research](player-prop-research.md). Deploy the compatible default-off
+backend first, verify the two-call/payload/capacity acceptance, then promote the
+gateway through the existing production approval and owner acceptance gates.
+
 Probe `/health/live` and `/health/ready` without credentials, using the configured
 canonical host and bounded nonredirecting HTTP. Do not anonymously invoke a
 protected tool to infer health. Validate the actual source/release pair and real

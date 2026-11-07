@@ -134,7 +134,7 @@ export function createHostedGateway(config: HostedConfig, dependencies: HostedDe
         return Reflect.apply(writeHead, response, [status, ...args]);
       }) as typeof response.writeHead;
       mcp = createServer(requestConfig(config, delegated), { publicDiscovery, fetchImpl: privateFetch,
-        signal: controller.signal, redactionSecrets: secrets, maxToolInputElements: 10000 });
+        signal: controller.signal, redactionSecrets: secrets, maxToolInputElements: 10000, enablePropEvidence: true });
       transport = new StreamableHTTPServerTransport({ enableJsonResponse: true, maxRequestBodySize: config.maxBodyBytes });
       const send = transport.send.bind(transport);
       transport.send = (message, options) => send(redactCredentialEchoes(message, secrets), options);

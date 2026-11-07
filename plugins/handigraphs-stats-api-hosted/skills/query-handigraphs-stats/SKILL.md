@@ -1,6 +1,6 @@
 ---
 name: query-handigraphs-stats
-description: Use the Handigraphs Stats API MCP tools to discover and query live MLB or NHL statistics. Trigger for player or team stat lookups, matchup comparisons, supported metric or split discovery, filtered rankings, pagination, and interpretation of Handigraphs performance tiers or sample qualification.
+description: Use the Handigraphs Stats API MCP tools for player statistics and NHL prop research, including tonight's shots-on-goal candidates, matchup ranks, recent game logs, exact-line hit rates and sportsbook quotes. Also use for metric/split discovery, filtered rankings and sample interpretation.
 ---
 
 # Query Handigraphs Stats
@@ -28,6 +28,44 @@ Never approve broader scopes automatically. A lapsed account can still inspect
 and revoke connections. Do not fall back to an API key or another account to
 bypass policy, quotas, errors or an unavailable worker. Switching to local is a
 separate user choice; the existing local installation and keys remain supported.
+
+## NHL prop research
+
+For requests such as "who are the best shots on goal candidates tonight", use
+the hosted read-only evidence workflow. Its market support and availability come
+from `describe_resource`'s `prop_evidence` descriptor. Other NHL skater markets
+and goalie saves follow the same shortlist workflow.
+
+1. Discover the NHL resource once when its contract is unknown. For SOG screen
+   `query_stats` with `sport=nhl`, `resource=skaters`, `day=today`, `split=L10`,
+   `metrics=[sog_per_game,icf_per_game,games_played]`, `sort=-sog_per_game`,
+   `matchup_market=shots`, `matchup_window=sea`, `page_size=12`, `prop_screen=true`,
+   and compact output. Shared rank metadata is returned once in `meta.matchup_basis`.
+2. Compare recent SOG and attempts volume, actual sample sizes, and the opponent's
+   season SOG-allowed rank plus `context.matchup.attempts` rank. Rank 1 means most
+   allowed. Preserve unavailable ranks and current-season context. Select three
+   to five IDs from the screen. For a named player whose ID is known, start at
+   the evidence call.
+3. Call `get_player_prop_evidence` once with that market and those IDs. For full
+   prop research request `sections=[hit_rates,game_logs,odds]`. Defaults are over,
+   recent ten skater games or five goalie starts, and five logs per player.
+   Supply an exact user-requested line when present. Otherwise use the site's
+   resolved main line. Fixed record markets use their discovered fixed line.
+4. Each player has its own line. Compare that exact line's sample and price.
+   Report hits/misses/pushes, missing observations and the graded denominator.
+   `hit_rate` is a fraction describing historical observations. A price's implied
+   probability is its break-even threshold before costs. Explain the evidence
+   supporting the shortlist and its limitations.
+5. Cite the game/start sample, split, season matchup basis, line, book and
+   `fetched_at`. Quotes are the latest ingested prices. They become unavailable
+   after 45 minutes or game start. `generated_at` describes the response. Preserve
+   missing quotes and per-section source failures. With `line_required`, request
+   an explicit line if a hit rate is needed. Requested logs remain available.
+6. Keep detailed evidence on the shortlist. Request only the sections needed for
+   a narrow follow-up, with at most ten logs per player. A size error requires
+   fewer players, logs or sections. Honor 429/503 and Retry-After. Use Gamecenter
+   when the user asks for published analysis. Use the filter research skill for
+   an explicit historical filter test or save request.
 
 ## Shared business workflow
 

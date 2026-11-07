@@ -11,6 +11,8 @@ import { registerApiKeySetupTool, type SetupLauncher } from "./setup.js";
 import { SERVER_VERSION } from "./version.js";
 import { AgentReadClient, agentReadTools } from "./agent-read.js";
 import { AgentActionClient, agentActionTools } from "./agent-actions.js";
+import { object } from "./discovery.js";
+import { compactPropScreen, propEvidenceSchema, readPropEvidence } from "./prop-evidence.js";
 
 const sportSchema = z.string().trim().min(1).max(32);
 const resourceSchema = z.string().trim().min(1).max(64);
@@ -49,6 +51,7 @@ export interface ServerDependencies {
   redactionSecrets?: readonly string[];
   signal?: AbortSignal;
   maxToolInputElements?: number;
+  enablePropEvidence?: boolean;
 }
 
 export function createServer(config: Config, dependencies: ServerDependencies = {}): McpServer {
@@ -84,11 +87,18 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     inputSchema: { sport: sportSchema, resource: resourceSchema },
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, ({ sport, resource }) => handler(secrets, async () => {
-    try { return success(await discovery.describe(sport, resource)); }
-    catch (error) {
+    let description: Record<string, unknown>;
+    try {
+      description = await discovery.describe(sport, resource);
+    } catch (error) {
       if (!(error instanceof ToolInputError)) throw error;
-      return success(await discovery.describe(sport, resource, true));
+      description = await discovery.describe(sport, resource, true);
     }
+    if (dependencies.enablePropEvidence && sport === "nhl") {
+      const evidence = object((await discovery.get("nhl")).prop_evidence);
+      if (evidence.contract_version === 1) description.prop_evidence = evidence;
+    }
+    return success(description);
   }));
 
   const filterSchema = z.object({
@@ -98,7 +108,8 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   }).strict();
   server.registerTool("query_stats", {
     title: "Query Handigraphs stats",
-    description: "Query one live Handigraphs Stats API resource. Use describe_resource first; pagination remains in this tool via cursor.",
+    description: "Query one live Handigraphs Stats API resource. Use describe_resource first; pagination remains in this tool via cursor."
+      + (dependencies.enablePropEvidence ? " For tonight's prop candidates, screen at most 12 rows with focused recent metrics and matchup context, then call get_player_prop_evidence once for up to five players." : ""),
     inputSchema: {
       sport: sportSchema,
       resource: resourceSchema,
@@ -123,14 +134,35 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
       category: z.string().trim().min(1).max(40).optional(),
       duration: z.string().trim().min(1).max(40).optional(),
       location: z.string().trim().min(1).max(40).optional(),
+      matchup_market: z.string().trim().min(1).max(32).optional(),
+      matchup_window: z.string().trim().min(1).max(32).optional(),
+      ...(dependencies.enablePropEvidence ? { prop_screen: z.boolean().optional()
+        .describe("Compact NHL player screen, max 12 rows. Shared opponent rank metadata moves to meta.matchup_basis.") } : {}),
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, (input) => handler(secrets, async () => {
+    if (input.prop_screen && (input.sport !== "nhl" || !["skaters", "goalies"].includes(input.resource)
+        || (input.stat_format !== undefined && input.stat_format !== "compact")
+        || (input.meta !== undefined && input.meta !== "compact") || (input.page_size ?? 12) > 12)) {
+      throw new ToolInputError("prop_screen requires NHL skaters/goalies, compact stats/meta and at most 12 rows.");
+    }
+    if (input.prop_screen && input.page_size === undefined) input.page_size = 12;
     const query = await validateAndBuildQuery(discovery, input as QueryInput);
     const response = await http.get(query.url, { protectedData: true });
     if ("notModified" in response) throw new Error("Protected data unexpectedly returned 304.");
-    return success(response.json, response.metadata);
+    return success(input.prop_screen ? compactPropScreen(response.json) : response.json, response.metadata);
   }));
+
+  if (dependencies.enablePropEvidence) {
+    server.registerTool("get_player_prop_evidence", {
+      description: "Read NHL exact-line hit rates and latest ingested sportsbook quotes for up to five players after a query_stats slate screen or a named-player lookup. One market per call. Request game_logs explicitly, default five and maximum ten per player. Defaults to hit_rates and odds, over side, recent ten skater games or five goalie starts. Preserve per-section availability, sample, line and quote timestamp. Observed hit rate is not predicted probability. No saves or research jobs.",
+      inputSchema: propEvidenceSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    }, (input) => handler(secrets, async () => {
+      const response = await readPropEvidence(http, discovery, input);
+      return success(response.json, response.metadata);
+    }));
+  }
 
   const tools = [
     ...agentReadTools.map((tool) => ({ ...tool, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true }, execute: (input: unknown) => agent.execute(tool.name, input) })),

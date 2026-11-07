@@ -1,5 +1,10 @@
 # Handigraphs Stats API MCP
 
+Hosted NHL prop research adds a compact slate screen followed by shortlisted
+game logs, hit rates and current ingested quotes. See
+[the two-call workflow](docs/player-prop-research.md) for the candidate example,
+bounds, freshness and backend rollout requirements.
+
 Canonical MCP adapter for the Handigraphs Stats API v1, with supported local stdio distributions and a hosted server at `https://mcp.handigraphs.com/mcp`. The 0.3.0 candidate is unreleased; installing the published package does not yet provide these new research features. The authenticated server exposes 19 business tools, including the original three stats tools:
 
 - `list_resources({ sport? })` discovers sports and resources.

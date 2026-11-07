@@ -86,12 +86,12 @@ test('local secret configuration, masked setup and Desktop extension snapshots r
   }
 });
 
-test('official SDK clients see identical nineteen business schemas/descriptions with setup only on local', async (t) => {
+test('official SDK clients retain shared schemas with hosted prop evidence and local setup', async (t) => {
   async function listing(local: boolean) {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     const server = createServer({ apiKey: local ? 'synthetic-local-credential' : 'synthetic-delegated-credential',
       baseUrl: new URL('https://synthetic.example.test/api/v1'), discoveryTtlMs: 300000, timeoutMs: 1000, maxResponseBytes: 1024 },
-    { enableLocalSetup: local, fetchImpl: async () => { throw new Error('Tool listing must not query a protected API'); } });
+    { enableLocalSetup: local, enablePropEvidence: !local, fetchImpl: async () => { throw new Error('Tool listing must not query a protected API'); } });
     const client = new Client({ name: local ? 'local-distribution-fixture' : 'hosted-distribution-fixture', version: '1.0.0' });
     t.after(async () => { await client.close(); await server.close(); });
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -99,8 +99,13 @@ test('official SDK clients see identical nineteen business schemas/descriptions 
   }
   const local = await listing(true); const hosted = await listing(false);
   assert.equal(local.filter(tool => tool.name === 'configure_api_key').length, 1);
-  assert.equal(hosted.length, 19); assert.equal(hosted.some(tool => tool.name === 'configure_api_key'), false);
-  assert.deepEqual(hosted, local.filter(tool => tool.name !== 'configure_api_key'));
+  assert.equal(hosted.length, 20); assert.equal(hosted.some(tool => tool.name === 'configure_api_key'), false);
+  assert.equal(local.some(tool => tool.name === 'get_player_prop_evidence'), false);
+  const shared = hosted.filter(tool => tool.name !== 'get_player_prop_evidence').map(tool =>
+    tool.name === 'query_stats' ? { ...tool, description: local.find(item => item.name === 'query_stats')!.description,
+      inputSchema: { ...tool.inputSchema, properties: Object.fromEntries(Object.entries(tool.inputSchema.properties!).filter(([key]) => key !== 'prop_screen')) },
+    } : tool);
+  assert.deepEqual(shared, local.filter(tool => tool.name !== 'configure_api_key'));
 });
 
 test('hosted docs give the released install, direct URL, cache refresh and local fallback', async () => {
