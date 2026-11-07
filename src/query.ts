@@ -23,6 +23,8 @@ export interface QueryInput {
   category?: string;
   duration?: string;
   location?: string;
+  matchup_market?: string;
+  matchup_window?: string;
 }
 
 interface MetricMetadata { scale?: unknown; }
@@ -101,16 +103,23 @@ async function validateOnce(discovery: DiscoveryClient, input: QueryInput, force
   requireSupported(resource, "category", input.category !== undefined);
   requireSupported(resource, "duration", input.duration !== undefined);
   requireSupported(resource, "location", input.location !== undefined);
+  requireSupported(resource, "matchup_market", input.matchup_market !== undefined);
+  requireSupported(resource, "matchup_window", input.matchup_window !== undefined);
+  if (input.matchup_window !== undefined && input.matchup_market === undefined) {
+    throw new ToolInputError("matchup_window requires matchup_market.");
+  }
   validateDiscoveredOption(splitsDocument, "category", input.category);
   validateDiscoveredOption(splitsDocument, "duration", input.duration);
   validateDiscoveredOption(splitsDocument, "location", input.location);
+  validateDiscoveredOption(splitsDocument, "matchup_market", input.matchup_market);
+  validateDiscoveredOption(splitsDocument, "matchup_window", input.matchup_window);
 
   const params = new URLSearchParams();
   if (input.split) params.set("split", input.split);
   if (input.metrics?.length) params.set("metrics", input.metrics.join(","));
   for (const filter of input.filters ?? []) params.append("filter", `${filter.metric}:${filter.operator}:${filter.value}`);
   if (input.sort) params.set("sort", input.sort);
-  for (const key of ["team", "opponent", "entity_id", "day", "season", "cursor", "category", "duration", "location"] as const) {
+  for (const key of ["team", "opponent", "entity_id", "day", "season", "cursor", "category", "duration", "location", "matchup_market", "matchup_window"] as const) {
     const value = input[key];
     if (value !== undefined) params.set(key, value);
   }

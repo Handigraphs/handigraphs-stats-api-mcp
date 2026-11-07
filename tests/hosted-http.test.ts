@@ -116,14 +116,14 @@ test("public metadata is exact while initialize, list, call and unsupported meth
   }
 });
 
-test("official client shares nineteen schemas, exchanges every message and isolates concurrent users", async (t) => {
+test("official client retains shared schemas, adds hosted evidence and isolates concurrent users", async (t) => {
   const issuer = await mockIssuer(); t.after(() => issuer.api.close());
   const host = await gateway(issuer.api); t.after(() => host.shutdown());
   const a = await connected(host.url), b = await connected(host.url, SUBJECT_B);
   t.after(() => a.client.close()); t.after(() => b.client.close());
   assert.equal(a.transport.sessionId, undefined); assert.equal(b.transport.sessionId, undefined);
   const tools = (await a.client.listTools()).tools;
-  assert.equal(tools.length, 19); assert.equal(tools.some((tool) => tool.name === "configure_api_key"), false);
+  assert.equal(tools.length, 20); assert.equal(tools.some((tool) => tool.name === "configure_api_key"), false);
   const local = createServer(requestConfig(host.config, "hg_test_synthetic_local"), { enableLocalSetup: true,
     setupLauncher: async () => ({ status: "launched", message: "Synthetic helper." }) });
   const localClient = new Client({ name: "local-contract-parity", version: "1" });
@@ -132,7 +132,13 @@ test("official client shares nineteen schemas, exchanges every message and isola
   await Promise.all([local.connect(serverTransport), localClient.connect(clientTransport)]);
   const localTools = (await localClient.listTools()).tools;
   assert.equal(localTools.length, 20);
-  assert.deepEqual(tools, JSON.parse(JSON.stringify(localTools.filter((tool) => tool.name !== "configure_api_key"))));
+  const shared = tools.filter((tool) => tool.name !== "get_player_prop_evidence").map((tool) => (
+    tool.name === "query_stats" ? { ...tool,
+      description: localTools.find((item) => item.name === "query_stats")!.description,
+      inputSchema: { ...tool.inputSchema, properties: Object.fromEntries(Object.entries(tool.inputSchema.properties!).filter(([key]) => key !== "prop_screen")) },
+    } : tool
+  ));
+  assert.deepEqual(shared, JSON.parse(JSON.stringify(localTools.filter((tool) => tool.name !== "configure_api_key"))));
   const before = issuer.exchanges.length;
   const results = await Promise.all(Array.from({ length: 12 }, async (_, index) => {
     const owner = index % 2 ? "B" : "A";
@@ -173,6 +179,42 @@ test("one official client can split stateless messages across two instances and 
     for (const secret of [SUBJECT_A, SERVICE_SECRET, ...issuer.exchanges.map((exchange) => exchange.delegated)]) assert.equal(serialized.includes(secret), false);
   }
   assert.ok(calls >= 5); assert.equal(connection.transport.sessionId, undefined);
+});
+
+test("hosted prop evidence forwards one delegated read and revocation stops the next read", async (t) => {
+  const issuer = await mockIssuer((request, response) => {
+    const path = new URL(request.url ?? "/", "http://localhost").pathname;
+    if (path === "/api/v1/nhl") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ prop_evidence: { contract_version: 1, enabled: true,
+        method: "POST", path: "/api/v1/nhl/prop-evidence", markets: [{ key: "skater_shots_on_goal" }] } }));
+      return true;
+    }
+    if (path === "/api/v1/nhl/prop-evidence") {
+      assert.equal(request.method, "POST");
+      assert.ok(request.headers.authorization?.startsWith("Bearer e30."));
+      let body = "";
+      request.on("data", chunk => { body += String(chunk); });
+      request.on("end", () => {
+        const args = JSON.parse(body) as { player_ids: string[] };
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ schema: "nhl-prop-evidence-v1", data: [{ player_id: args.player_ids[0], line: 2.5 }] }));
+      });
+      return true;
+    }
+    return false;
+  });
+  t.after(() => issuer.api.close());
+  const host = await gateway(issuer.api); t.after(() => host.shutdown());
+  const connection = await connected(host.url); t.after(() => connection.client.close());
+  const call = { name: "get_player_prop_evidence", arguments: { market: "skater_shots_on_goal", player_ids: ["8478460"] } };
+  const result = await connection.client.callTool(call);
+  assert.equal(result.isError, undefined);
+  assert.match(JSON.stringify(result), /8478460/);
+  assert.equal(issuer.api.requests.filter(item => item.path === "/api/v1/nhl/prop-evidence").length, 1);
+  issuer.state.revoked = true;
+  await assert.rejects(connection.client.callTool(call));
+  assert.equal(issuer.api.requests.filter(item => item.path === "/api/v1/nhl/prop-evidence").length, 1);
 });
 
 test("PR03 unavailable research and ambiguous mutations are preserved once without retries", async (t) => {
