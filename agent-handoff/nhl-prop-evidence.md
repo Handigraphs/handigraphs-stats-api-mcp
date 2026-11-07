@@ -3,7 +3,8 @@
 Active writer is Codex in the Windows desktop session on 2026-11-07.
 Branch is `codex/nhl-prop-evidence`, based on verified origin/main at
 `748d2cab3598a6d07df53189ad5794257ad75a23`.
-The code checkpoint is this commit.
+The code checkpoint is `65b4abd09e8a87fe09b1b8c42926289e6cdf25d2`.
+This later handoff commit records the application integration state.
 
 This implements the gateway portion of the approved NHL prop research plan.
 Hosted HTTP adds `get_player_prop_evidence` using one protected backend POST,
@@ -38,8 +39,12 @@ The initial production audit failed on the existing transitive @hono/node-server
 PR #35. This overlap is confined to package-lock.json. No unfinished branch was
 incorporated. Reconcile that identical lock update when merging either PR.
 
-The matching application source is contract 1.19.0, app PR #836, code checkpoint
-`b4c569d6def5a2171b5e193cf202268f6ae3b02d`, following merged screen PR #835.
+The matching application source is contract 1.19.0. App PR #836 merged at
+`016d43b874f39b264db7f5cb37027a31a7042e06`, following merged screen PR #835.
+Its source checkpoint was `b4c569d6def5a2171b5e193cf202268f6ae3b02d`.
+The automatic sandbox deployment succeeded and post-deploy checks were running
+at this handoff. Gateway PR #36 is mergeable. Linux and macOS validation passed,
+with Windows validation still running before this documentation checkpoint.
 Its `STATS_API_PROP_EVIDENCE_ENABLED` flag defaults false and has not been changed
 in any deployed environment. Backend promotion precedes gateway promotion.
 
