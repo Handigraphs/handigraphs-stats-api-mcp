@@ -15,6 +15,7 @@ export const TARGETS = Object.freeze({
 const APP_SANDBOX = Object.freeze({ app: 'handigraphs-sandbox-web', origin: 'https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com' });
 const MAX_JSON = 256 * 1024;
 const MAX_ARCHIVE = 64 * 1024;
+const MAX_SOURCE_ARCHIVE = 10 * 1024 * 1024;
 const MAX_MANIFEST = 16 * 1024;
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 export const CHECKS = Object.freeze(['codex_desktop', 'codex_cli', 'claude_code', 'refresh', 'revocation', 'queued_job_revocation',
@@ -224,6 +225,28 @@ export function createControlPlane(fetchImpl = fetch, timing = {}, options = {})
   }
   const github = (repo, path, token) => request(`https://api.github.com/repos/${repo}${path ? '/' + path : ''}`, token);
   const heroku = (app, path, token, options) => request(`https://api.heroku.com/apps/${app}/${path}`, token, options);
+  async function sandboxSource(env) {
+    // Stage the same pinned public source through Heroku's documented Sources
+    // API. The build service need not retrieve a GitHub redirect itself. No
+    // credential accompanies the archive download or the presigned S3 upload.
+    const response = await request(`https://codeload.github.com/${MCP_REPO}/tar.gz/${env.MCP_SHA}`, undefined, { raw: true });
+    requireThat(response.status === 200);
+    const bytes = await bounded(response, MAX_SOURCE_ARCHIVE);
+    requireThat(bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b);
+    const reserved = await heroku(TARGETS.sandbox.app, 'sources', env.HEROKU_DEPLOY_API_KEY, { method: 'POST' });
+    const get = new URL(reserved.source_blob?.get_url), put = new URL(reserved.source_blob?.put_url);
+    for (const url of [get, put]) {
+      requireThat(url.protocol === 'https:' && !url.username && !url.password && !url.hash && !url.port
+        && /^(?:[a-z0-9.-]+\.)?s3(?:[.-][a-z0-9-]+)?\.amazonaws\.com$/.test(url.hostname));
+    }
+    requireThat(get.origin === put.origin && get.pathname === put.pathname);
+    const uploaded = await fetchImpl(put.href, { method: 'PUT', body: new Uint8Array(bytes),
+      redirect: 'manual', signal: AbortSignal.timeout(15000) });
+    requireThat(uploaded.ok);
+    await bounded(uploaded, MAX_JSON);
+    await requireMain(env); // Source preparation must not race a new reviewed main.
+    return { url: get.href, version: env.MCP_SHA, checksum: 'SHA256:' + createHash('sha256').update(bytes).digest('hex') };
+  }
   async function requireMain(env) {
     validateRequest(env);
     const ref = await github(MCP_REPO, 'git/ref/heads/main', env.GH_TOKEN);
@@ -330,9 +353,9 @@ export function createControlPlane(fetchImpl = fetch, timing = {}, options = {})
       await verifyOwnerAcceptance(env); // Recheck after the approval wait.
     }
     requireThat(env.HEROKU_DEPLOY_API_KEY);
-    const result = await heroku(target.app, 'builds', env.HEROKU_DEPLOY_API_KEY, { method: 'POST', body: {
-      source_blob: { url: `https://github.com/${MCP_REPO}/archive/${env.MCP_SHA}.tar.gz`, version: env.MCP_SHA },
-    } });
+    const source = env.DEPLOY_TARGET === 'sandbox' ? await sandboxSource(env)
+      : { url: `https://github.com/${MCP_REPO}/archive/${env.MCP_SHA}.tar.gz`, version: env.MCP_SHA };
+    const result = await heroku(target.app, 'builds', env.HEROKU_DEPLOY_API_KEY, { method: 'POST', body: { source_blob: source } });
     requireThat(/^[a-f0-9-]{36}$/.test(result.id));
     const deadline = clock() + 8 * 60 * 1000;
     while (clock() < deadline) {

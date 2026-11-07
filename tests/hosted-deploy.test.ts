@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { deflateRawSync } from 'node:zlib';
+import { deflateRawSync, gzipSync } from 'node:zlib';
 import test from 'node:test';
 import { parse } from 'yaml';
 
@@ -88,6 +88,8 @@ test('bounded archive accepts one JSON member and rejects paths, multiple member
 
 function fixture(change: { path?: string; value?: unknown; mutate?: (path: string, value: any) => unknown; blob?: Buffer;
   healthFailures?: number; pendingBuild?: boolean; commentsLink?: string; apiError?: { path: string; status: number };
+  sourceBytes?: string | Uint8Array; sourceStatus?: number; sourceLength?: number;
+  sourceGetUrl?: string; sourcePutUrl?: string; uploadStatus?: number;
   timing?: { now: () => number; sleep: (ms: number) => Promise<void> }; acceptance?: string; comparison?: unknown } = {}) {
   const evidence = manifest(); const archive = change.blob || zip(evidence); const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
   const run = { workflow_id: 44, path: '.github/workflows/hosted-mcp-oauth-evidence.yml', event: 'workflow_dispatch', head_branch: 'main', head_sha: app,
@@ -125,6 +127,16 @@ function fixture(change: { path?: string; value?: unknown; mutate?: (path: strin
       if (built && healthFailures-- > 0) return new Response('{}', { status: 503 });
       value = parsed.hostname.startsWith('handigraphs-sandbox-web') ? { status: 'ok', db: 'ok', redis: 'ok' } : { ready: true, stateless: true };
     }
+    else if (parsed.hostname === 'codeload.github.com') {
+      assert.equal(path, `/Handigraphs/handigraphs-stats-api-mcp/tar.gz/${mcp}`);
+      assert.equal(new Headers(init?.headers).has('Authorization'), false);
+      return new Response(change.sourceBytes ?? new Uint8Array(gzipSync('synthetic public archive')), {
+        status: change.sourceStatus ?? 200, headers: change.sourceLength ? { 'Content-Length': String(change.sourceLength) } : {} });
+    }
+    else if (path.endsWith('/sources') && init?.method === 'POST') value = { source_blob: {
+      get_url: change.sourceGetUrl ?? 'https://s3.amazonaws.com/herokusources/synthetic?get=synthetic-signature',
+      put_url: change.sourcePutUrl ?? 'https://s3.amazonaws.com/herokusources/synthetic?put=synthetic-signature' } };
+    else if (parsed.hostname === 's3.amazonaws.com' && init?.method === 'PUT') return new Response('', { status: change.uploadStatus ?? 200 });
     else if (path.endsWith('/builds') && init?.method === 'POST') { built = true; assert.equal(JSON.parse(String(init.body)).source_blob.version, mcp); value = { id: '00000000-0000-0000-0000-000000000002' }; }
     else if (path.includes('/builds/')) value = { status: change.pendingBuild ? 'pending' : 'succeeded' };
     else throw new Error('Unexpected mock API request');
@@ -270,6 +282,55 @@ test('actual deploy rechecks environment approval and owner acceptance, pins bui
   const failure = fixture({ path: '/builds/00000000', value: { status: 'failed' } });
   await assert.rejects(failure.plane.deploy(env)); assert.equal(failure.calls.filter(call => call.init?.method === 'POST').length, 1);
 });
+const sandboxEnv = { ...env, DEPLOY_TARGET: 'sandbox', DEPLOY_CONFIRM: 'deploy-sandbox', HOSTED_SANDBOX_DEPLOY_ENABLED: 'true' };
+
+test('sandbox stages bounded exact-SHA public source without forwarding credentials to download or upload', async () => {
+  const { plane, calls } = fixture();
+  await plane.deploy(sandboxEnv);
+  const mutations = calls.filter(call => ['POST', 'PUT'].includes(call.init?.method || ''));
+  assert.deepEqual(mutations.map(call => [call.init!.method, new URL(call.url).pathname]), [
+    ['POST', '/apps/handigraphs-mcp-sandbox/sources'], ['PUT', '/herokusources/synthetic'], ['POST', '/apps/handigraphs-mcp-sandbox/builds']]);
+  const uploaded = mutations[1]!;
+  assert.equal(new Headers(uploaded.init!.headers).has('Authorization'), false);
+  assert.equal(new Headers(uploaded.init!.headers).has('Content-Type'), false);
+  assert.deepEqual(Buffer.from(uploaded.init!.body as Uint8Array), gzipSync('synthetic public archive'));
+  const source = JSON.parse(String(mutations[2]!.init!.body)).source_blob;
+  assert.equal(source.version, mcp);
+  assert.equal(source.checksum, 'SHA256:' + createHash('sha256').update(gzipSync('synthetic public archive')).digest('hex'));
+  assert.equal(source.url, 'https://s3.amazonaws.com/herokusources/synthetic?get=synthetic-signature');
+  assert.ok(calls.every(call => call.init?.redirect === 'manual' && call.init.signal));
+});
+
+test('invalid or oversized source fails before source reservation; unsafe upload destinations and failed upload never submit a build', async () => {
+  for (const change of [{ sourceStatus: 302 }, { sourceStatus: 206 }, { sourceBytes: 'not gzip' }, { sourceLength: 10 * 1024 * 1024 + 1 }]) {
+    const { plane, calls } = fixture(change);
+    await assert.rejects(plane.deploy(sandboxEnv));
+    assert.equal(calls.some(call => call.init?.method === 'POST'), false);
+  }
+  for (const change of [
+    { sourceGetUrl: 'https://evil.example/source' },
+    { sourcePutUrl: 'https://user:password@s3.amazonaws.com/herokusources/synthetic' },
+    { sourcePutUrl: 'http://s3.amazonaws.com/herokusources/synthetic' },
+    { sourcePutUrl: 'https://s3.amazonaws.com/different/object' },
+    { sourcePutUrl: 'https://s3.amazonaws.com/herokusources/synthetic#fragment' },
+    { uploadStatus: 403 },
+  ]) {
+    const { plane, calls } = fixture(change);
+    await assert.rejects(plane.deploy(sandboxEnv));
+    assert.equal(calls.some(call => call.url.endsWith('/builds')), false);
+    assert.ok(calls.filter(call => call.init?.method === 'PUT').length <= 1);
+    assert.ok(calls.filter(call => call.url.endsWith('/sources')).length <= 1);
+  }
+});
+
+test('sandbox source upload rechecks main before the single build request', async () => {
+  let reads = 0;
+  const { plane, calls } = fixture({ mutate: (path, value) => path.endsWith('/git/ref/heads/main') && ++reads === 2 ? { object: { sha: 'f'.repeat(40) } } : value });
+  await assert.rejects(plane.deploy(sandboxEnv));
+  assert.equal(calls.filter(call => call.init?.method === 'PUT').length, 1);
+  assert.equal(calls.some(call => call.url.endsWith('/builds')), false);
+});
+
 test('deployment retries only transient readiness reads and stops at build/readiness wall-clock budgets', async () => {
   let time = 0; const waits: number[] = [];
   const timing = { now: () => time, sleep: async (ms: number) => { time += ms; waits.push(ms); } };
