@@ -225,7 +225,8 @@ export function createControlPlane(fetchImpl = fetch, timing = {}, options = {})
   }
   const github = (repo, path, token) => request(`https://api.github.com/repos/${repo}${path ? '/' + path : ''}`, token);
   const heroku = (app, path, token, options) => request(`https://api.heroku.com/apps/${app}/${path}`, token, options);
-  async function sandboxSource(env) {
+  async function stagedSource(env) {
+    const target = validateRequest(env);
     // Stage the same pinned public source through Heroku's documented Sources
     // API. The build service need not retrieve a GitHub redirect itself. No
     // credential accompanies the archive download or the presigned S3 upload.
@@ -233,7 +234,7 @@ export function createControlPlane(fetchImpl = fetch, timing = {}, options = {})
     requireThat(response.status === 200);
     const bytes = await bounded(response, MAX_SOURCE_ARCHIVE);
     requireThat(bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b);
-    const reserved = await heroku(TARGETS.sandbox.app, 'sources', env.HEROKU_DEPLOY_API_KEY, { method: 'POST' });
+    const reserved = await heroku(target.app, 'sources', env.HEROKU_DEPLOY_API_KEY, { method: 'POST' });
     const get = new URL(reserved.source_blob?.get_url), put = new URL(reserved.source_blob?.put_url);
     for (const url of [get, put]) {
       requireThat(url.protocol === 'https:' && !url.username && !url.password && !url.hash && !url.port
@@ -353,8 +354,13 @@ export function createControlPlane(fetchImpl = fetch, timing = {}, options = {})
       await verifyOwnerAcceptance(env); // Recheck after the approval wait.
     }
     requireThat(env.HEROKU_DEPLOY_API_KEY);
-    const source = env.DEPLOY_TARGET === 'sandbox' ? await sandboxSource(env)
-      : { url: `https://github.com/${MCP_REPO}/archive/${env.MCP_SHA}.tar.gz`, version: env.MCP_SHA };
+    const source = await stagedSource(env);
+    if (env.DEPLOY_TARGET === 'production') {
+      // A review can change while the bounded archive upload is in flight.
+      // Staged objects expire; a changed approval must never start the build.
+      await approved(MCP_REPO, Number(env.GITHUB_RUN_ID), 'production', env.GH_TOKEN);
+      await verifyOwnerAcceptance(env);
+    }
     const result = await heroku(target.app, 'builds', env.HEROKU_DEPLOY_API_KEY, { method: 'POST', body: { source_blob: source } });
     requireThat(/^[a-f0-9-]{36}$/.test(result.id));
     const deadline = clock() + 8 * 60 * 1000;

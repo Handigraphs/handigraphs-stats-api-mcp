@@ -90,6 +90,7 @@ function fixture(change: { path?: string; value?: unknown; mutate?: (path: strin
   healthFailures?: number; pendingBuild?: boolean; commentsLink?: string; apiError?: { path: string; status: number };
   sourceBytes?: string | Uint8Array; sourceStatus?: number; sourceLength?: number;
   sourceGetUrl?: string; sourcePutUrl?: string; uploadStatus?: number;
+  afterUpload?: () => void; readAcceptance?: () => string;
   timing?: { now: () => number; sleep: (ms: number) => Promise<void> }; acceptance?: string; comparison?: unknown } = {}) {
   const evidence = manifest(); const archive = change.blob || zip(evidence); const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
   const run = { workflow_id: 44, path: '.github/workflows/hosted-mcp-oauth-evidence.yml', event: 'workflow_dispatch', head_branch: 'main', head_sha: app,
@@ -136,7 +137,10 @@ function fixture(change: { path?: string; value?: unknown; mutate?: (path: strin
     else if (path.endsWith('/sources') && init?.method === 'POST') value = { source_blob: {
       get_url: change.sourceGetUrl ?? 'https://s3.amazonaws.com/herokusources/synthetic?get=synthetic-signature',
       put_url: change.sourcePutUrl ?? 'https://s3.amazonaws.com/herokusources/synthetic?put=synthetic-signature' } };
-    else if (parsed.hostname === 's3.amazonaws.com' && init?.method === 'PUT') return new Response('', { status: change.uploadStatus ?? 200 });
+    else if (parsed.hostname === 's3.amazonaws.com' && init?.method === 'PUT') {
+      change.afterUpload?.();
+      return new Response('', { status: change.uploadStatus ?? 200 });
+    }
     else if (path.endsWith('/builds') && init?.method === 'POST') { built = true; assert.equal(JSON.parse(String(init.body)).source_blob.version, mcp); value = { id: '00000000-0000-0000-0000-000000000002' }; }
     else if (path.includes('/builds/')) value = { status: change.pendingBuild ? 'pending' : 'succeeded' };
     else throw new Error('Unexpected mock API request');
@@ -146,7 +150,7 @@ function fixture(change: { path?: string; value?: unknown; mutate?: (path: strin
       headers: { 'Content-Type': 'application/json',
       ...(change.commentsLink && path.includes('/issues/501/comments?') ? { Link: change.commentsLink } : {}) } });
   };
-  const readAcceptance = () => change.acceptance ?? serializeEvidence(acceptance());
+  const readAcceptance = change.readAcceptance ?? (() => change.acceptance ?? serializeEvidence(acceptance()));
   return { plane: createControlPlane(fetchImpl, change.timing, { readAcceptance }), calls, evidence, run, issue, comments };
 }
 test('API-backed evidence authenticates exact workflow, human approval, archive and current healthy source pair', async () => {
@@ -273,23 +277,32 @@ test('missing access, missing future workflow/evidence and unsafe provenance fai
 });
 test('actual deploy rechecks environment approval and owner acceptance, pins build source and exposes no credentials in URL/body', async () => {
   const { plane, calls } = fixture(); await plane.deploy(env);
-  const posts = calls.filter(call => call.init?.method === 'POST'); assert.equal(posts.length, 1);
+  const posts = calls.filter(call => call.init?.method === 'POST' && call.url.endsWith('/builds')); assert.equal(posts.length, 1);
   assert.equal(posts[0]!.url, 'https://api.heroku.com/apps/handigraphs-mcp/builds');
-  assert.deepEqual(JSON.parse(String(posts[0]!.init?.body)), { source_blob: { url: `https://github.com/Handigraphs/handigraphs-stats-api-mcp/archive/${mcp}.tar.gz`, version: mcp } });
+  assert.deepEqual(JSON.parse(String(posts[0]!.init?.body)), { source_blob: {
+    url: 'https://s3.amazonaws.com/herokusources/synthetic?get=synthetic-signature', version: mcp,
+    checksum: 'SHA256:' + createHash('sha256').update(gzipSync('synthetic public archive')).digest('hex') } });
+  const firstMutation = calls.findIndex(call => call.init?.method === 'POST');
+  assert.ok(calls.slice(0, firstMutation).some(call => call.url.endsWith('/actions/runs/77/approvals')));
+  assert.ok(calls.slice(0, firstMutation).some(call => call.url.includes(`/compare/${accepted}...${mcp}`)));
+  assert.equal(calls.filter(call => call.url.endsWith('/actions/runs/77/approvals')).length, 2);
   const failed = fixture({ path: '/actions/runs/77/approvals', value: [] }); await assert.rejects(failed.plane.deploy(env));
   assert.equal(failed.calls.some(call => call.init?.method === 'POST'), false);
   assert.ok(calls.every(call => !call.url.includes('synthetic-platform') && !String(call.init?.body).includes('synthetic-platform')));
   const failure = fixture({ path: '/builds/00000000', value: { status: 'failed' } });
-  await assert.rejects(failure.plane.deploy(env)); assert.equal(failure.calls.filter(call => call.init?.method === 'POST').length, 1);
+  await assert.rejects(failure.plane.deploy(env)); assert.equal(failure.calls.filter(call => call.url.endsWith('/builds') && call.init?.method === 'POST').length, 1);
 });
 const sandboxEnv = { ...env, DEPLOY_TARGET: 'sandbox', DEPLOY_CONFIRM: 'deploy-sandbox', HOSTED_SANDBOX_DEPLOY_ENABLED: 'true' };
 
-test('sandbox stages bounded exact-SHA public source without forwarding credentials to download or upload', async () => {
+for (const targetEnv of [sandboxEnv, env]) {
+test(`${targetEnv.DEPLOY_TARGET} stages bounded exact-SHA public source without forwarding credentials to download or upload`, async () => {
   const { plane, calls } = fixture();
-  await plane.deploy(sandboxEnv);
+  await plane.deploy(targetEnv);
+  const target = targetEnv.DEPLOY_TARGET === 'production' ? TARGETS.production : TARGETS.sandbox;
   const mutations = calls.filter(call => ['POST', 'PUT'].includes(call.init?.method || ''));
   assert.deepEqual(mutations.map(call => [call.init!.method, new URL(call.url).pathname]), [
-    ['POST', '/apps/handigraphs-mcp-sandbox/sources'], ['PUT', '/herokusources/synthetic'], ['POST', '/apps/handigraphs-mcp-sandbox/builds']]);
+    ['POST', `/apps/${target.app}/sources`], ['PUT', '/herokusources/synthetic'], ['POST', `/apps/${target.app}/builds`]]);
+  assert.ok(calls.filter(call => call.url.startsWith('https://api.heroku.com/')).every(call => new URL(call.url).pathname.startsWith(`/apps/${target.app}/`)));
   const uploaded = mutations[1]!;
   assert.equal(new Headers(uploaded.init!.headers).has('Authorization'), false);
   assert.equal(new Headers(uploaded.init!.headers).has('Content-Type'), false);
@@ -301,10 +314,10 @@ test('sandbox stages bounded exact-SHA public source without forwarding credenti
   assert.ok(calls.every(call => call.init?.redirect === 'manual' && call.init.signal));
 });
 
-test('invalid or oversized source fails before source reservation; unsafe upload destinations and failed upload never submit a build', async () => {
+test(`${targetEnv.DEPLOY_TARGET} rejects invalid source and unsafe destinations before building`, async () => {
   for (const change of [{ sourceStatus: 302 }, { sourceStatus: 206 }, { sourceBytes: 'not gzip' }, { sourceLength: 10 * 1024 * 1024 + 1 }]) {
     const { plane, calls } = fixture(change);
-    await assert.rejects(plane.deploy(sandboxEnv));
+    await assert.rejects(plane.deploy(targetEnv));
     assert.equal(calls.some(call => call.init?.method === 'POST'), false);
   }
   for (const change of [
@@ -316,19 +329,47 @@ test('invalid or oversized source fails before source reservation; unsafe upload
     { uploadStatus: 403 },
   ]) {
     const { plane, calls } = fixture(change);
-    await assert.rejects(plane.deploy(sandboxEnv));
+    await assert.rejects(plane.deploy(targetEnv));
     assert.equal(calls.some(call => call.url.endsWith('/builds')), false);
     assert.ok(calls.filter(call => call.init?.method === 'PUT').length <= 1);
     assert.ok(calls.filter(call => call.url.endsWith('/sources')).length <= 1);
   }
 });
 
-test('sandbox source upload rechecks main before the single build request', async () => {
-  let reads = 0;
-  const { plane, calls } = fixture({ mutate: (path, value) => path.endsWith('/git/ref/heads/main') && ++reads === 2 ? { object: { sha: 'f'.repeat(40) } } : value });
-  await assert.rejects(plane.deploy(sandboxEnv));
+test(`${targetEnv.DEPLOY_TARGET} source upload rechecks main before the single build request`, async () => {
+  let uploaded = false;
+  const { plane, calls } = fixture({ afterUpload: () => { uploaded = true; },
+    mutate: (path, value) => uploaded && path.endsWith('/git/ref/heads/main') ? { object: { sha: 'f'.repeat(40) } } : value });
+  await assert.rejects(plane.deploy(targetEnv));
   assert.equal(calls.filter(call => call.init?.method === 'PUT').length, 1);
   assert.equal(calls.some(call => call.url.endsWith('/builds')), false);
+});
+}
+
+test('changed production approval or owner acceptance after upload prevents the build', async () => {
+  let reviews = 0;
+  const revoked = fixture({ mutate: (path, value) => path.endsWith('/actions/runs/77/approvals') && ++reviews === 2 ? [] : value });
+  let records = 0;
+  const changed = fixture({ readAcceptance: () => serializeEvidence(acceptance(++records === 1 ? {} : { owner: 'someone-else' })) });
+  for (const { plane, calls } of [revoked, changed]) {
+    await assert.rejects(plane.deploy(env));
+    assert.equal(calls.filter(call => call.url.endsWith('/sources') && call.init?.method === 'POST').length, 1);
+    assert.equal(calls.filter(call => call.init?.method === 'PUT').length, 1);
+    assert.equal(calls.some(call => call.url.endsWith('/builds')), false);
+  }
+});
+
+test('missing, rejected, bot or wrong-environment production review never reserves a source', async () => {
+  for (const reviews of [[],
+    [{ state: 'rejected', user: { type: 'User' }, environments: [{ name: 'production' }] }],
+    [{ state: 'approved', user: { type: 'Bot' }, environments: [{ name: 'production' }] }],
+    [{ state: 'approved', user: { type: 'User' }, environments: [{ name: 'sandbox' }] }],
+  ]) {
+    const { plane, calls } = fixture({ path: '/actions/runs/77/approvals', value: reviews });
+    await assert.rejects(plane.deploy(env));
+    assert.equal(calls.some(call => ['POST', 'PUT'].includes(call.init?.method || '')), false);
+    assert.equal(calls.some(call => new URL(call.url).hostname === 'codeload.github.com'), false);
+  }
 });
 
 test('deployment retries only transient readiness reads and stops at build/readiness wall-clock budgets', async () => {
@@ -336,14 +377,14 @@ test('deployment retries only transient readiness reads and stops at build/readi
   const timing = { now: () => time, sleep: async (ms: number) => { time += ms; waits.push(ms); } };
   const transient = fixture({ healthFailures: 2, timing }); await transient.plane.deploy(env);
   assert.deepEqual(waits, [3000, 3000]);
-  assert.equal(transient.calls.filter(call => call.init?.method === 'POST').length, 1);
+  assert.equal(transient.calls.filter(call => call.init?.method === 'POST' && call.url.endsWith('/builds')).length, 1);
   assert.equal(transient.calls.filter(call => call.url === 'https://mcp.handigraphs.com/health/ready').length, 3);
   time = 0; waits.length = 0;
   const neverReady = fixture({ healthFailures: 100, timing }); await assert.rejects(neverReady.plane.deploy(env));
-  assert.equal(time, 90000); assert.equal(neverReady.calls.filter(call => call.init?.method === 'POST').length, 1);
+  assert.equal(time, 90000); assert.equal(neverReady.calls.filter(call => call.init?.method === 'POST' && call.url.endsWith('/builds')).length, 1);
   time = 0; waits.length = 0;
   const pending = fixture({ pendingBuild: true, timing }); await assert.rejects(pending.plane.deploy(env));
-  assert.equal(time, 8 * 60 * 1000); assert.equal(pending.calls.filter(call => call.init?.method === 'POST').length, 1);
+  assert.equal(time, 8 * 60 * 1000); assert.equal(pending.calls.filter(call => call.init?.method === 'POST' && call.url.endsWith('/builds')).length, 1);
   assert.ok(pending.calls.filter(call => call.url.includes('/builds/')).length <= 48);
 });
 test('workflow boundaries retain pinned source, default-off sandbox, production environment and independent publishing', async () => {
@@ -387,12 +428,21 @@ test('workflow boundaries retain pinned source, default-off sandbox, production 
 test('committed owner acceptance names exactly the accepted pair, record and client versions', async () => {
   const value = parseOwnerAcceptance((await readFile(OWNER_ACCEPTANCE_FILE, 'utf8')).replace(/\r\n/g, '\n'));
   assert.equal(value.owner, 'cjbuskey');
-  assert.equal(value.tested_app_sha, '3dd38c3405d22d694d92e9bd076a8d4dfea87990');
-  assert.equal(value.accepted_app_sha, 'b38cc79ebd71625ba93fe7f3e1fef20342a47c54');
-  assert.equal(value.tested_mcp_sha, 'a2909a6e84d8b4ea5b30162f2999eeca0ef5a8ef');
-  assert.equal(value.accepted_mcp_sha, '15a21d02c8e48239297e8316613537c88b15f017');
-  assert.equal(value.record_sha256, '5fb155e793175bb6ce1f649ca7f0d10483ff224c14fa860406fbcdd4f4c144ec');
-  assert.deepEqual(value.clients, { codex_desktop: '26.1016.61520', codex_cli: '0.163.0', claude_code: '2.1.283' });
+  assert.equal(value.tested_app_sha, '67c0b3ba9f4649d1695f6d46386d3545eba852af');
+  assert.equal(value.accepted_app_sha, value.tested_app_sha);
+  assert.equal(value.tested_mcp_sha, 'a0bc4d0539280719135461092fda200e1ad5a1f2');
+  assert.equal(value.accepted_mcp_sha, value.tested_mcp_sha);
+  assert.equal(value.decided_on, '2026-11-07');
+  assert.equal(value.record_sha256, 'c90e7a5069c4e8f00d96385326c17e7b93012dbda61b41a9a0e07f5aa63071b1');
+  assert.deepEqual(value.clients, { codex_desktop: '26.1016.61520', codex_cli: '0.146.0', claude_code: '2.1.283' });
+  assert.match(value.summary, /historical versions only; current-pair UI\/refresh were not rerun/);
+  const prior = parseOwnerAcceptance((await readFile('docs/owner-acceptance-2026-10-24.json', 'utf8')).replace(/\r\n/g, '\n'));
+  assert.equal(prior.tested_app_sha, '3dd38c3405d22d694d92e9bd076a8d4dfea87990');
+  assert.equal(prior.accepted_app_sha, 'b38cc79ebd71625ba93fe7f3e1fef20342a47c54');
+  assert.equal(prior.tested_mcp_sha, 'a2909a6e84d8b4ea5b30162f2999eeca0ef5a8ef');
+  assert.equal(prior.accepted_mcp_sha, '15a21d02c8e48239297e8316613537c88b15f017');
+  assert.equal(prior.record_sha256, '5fb155e793175bb6ce1f649ca7f0d10483ff224c14fa860406fbcdd4f4c144ec');
+  assert.deepEqual(prior.clients, { codex_desktop: '26.1016.61520', codex_cli: '0.163.0', claude_code: '2.1.283' });
 });
 test('owner acceptance is strict, canonical and owner-bound', () => {
   assert.doesNotThrow(() => parseOwnerAcceptance(serializeEvidence(acceptance())));

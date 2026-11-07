@@ -86,10 +86,12 @@ accepted MCP commit (owner decision 2026-10-24, docs/hosted-operations.md).
 Never run either deployment workflow, create apps/domains, configure environments
 or credentials, enable flags, or publish a release from source-only authorization.
 No source validation job receives deployment, evidence or OAuth credentials.
-Sandbox source is bounded to the exact-SHA public codeload archive, then staged
-once through the fixed app's Heroku Sources API with a SHA-256 checksum. Private
+Deployment source is bounded to the exact-SHA public codeload archive, then staged
+once through the selected fixed app's Heroku Sources API with a SHA-256 checksum. Private
 presigned S3 URLs remain in memory; download/upload never receive OAuth headers.
-This sandbox-only source path changes no production deployment or approval gate.
+Production retains its owner/runtime and human environment gates before staging,
+and rechecks them after upload before the single build request. Source changes
+authorize no production deployment, activation or credential changes.
 Credentialed jobs run only the pinned control-plane script, never npm scripts.
 The evidence token is minted for one private repository with explicit read-only
 permissions and revoked after its job; provisioning its App/key is a separate
