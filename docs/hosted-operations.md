@@ -170,9 +170,18 @@ public-repository token has no private application access.
    full package/test/build/distribution checks. Separate credentialed jobs install
    no package dependencies and execute only the pinned dependency-free control
    script. They never execute PR/fork source with deploy credentials.
-5. The Build API receives only the public canonical repository's exact-SHA archive
-   and matching source version. There is one build POST, no mutation retries and no
-   credential in the archive URL. Polling reads only fixed build/release endpoints;
+5. The Build API receives the public canonical repository's exact-SHA archive
+   and matching source version. Sandbox first downloads that archive from the
+   fixed `codeload.github.com` repository/SHA URL without authorization or redirects
+   (10 MiB maximum, 15-second request bound, gzip signature required). It reserves
+   one Heroku Sources object on the fixed sandbox app, uploads those same bytes
+   once to its validated HTTPS S3 URL without an Authorization header, and submits
+   the private expiring GET URL plus a SHA-256 checksum. Both S3 URLs must name the
+   same origin/object; they stay inside the process and expire after one hour.
+   Current main is rechecked before the build. Production keeps its existing
+   direct canonical GitHub archive path and approval gates. There is one build
+   POST, no mutation retries, and no Heroku/GitHub credential in the archive URL.
+   The source reservation/upload are not retried. Polling reads fixed build/release endpoints;
    build logs, signed source links and raw API responses are never printed.
    The build has an eight-minute polling budget, each API/body a 15-second bound,
    and readiness gets a further 90-second read-only polling budget. A successful
