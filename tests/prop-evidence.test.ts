@@ -130,6 +130,11 @@ test("oversized evidence cannot pollute the model context", async (t) => {
 
 test("twelve-player screen and five-player logs/rates/quotes fit the complete context budget", async (t) => {
   const { api, client } = await fixture(t, "busy_slate");
+  const tool = (await client.listTools()).tools.find(item => item.name === "query_stats")!;
+  assert.match(tool.description!, /prop_screen=true and page_size=12/);
+  assert.match(tool.description!, /only sog_per_game, icf_per_game, games_played/);
+  const evidenceTool = (await client.listTools()).tools.find(item => item.name === "get_player_prop_evidence")!;
+  assert.match(evidenceTool.description!, /keep five log rows and omit include_season unless the user requests/);
   const screen = await client.callTool({ name: "query_stats", arguments: { sport: "nhl", resource: "skaters", split: "L10",
     metrics: ["sog_per_game", "icf_per_game", "games_played"], sort: "-sog_per_game", day: "today",
     page_size: 12, matchup_market: "shots", matchup_window: "sea", prop_screen: true } });

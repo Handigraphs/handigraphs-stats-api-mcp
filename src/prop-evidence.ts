@@ -11,8 +11,10 @@ export const propEvidenceSchema = z.object({
   side: z.enum(["over", "under", "both"]).optional(),
   sections: z.array(z.enum(["hit_rates", "game_logs", "odds"])).min(1).max(3)
     .refine((items) => new Set(items).size === items.length, "Sections must be unique.").optional(),
-  log_limit: z.number().int().min(1).max(10).optional(),
-  include_season: z.boolean().optional(),
+  log_limit: z.number().int().min(1).max(10).optional()
+    .describe("Default five. Keep five for slate shortlists; use more only when the user requests extended logs."),
+  include_season: z.boolean().optional()
+    .describe("Omit for tonight's shortlist. Set true only when the user requests a season summary."),
 }).strict();
 
 export function compactPropScreen(response: Record<string, unknown>): Record<string, unknown> {

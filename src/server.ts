@@ -109,7 +109,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   server.registerTool("query_stats", {
     title: "Query Handigraphs stats",
     description: "Query one live Handigraphs Stats API resource. Use describe_resource first; pagination remains in this tool via cursor."
-      + (dependencies.enablePropEvidence ? " For tonight's prop candidates, screen at most 12 rows with focused recent metrics and matchup context, then call get_player_prop_evidence once for up to five players." : ""),
+      + (dependencies.enablePropEvidence ? " For tonight's NHL props, screen once with prop_screen=true and page_size=12. For shots on goal use L10 and only sog_per_game, icf_per_game, games_played plus matchup_market=shots, matchup_window=sea; then call get_player_prop_evidence once for up to five players (five logs, no season summary unless requested)." : ""),
     inputSchema: {
       sport: sportSchema,
       resource: resourceSchema,
@@ -137,7 +137,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
       matchup_market: z.string().trim().min(1).max(32).optional(),
       matchup_window: z.string().trim().min(1).max(32).optional(),
       ...(dependencies.enablePropEvidence ? { prop_screen: z.boolean().optional()
-        .describe("Compact NHL player screen, max 12 rows. Shared opponent rank metadata moves to meta.matchup_basis.") } : {}),
+        .describe("Use true for tonight's NHL prop candidate screen, max 12 rows. Shared opponent rank metadata moves to meta.matchup_basis.") } : {}),
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, (input) => handler(secrets, async () => {
@@ -155,7 +155,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
 
   if (dependencies.enablePropEvidence) {
     server.registerTool("get_player_prop_evidence", {
-      description: "Read NHL exact-line hit rates and latest ingested sportsbook quotes for up to five players after a query_stats slate screen or a named-player lookup. One market per call. Request game_logs explicitly, default five and maximum ten per player. Defaults to hit_rates and odds, over side, recent ten skater games or five goalie starts. Preserve per-section availability, sample, line and quote timestamp. Observed hit rate is not predicted probability. No saves or research jobs.",
+      description: "Read NHL exact-line hit rates and latest ingested sportsbook quotes for up to five players after a query_stats slate screen or a named-player lookup. One market per call. Request game_logs explicitly, default five and maximum ten per player. For a slate shortlist keep five log rows and omit include_season unless the user requests more history. Defaults to hit_rates and odds, over side, recent ten skater games or five goalie starts. Preserve per-section availability, sample, line and quote timestamp. Observed hit rate is not predicted probability. No saves or research jobs.",
       inputSchema: propEvidenceSchema,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     }, (input) => handler(secrets, async () => {
