@@ -13,6 +13,7 @@ import { AgentReadClient, agentReadTools } from "./agent-read.js";
 import { AgentActionClient, agentActionTools } from "./agent-actions.js";
 import { object } from "./discovery.js";
 import { compactPropScreen, PROP_MARKET_HELP, propEvidenceSchema, readPropEvidence } from "./prop-evidence.js";
+import { GAMECENTER_PAGE_BYTES } from "./gamecenter-compact.js";
 
 const sportSchema = z.string().trim().min(1).max(32);
 const resourceSchema = z.string().trim().min(1).max(64);
@@ -58,7 +59,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   const http = new StatsApiHttpClient(config, dependencies.fetchImpl, dependencies.signal);
   const discovery = dependencies.publicDiscovery ?? new DiscoveryClient(http, config.discoveryTtlMs, dependencies.now);
   const secrets = Object.freeze([config.apiKey, ...(dependencies.redactionSecrets ?? [])]);
-  const agent = new AgentReadClient(http, discovery);
+  const agent = new AgentReadClient(http, discovery, secrets);
   const actions = new AgentActionClient(http, discovery);
   const server = new McpServer({ name: "handigraphs-stats-api", version: SERVER_VERSION },
     dependencies.maxToolInputElements === undefined ? {} : { maxToolInputElements: dependencies.maxToolInputElements });
@@ -180,9 +181,14 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
       // echoes from arbitrary stored text as well as structured metadata.
       const removeKey = (_key: string, value: unknown) => typeof value === "string" && config.apiKey ? value.split(config.apiKey).join("[REDACTED]") : value;
       const safeResponse = JSON.parse(JSON.stringify(response.json, removeKey)) as Record<string, unknown>;
-        if (tool.name === "get_gamecenter_packet" && object(input).compact === true) {
-          return { content: [{ type: "text", text: JSON.stringify(safeResponse) }] };
+      const paged = object(input).format === "compact_page";
+      if (tool.name === "get_gamecenter_packet" && (paged || object(input).compact === true)) {
+        const text = JSON.stringify(safeResponse);
+        if (paged && Buffer.byteLength(redactCredentialEchoes(text, secrets), "utf8") > GAMECENTER_PAGE_BYTES) {
+          throw new ToolInputError("Gamecenter page exceeds 3.5 KiB. Use compact=true for the full packet.");
         }
+        return { content: [{ type: "text", text }] };
+      }
       const safeMetadata = JSON.parse(JSON.stringify(response.metadata, removeKey)) as Record<string, unknown>;
       return success(safeResponse, safeMetadata);
     }));
