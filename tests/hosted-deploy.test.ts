@@ -428,14 +428,15 @@ test('workflow boundaries retain pinned source, default-off sandbox, production 
 test('committed owner acceptance names exactly the accepted pair, record and client versions', async () => {
   const value = parseOwnerAcceptance((await readFile(OWNER_ACCEPTANCE_FILE, 'utf8')).replace(/\r\n/g, '\n'));
   assert.equal(value.owner, 'cjbuskey');
-  assert.equal(value.tested_app_sha, '67c0b3ba9f4649d1695f6d46386d3545eba852af');
+  assert.equal(value.tested_app_sha, 'b749e8ae72cd59c125c316e054a159151a2290d5');
   assert.equal(value.accepted_app_sha, value.tested_app_sha);
-  assert.equal(value.tested_mcp_sha, 'a0bc4d0539280719135461092fda200e1ad5a1f2');
+  assert.equal(value.tested_mcp_sha, '50ee30d66abb4f79a16842f878329c501ea86d44');
   assert.equal(value.accepted_mcp_sha, value.tested_mcp_sha);
-  assert.equal(value.decided_on, '2026-11-07');
-  assert.equal(value.record_sha256, 'c90e7a5069c4e8f00d96385326c17e7b93012dbda61b41a9a0e07f5aa63071b1');
+  assert.equal(value.decided_on, '2026-11-08');
+  assert.equal(value.record_sha256, '7d49ac4e9610d5f35b27bd723961a455c6460f8ec415f0521f5f3646fb285523');
   assert.deepEqual(value.clients, { codex_desktop: '26.1016.61520', codex_cli: '0.146.0', claude_code: '2.1.283' });
-  assert.match(value.summary, /historical versions only; current-pair UI\/refresh were not rerun/);
+  assert.match(value.summary, /Claude Desktop 4\.23118\.0\.0 on the exact sandbox pair/);
+  assert.match(value.summary, /Prior OAuth and client versions are historical/);
   const prior = parseOwnerAcceptance((await readFile('docs/owner-acceptance-2026-10-24.json', 'utf8')).replace(/\r\n/g, '\n'));
   assert.equal(prior.tested_app_sha, '3dd38c3405d22d694d92e9bd076a8d4dfea87990');
   assert.equal(prior.accepted_app_sha, 'b38cc79ebd71625ba93fe7f3e1fef20342a47c54');
