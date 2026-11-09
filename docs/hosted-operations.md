@@ -15,10 +15,11 @@ observed and passed on app `3dd38c34` / MCP `a2909a6e` (validated record sha256
 only by a stray gitlink on app main, removed in `b38cc79e` with no runtime change.
 The owner (cjbuskey) chose a recorded sign-off over another campaign. That record
 is preserved verbatim in [the historical acceptance](owner-acceptance-2026-10-24.json).
-The current acceptance proposal names the 2026-11-07 NHL prop-research source pair;
-it requires the owner's explicit merge approval. See
-[production readiness](nhl-prop-production-readiness.md) for the measured scope,
-historical client-version distinction and separate production operations.
+The current acceptance proposal covers the November 8 Claude Desktop sandbox
+replay of the three MCP recovery cases. It requires the owner's explicit merge
+approval. See [the replay and source pair](mcp-recovery-acceptance.md) for the
+measured scope and [the previous NHL research acceptance](nhl-prop-production-readiness.md)
+for the earlier campaign.
 
 Production deploys therefore no longer read the private evidence artifact,
 approval issue, sandbox releases or app main. They require all of:
@@ -37,12 +38,11 @@ approval issue, sandbox releases or app main. They require all of:
    fails closed and needs a new owner decision.
 4. The native GitHub `production` environment approval, rechecked after the wait.
 
-The current accepted-runtime proposal is the exact tested NHL research commit.
-It carries the earlier OAuth baseline without claiming fresh Desktop/Claude
-UI/refresh tests. In the legacy schema's `clients` map, Codex CLI is freshly
-tested; Desktop and Claude versions are historical and explicitly labeled in
-`summary`. The schema, owner validation and runtime comparison are unchanged.
-The sandbox target is unchanged. Runtime OAuth activation remains a separate operation.
+The proposed runtime is the exact MCP commit tested in the November 8 replay.
+The legacy `clients` map carries versions from the previous acceptance, and the
+`summary` identifies the freshly tested Claude Desktop version. The replay's
+scope is read-only recovery and targeted citation retrieval. Runtime OAuth
+activation remains a separate operation.
 The private PR-09 interface below is retained for reference and future releases.
 
 
