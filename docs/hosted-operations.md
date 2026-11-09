@@ -15,11 +15,13 @@ observed and passed on app `3dd38c34` / MCP `a2909a6e` (validated record sha256
 only by a stray gitlink on app main, removed in `b38cc79e` with no runtime change.
 The owner (cjbuskey) chose a recorded sign-off over another campaign. That record
 is preserved verbatim in [the historical acceptance](owner-acceptance-2026-10-24.json).
-The current proposal covers the November 9 Claude Desktop Chat sandbox replay of
-[compact Gamecenter pagination](compact-pagination-acceptance.md). It requires
-the owner's explicit merge approval. See the [November 8 recovery replay](mcp-recovery-acceptance.md)
-and the [earlier NHL research acceptance](nhl-prop-production-readiness.md) for
-the scope of those records.
+The current proposal covers both November 9 hosted Claude sandbox checks for
+[NHL game odds](nhl-game-odds-acceptance.md), including the scraper, Stats API,
+and hosted MCP rollout order. It requires the owner's explicit merge approval.
+See [compact Gamecenter pagination](compact-pagination-acceptance.md),
+[the November 8 recovery replay](mcp-recovery-acceptance.md), and
+[the earlier NHL research acceptance](nhl-prop-production-readiness.md)
+for the scope of those records.
 
 Production deploys therefore no longer read the private evidence artifact,
 approval issue, sandbox releases or app main. They require all of:
@@ -38,9 +40,9 @@ approval issue, sandbox releases or app main. They require all of:
    fails closed and needs a new owner decision.
 4. The native GitHub `production` environment approval, rechecked after the wait.
 
-The proposed runtime is the exact MCP commit tested in the November 9 replay.
+The proposed runtime is the exact MCP commit tested in both November 9 odds replays.
 The legacy `clients` map carries historical versions. The `summary` identifies
-the Claude Desktop version tested for page previews and exact citation retrieval.
+the Claude Desktop version used to verify stored quotes and fresh BetOnline attribution.
 Runtime OAuth activation remains a separate operation.
 The private PR-09 interface below is retained for reference and future releases.
 
