@@ -180,6 +180,9 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
       // echoes from arbitrary stored text as well as structured metadata.
       const removeKey = (_key: string, value: unknown) => typeof value === "string" && config.apiKey ? value.split(config.apiKey).join("[REDACTED]") : value;
       const safeResponse = JSON.parse(JSON.stringify(response.json, removeKey)) as Record<string, unknown>;
+        if (tool.name === "get_gamecenter_packet" && object(input).compact === true) {
+          return { content: [{ type: "text", text: JSON.stringify(safeResponse) }] };
+        }
       const safeMetadata = JSON.parse(JSON.stringify(response.metadata, removeKey)) as Record<string, unknown>;
       return success(safeResponse, safeMetadata);
     }));
