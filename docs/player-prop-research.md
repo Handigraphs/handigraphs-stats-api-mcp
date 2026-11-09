@@ -61,11 +61,12 @@ prices and unavailable source sections alongside available evidence. Off-slate
 players support logs and explicit-line hit rates. `line_required` requests a line
 before calculating an unpriced totals hit rate.
 
-For stored Gamecenter analysis, call `list_gamecenter_games` for the Eastern
-date, then call `get_gamecenter_packet` with the returned game ID and
-`sections: ["analysis"]`. Read `analysis.props` and `analysis.market_reviews`
-when present. Fetch only the needed facts in a separate call with
-`sections: ["evidence"]` and their `evidence_ids`.
+For stored Gamecenter prop research, call `list_gamecenter_games` for the Eastern
+date, then call `get_gamecenter_packet` with the returned game ID and `compact: true`.
+Read `analysis.props` and `analysis.market_reviews` when available. Resolve each
+item's zero-based `citation_indices` against the packet's `citation_ids`, then
+request just the IDs you need with `sections: ["evidence"]` and `evidence_ids`.
+Use a detailed read with `sections: ["analysis"]` when you also need team analysis.
 
 The evidence call admits one market and one to five unique IDs. It returns at
 most 8 KiB of JSON. The full worked workflow must fit within 32 KiB across the

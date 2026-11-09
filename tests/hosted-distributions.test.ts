@@ -73,7 +73,7 @@ test('local secret configuration, masked setup and Desktop extension snapshots r
     'plugins/handigraphs-stats-api/mcp.claude.json': 'd554dc2ff9922956a32fa8e053797ae77abf58ac374c2a82766ad7334750dbc4',
     'plugins/handigraphs-stats-api/.codex-plugin/plugin.json': 'edc82143a3c56c6febcb289f8ea9a2ecbb7944b0338f61db18d634eebf4eba3f',
     'plugins/handigraphs-stats-api/.claude-plugin/plugin.json': '7ed7ac7099a2ebb200d76d98b553d854fbd24258fefccc272960e8fa5d1b2d71',
-    'mcpb/manifest.json': 'a8a2fe81d961180a8165444f402d130a3a65d239eff212d9a6b990813f5a4842',
+    'mcpb/manifest.json': '5100ec2dee26b77d40753237e42b9714576e1c3d868fa6aff242d40148c071fc',
     'plugins/handigraphs-stats-api/skills/setup-handigraphs-stats-api/SKILL.md': 'a244cb7ee29d4b6c1ecba883eb7e887c8be5dd584b6a8bd80dfa0f7af253dfa9',
     'plugins/handigraphs-stats-api/scripts/configure-macos.mjs': '29e8591b97bf346279fee0804d2f81fd72adaf97f2db14f7876eee4bf171262e',
     'plugins/handigraphs-stats-api/scripts/configure-windows.ps1': '7d0af7e5a94a76f0b5a9ec068c443f3b6556f2397e7dfb1a8ac8894ef18f9298',

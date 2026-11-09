@@ -183,6 +183,8 @@ For sorting, pass a bare metric such as `sog_per_game` for ascending order or pr
 
 For Gamecenter, discover the stored game ID with `list_gamecenter_games`. Packet selectors are `summary`, `context`, `availability`, `analysis`, and `evidence`. For props or market reviews, request `analysis` and read those fields inside it when available. Retrieve the needed cited facts separately with `sections: ["evidence"]` and `evidence_ids`.
 
+Set `compact: true` on `get_gamecenter_packet` for a single JSON text result with props, market reviews, and their citation references. Omit `sections` or pass `["analysis"]`. Each item's `citation_indices` points to zero-based positions in the packet's `citation_ids`. Use the resulting original IDs as `evidence_ids` in a separate `sections: ["evidence"]` call with the same sport and game ID. The packet supplies one `evidence_href` for that REST section. The detailed packet remains the default.
+
 Successful tools return the upstream JSON in `structuredContent.response`, a minified JSON text block, and safe request/quota headers in `structuredContent.metadata`. Upstream problem responses become `isError` tool results. The server does not automatically retry `429` or `503` responses.
 
 ## Security behavior
