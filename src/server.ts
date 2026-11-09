@@ -12,7 +12,7 @@ import { SERVER_VERSION } from "./version.js";
 import { AgentReadClient, agentReadTools } from "./agent-read.js";
 import { AgentActionClient, agentActionTools } from "./agent-actions.js";
 import { object } from "./discovery.js";
-import { compactPropScreen, propEvidenceSchema, readPropEvidence } from "./prop-evidence.js";
+import { compactPropScreen, PROP_MARKET_HELP, propEvidenceSchema, readPropEvidence } from "./prop-evidence.js";
 
 const sportSchema = z.string().trim().min(1).max(32);
 const resourceSchema = z.string().trim().min(1).max(64);
@@ -122,7 +122,8 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
         .refine((metrics) => new Set(metrics).size === metrics.length, { message: "metrics must not contain duplicates" })
         .optional(),
       filters: z.array(filterSchema).max(5).optional(),
-      sort: z.string().trim().min(1).max(81).optional(),
+      sort: z.string().trim().min(1).max(81).optional()
+        .describe("Use a bare metric for ascending order or prefix it with - for descending, for example -sog_per_game for NHL skaters."),
       team: z.string().trim().min(1).max(20).optional(),
       opponent: z.string().trim().min(1).max(20).optional(),
       entity_id: z.string().trim().min(1).max(100).optional(),
@@ -155,7 +156,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
 
   if (dependencies.enablePropEvidence) {
     server.registerTool("get_player_prop_evidence", {
-      description: "Read NHL exact-line hit rates and latest ingested sportsbook quotes for up to five players after a query_stats slate screen or a named-player lookup. One market per call. Request game_logs explicitly, default five and maximum ten per player. For a slate shortlist keep five log rows and omit include_season unless the user requests more history. Defaults to hit_rates and odds, over side, recent ten skater games or five goalie starts. Preserve per-section availability, sample, line and quote timestamp. Observed hit rate is not predicted probability. No saves or research jobs.",
+      description: "Read NHL exact-line hit rates and latest ingested sportsbook quotes for up to five players after a query_stats slate screen or a named-player lookup. One market per call. " + PROP_MARKET_HELP + " Request game_logs explicitly, default five and maximum ten per player. For a slate shortlist keep five log rows and omit include_season unless the user requests more history. Defaults to hit_rates and odds, over side, recent ten skater games or five goalie starts. Preserve per-section availability, sample, line and quote timestamp. Observed hit rate is not predicted probability. No saves or research jobs.",
       inputSchema: propEvidenceSchema,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     }, (input) => handler(secrets, async () => {

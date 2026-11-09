@@ -2,8 +2,10 @@
 
 The hosted gateway adds `get_player_prop_evidence` when paired with the API's
 version-1 NHL `prop_evidence` descriptor and its enabled backend rollout. The
-descriptor appears in NHL `describe_resource` responses and lists supported
-markets, sides, fixed lines and bounds. The tool uses `stats:read` with current
+descriptor appears in `describe_resource({ "sport": "nhl", "resource": "skaters" })`.
+Read the exact keys from `prop_evidence.markets[].key` alongside sides, fixed lines
+and bounds. For shots on goal the key is `skater_shots_on_goal`. The tool uses
+`stats:read` with current
 account eligibility, Terms and shared quotas.
 
 For “who are the best shots on goal candidates tonight”, discover skater metrics
@@ -57,8 +59,13 @@ Quotes come from ingested storage and become unavailable at game start or after
 45 minutes. Recheck these boundaries on cached responses. Report missing or stale
 prices and unavailable source sections alongside available evidence. Off-slate
 players support logs and explicit-line hit rates. `line_required` requests a line
-before calculating an unpriced totals hit rate. Gamecenter supports a separate
-request for published analysis.
+before calculating an unpriced totals hit rate.
+
+For stored Gamecenter analysis, call `list_gamecenter_games` for the Eastern
+date, then call `get_gamecenter_packet` with the returned game ID and
+`sections: ["analysis"]`. Read `analysis.props` and `analysis.market_reviews`
+when present. Fetch only the needed facts in a separate call with
+`sections: ["evidence"]` and their `evidence_ids`.
 
 The evidence call admits one market and one to five unique IDs. It returns at
 most 8 KiB of JSON. The full worked workflow must fit within 32 KiB across the

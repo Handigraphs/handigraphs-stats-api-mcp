@@ -19,7 +19,7 @@ async function fixture(t: test.TestContext, mode = "enabled") {
       filters: ["split", "metrics", "sort", "day", "page_size", "stat_format", "meta", ...(mode === "old" ? [] : ["matchup_market", "matchup_window"])],
     }], ...(mode === "old" ? {} : { prop_evidence: {
       contract_version: 1, method: "POST", path: mode === "unsafe" ? "/api/v1/filters" : "/api/v1/nhl/prop-evidence",
-      enabled: mode !== "disabled", markets: [{ key: "skater_shots_on_goal" }],
+      enabled: mode !== "disabled", markets: [{ key: "skater_shots_on_goal" }, { key: "skater_goals" }, { key: "skater_anytime_goalscorer" }],
     } }) });
     if (url.pathname === "/api/v1/nhl/metrics") return send({ metrics: {
       sog_per_game: { scale: "numeric" }, icf_per_game: { scale: "numeric" }, games_played: { scale: "integer" },
@@ -90,6 +90,44 @@ test("direct clients discover the two-call workflow and preserve one protected r
   assert.deepEqual(JSON.parse(reads[1]!.body!), request);
   assert.equal(reads[1]!.method, "POST");
   assert.ok(Buffer.byteLength(JSON.stringify([screen, evidence]), "utf8") <= 32768);
+});
+
+test("invalid prop market names show canonical choices and a working discovery call", async (t) => {
+  const { api, client } = await fixture(t);
+  const wrong = await client.callTool({ name: "get_player_prop_evidence", arguments: { ...request, market: "sog" } });
+  assert.equal(wrong.isError, true);
+  const detail = (wrong.structuredContent as { error: { detail: string } }).error.detail;
+  assert.match(detail, /describe_resource\(\{ sport: "nhl", resource: "skaters" \}\)/);
+  assert.match(detail, /prop_evidence\.markets\[\]\.key/);
+  assert.match(detail, /Advertised market keys: skater_shots_on_goal, skater_goals, skater_anytime_goalscorer/);
+  assert.equal(api.requests.some(item => item.authorization), false);
+
+  const discovery = await client.callTool({ name: "describe_resource", arguments: { sport: "nhl", resource: "skaters" } });
+  assert.equal(discovery.isError, undefined);
+  assert.match(JSON.stringify(discovery), /skater_shots_on_goal/);
+  const recovered = await client.callTool({ name: "get_player_prop_evidence", arguments: request });
+  assert.equal(recovered.isError, undefined);
+  const reads = api.requests.filter(item => item.authorization);
+  assert.equal(reads.length, 1);
+  assert.equal(JSON.parse(reads[0]!.body!).market, "skater_shots_on_goal");
+});
+
+test("invalid sort syntax points to the canonical ascending and descending forms", async (t) => {
+  const { api, client } = await fixture(t);
+  const query = { sport: "nhl", resource: "skaters", metrics: ["sog_per_game"] };
+  const wrong = await client.callTool({ name: "query_stats", arguments: { ...query, sort: "sog_per_game:desc" } });
+  assert.equal(wrong.isError, true);
+  const detail = (wrong.structuredContent as { error: { detail: string } }).error.detail;
+  assert.match(detail, /bare discovered metric for ascending/);
+  assert.match(detail, /prefix it with - for descending/);
+  assert.match(detail, /-sog_per_game/);
+  assert.equal(api.requests.some(item => item.authorization), false);
+
+  for (const sort of ["-sog_per_game", "sog_per_game"]) {
+    const recovered = await client.callTool({ name: "query_stats", arguments: { ...query, sort } });
+    assert.equal(recovered.isError, undefined);
+    assert.equal(new URL(api.requests.at(-1)!.path, api.baseUrl).searchParams.get("sort"), sort);
+  }
 });
 
 for (const mode of ["old", "disabled", "unsafe"]) {

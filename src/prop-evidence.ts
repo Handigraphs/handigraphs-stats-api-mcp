@@ -3,8 +3,10 @@ import { object, type DiscoveryClient } from "./discovery.js";
 import { ToolInputError, UpstreamError } from "./errors.js";
 import type { StatsApiHttpClient, JsonResponse } from "./http.js";
 
+export const PROP_MARKET_HELP = 'Use prop_evidence.markets[].key from describe_resource({ sport: "nhl", resource: "skaters" }). For example, skater_shots_on_goal.';
+
 export const propEvidenceSchema = z.object({
-  market: z.string().trim().min(1).max(80).describe("NHL market key from describe_resource prop_evidence discovery."),
+  market: z.string().trim().min(1).max(80).describe(PROP_MARKET_HELP),
   player_ids: z.array(z.string().regex(/^[1-9][0-9]{0,9}$/)).min(1).max(5)
     .refine((ids) => new Set(ids).size === ids.length, "Player IDs must be unique."),
   line: z.number().finite().min(0).max(1000).optional(),
@@ -51,7 +53,11 @@ export async function readPropEvidence(http: StatsApiHttpClient, discovery: Disc
   }
   const markets = Array.isArray(descriptor.markets) ? descriptor.markets : [];
   if (!markets.some((item) => object(item).key === args.market)) {
-    throw new ToolInputError("Choose an NHL market from describe_resource prop_evidence discovery.");
+    const keys = [...new Set(markets.map((item) => object(item).key).filter(
+      (key): key is string => typeof key === "string" && /^[a-z0-9_]{1,80}$/.test(key),
+    ))].slice(0, 20);
+    const choices = keys.length ? " Advertised market keys: " + keys.join(", ") + "." : "";
+    throw new ToolInputError("Unknown NHL prop market. " + PROP_MARKET_HELP + choices);
   }
   const response = await http.request("/api/v1/nhl/prop-evidence", { method: "POST", protectedData: true, body: args });
   if ("notModified" in response) throw new Error("Prop evidence unexpectedly returned 304.");

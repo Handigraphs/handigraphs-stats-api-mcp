@@ -179,6 +179,10 @@ For NHL, use `"season": "20262027"` to request 2026-27 statistics after live dis
 
 Filter objects use `{ "metric": "k_pct", "operator": "gte", "value": 0.20 }`. Operators are `eq`, `ne`, `gt`, `gte`, `lt`, and `lte`. Values must be finite and use the canonical unit returned by discovery; proportions use `0.20` for 20%.
 
+For sorting, pass a bare metric such as `sog_per_game` for ascending order or prefix it with `-`, as in `-sog_per_game` for descending order.
+
+For Gamecenter, discover the stored game ID with `list_gamecenter_games`. Packet selectors are `summary`, `context`, `availability`, `analysis`, and `evidence`. For props or market reviews, request `analysis` and read those fields inside it when available. Retrieve the needed cited facts separately with `sections: ["evidence"]` and `evidence_ids`.
+
 Successful tools return the upstream JSON in `structuredContent.response`, a minified JSON text block, and safe request/quota headers in `structuredContent.metadata`. Upstream problem responses become `isError` tool results. The server does not automatically retry `429` or `503` responses.
 
 ## Security behavior
