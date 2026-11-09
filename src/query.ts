@@ -86,7 +86,14 @@ async function validateOnce(discovery: DiscoveryClient, input: QueryInput, force
   }
   if (input.sort) {
     const metric = input.sort.startsWith("-") ? input.sort.slice(1) : input.sort;
-    if (!metric || !Object.hasOwn(availableMetrics, metric)) throw new ToolInputError(`Unknown sort metric '${metric}'.`);
+    if (!metric || !Object.hasOwn(availableMetrics, metric)) {
+      const example = Object.hasOwn(availableMetrics, "sog_per_game") ? "sog_per_game"
+        : Object.keys(availableMetrics).find((key) => /^[a-zA-Z0-9_]{1,80}$/.test(key));
+      throw new ToolInputError(
+        "Unknown sort metric '" + metric + "'. Use a bare discovered metric for ascending order or prefix it with - for descending."
+          + (example ? " For example, " + example + " or -" + example + "." : ""),
+      );
+    }
   }
 
   requireSupported(resource, "team", input.team !== undefined);

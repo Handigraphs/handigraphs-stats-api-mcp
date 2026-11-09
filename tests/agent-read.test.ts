@@ -98,6 +98,29 @@ test("Gamecenter encodes opaque IDs, pages explicitly, preserves evidence, and t
   assert.equal(api.requests.every((request) => request.method === "GET"), true);
 });
 
+test("Gamecenter selector errors lead to analysis and an exact cited evidence read", async (t) => {
+  const api = await startAgentMockApi(); t.after(() => api.close());
+  const connection = await connect(api.baseUrl); t.after(() => connection.close());
+  const args = { sport: "nhl", game_id: "opaque:game 1" };
+  const wrong = await connection.client.callTool({ name: "get_gamecenter_packet", arguments: { ...args, sections: ["props"] } });
+  assert.equal(wrong.isError, true);
+  const detail = (wrong.structuredContent as { error: { detail: string } }).error.detail;
+  assert.match(detail, /Valid sections: summary, context, availability, analysis, evidence/);
+  assert.match(detail, /sections=\["analysis"\] for props and market_reviews/);
+  assert.match(detail, /sections=\["evidence"\] and evidence_ids/);
+  assert.equal(api.requests.some(item => item.authorization), false);
+
+  const analysis = await connection.client.callTool({ name: "get_gamecenter_packet", arguments: { ...args, sections: ["analysis"] } });
+  assert.equal(analysis.isError, undefined);
+  assert.equal(new URL(api.requests.at(-1)!.path, api.baseUrl).searchParams.get("sections"), "analysis");
+  const evidence = await connection.client.callTool({ name: "get_gamecenter_packet",
+    arguments: { ...args, sections: ["evidence"], evidence_ids: ["fact:1"] } });
+  assert.equal(evidence.isError, undefined);
+  const params = new URL(api.requests.at(-1)!.path, api.baseUrl).searchParams;
+  assert.equal(params.get("sections"), "evidence");
+  assert.equal(params.get("evidence_ids"), "fact:1");
+});
+
 test("strict schemas reject ambiguous selectors, extra fields, oversized rules, and invalid packet selectors", async (t) => {
   const api = await startAgentMockApi(); t.after(() => api.close());
   const connection = await connect(api.baseUrl); t.after(() => connection.close());
