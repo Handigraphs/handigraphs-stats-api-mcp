@@ -6,7 +6,19 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { startMockApi, startAgentMockApi, startActionMockApi, MOCK_JOB_ID } from "./mock-api.js";
 
 test("official MCP client communicates with the built server over stdio", async (t) => {
-  const api = await startMockApi(); t.after(() => api.close());
+  const path = "/api/v1/nhl/goalie-status";
+  const schema = "nhl-goalie-status-v1";
+  const date = "2026-11-09";
+  const api = await startMockApi((request, response) => {
+    const target = new URL(request.url!, "http://localhost").pathname;
+    if (target !== "/api/v1/nhl" && target !== path) return false;
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify(target === path
+      ? { schema, sport: "nhl", date, games: [], next_cursor: null }
+      : { goalie_status: { enabled: true, contract_version: 1, method: "GET", path, schema } }));
+    return true;
+  });
+  t.after(() => api.close());
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [resolve(".test-dist/src/index.js")],
@@ -21,6 +33,11 @@ test("official MCP client communicates with the built server over stdio", async 
   const listed = await client.callTool({ name: "list_resources", arguments: { sport: "mlb" } });
   assert.equal(listed.isError, undefined);
   assert.match(((listed as { content: Array<{ text: string }> }).content[0]?.text ?? ""), /batters/);
+  const goalies = await client.callTool({ name: "get_goalie_status", arguments: { date } });
+  assert.equal(goalies.isError, undefined);
+  assert.equal(goalies.structuredContent, undefined);
+  assert.match(JSON.stringify(goalies.content), /nhl-goalie-status-v1/);
+  assert.equal(api.requests.find(request => request.path.startsWith(path))?.authorization, "Bearer hg_test_stdio");
   assert.equal(stderr.includes("hg_test_stdio"), false);
 });
 
@@ -34,7 +51,7 @@ test("official stdio client validates and runs a saved filter without saving or 
   const client = new Client({ name: "stdio-agent-test", version: "1" });
   t.after(() => client.close());
   await client.connect(transport);
-  assert.equal((await client.listTools()).tools.length, 20);
+  assert.equal((await client.listTools()).tools.length, 22);
   for (const name of ["validate_filter", "run_filter"]) {
     const result = await client.callTool({ name, arguments: { filter_id: 42, revision: 7 } });
     assert.equal(result.isError, undefined);

@@ -15,6 +15,7 @@ import { object } from "./discovery.js";
 import { compactPropScreen, PROP_MARKET_HELP, propEvidenceSchema, readPropEvidence } from "./prop-evidence.js";
 import { GAMECENTER_PAGE_BYTES } from "./gamecenter-compact.js";
 import { GAME_ODDS_DESCRIPTION, GAME_ODDS_PAGE_BYTES, GAME_ODDS_PAGE_HELP, gameOddsSchema, readGameOdds } from "./game-odds.js";
+import { NHL_AVAILABILITY_PAGE_BYTES, nhlAvailabilityTools, readNhlAvailability } from "./nhl-availability.js";
 
 const sportSchema = z.string().trim().min(1).max(32);
 const resourceSchema = z.string().trim().min(1).max(64);
@@ -207,6 +208,21 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     }
     return { content: [{ type: "text", text }] };
   }));
+
+  for (const tool of nhlAvailabilityTools) {
+    server.registerTool(tool.name, {
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    }, (input: unknown) => handler(secrets, async () => {
+      const page = await readNhlAvailability(http, discovery, tool, input);
+      const text = redactCredentialEchoes(JSON.stringify(redactCredentialEchoes(page, secrets)), secrets);
+      if (Buffer.byteLength(text, "utf8") > NHL_AVAILABILITY_PAGE_BYTES) {
+        throw new UpstreamError({ status: 413, code: `${tool.discoveryKey}_too_large`, detail: tool.sizeHelp });
+      }
+      return { content: [{ type: "text", text }] };
+    }));
+  }
 
   if (dependencies.enableLocalSetup) {
     registerApiKeySetupTool(server, dependencies.setupLauncher);

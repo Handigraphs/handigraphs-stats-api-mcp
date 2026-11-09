@@ -15,6 +15,8 @@ import { agentDescriptor, startMockApi, type MockApi } from "./mock-api.js";
 const SUBJECT_A = "a".repeat(43), SUBJECT_B = "b".repeat(43);
 const SERVICE_SECRET = "synthetic-independent-hosted-test-service-secret";
 const ACCEPT = "application/json, text/event-stream";
+const GOALIE_PATH = "/api/v1/nhl/goalie-status", INJURY_PATH = "/api/v1/nhl/injury-updates";
+const DATE = "2026-11-09";
 const INIT = { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "test", version: "1" } } };
 
 async function mockIssuer(custom?: (request: IncomingMessage, response: ServerResponse) => boolean) {
@@ -41,7 +43,15 @@ async function mockIssuer(custom?: (request: IncomingMessage, response: ServerRe
       }); return true;
     }
     if (url.pathname === "/api/v1") { send({ api_version: "v1", sports: [{ id: "mlb", href: "/api/v1/mlb" }], agent: agentDescriptor() }); return true; }
-    const protectedPaths = ["/api/v1/agent/capabilities", "/api/v1/filters", "/api/v1/mlb/batters", "/api/v1/research/jobs"];
+    if (url.pathname === "/api/v1/nhl") {
+      send({
+        goalie_status: { enabled: true, contract_version: 1, method: "GET", path: GOALIE_PATH, schema: "nhl-goalie-status-v1" },
+        injury_updates: { enabled: true, contract_version: 1, method: "GET", path: INJURY_PATH, schema: "nhl-injury-updates-v1" },
+      });
+      return true;
+    }
+    const protectedPaths = ["/api/v1/agent/capabilities", "/api/v1/filters", "/api/v1/mlb/batters", "/api/v1/research/jobs",
+      GOALIE_PATH, INJURY_PATH];
     if (protectedPaths.includes(url.pathname)) {
       const token = request.headers.authorization?.slice(7);
       const issued = exchanges.find((exchange) => exchange.delegated === token);
@@ -60,6 +70,12 @@ async function mockIssuer(custom?: (request: IncomingMessage, response: ServerRe
       }
       if (url.pathname === "/api/v1/filters") {
         send({ filters: [{ id: owner === "A" ? 1 : 2, name: owner }], next_cursor: null }); return true;
+      }
+      if (url.pathname === GOALIE_PATH || url.pathname === INJURY_PATH) {
+        send({ sport: "nhl", date: DATE, next_cursor: null, ...(url.pathname === GOALIE_PATH
+          ? { schema: "nhl-goalie-status-v1", games: [] }
+          : { schema: "nhl-injury-updates-v1", scope: "team_report", players: [] }) });
+        return true;
       }
       send({ data: [{ owner, text: `${issued.subject} ${token} ${SERVICE_SECRET}` }], meta: { pagination: { next_cursor: null } } }); return true;
     }
@@ -123,7 +139,7 @@ test("official client retains shared schemas, adds hosted evidence and isolates 
   t.after(() => a.client.close()); t.after(() => b.client.close());
   assert.equal(a.transport.sessionId, undefined); assert.equal(b.transport.sessionId, undefined);
   const tools = (await a.client.listTools()).tools;
-  assert.equal(tools.length, 21); assert.equal(tools.some((tool) => tool.name === "configure_api_key"), false);
+  assert.equal(tools.length, 23); assert.equal(tools.some((tool) => tool.name === "configure_api_key"), false);
   const local = createServer(requestConfig(host.config, "hg_test_synthetic_local"), { enableLocalSetup: true,
     setupLauncher: async () => ({ status: "launched", message: "Synthetic helper." }) });
   const localClient = new Client({ name: "local-contract-parity", version: "1" });
@@ -131,7 +147,7 @@ test("official client retains shared schemas, adds hosted evidence and isolates 
   t.after(() => localClient.close()); t.after(() => local.close());
   await Promise.all([local.connect(serverTransport), localClient.connect(clientTransport)]);
   const localTools = (await localClient.listTools()).tools;
-  assert.equal(localTools.length, 21);
+  assert.equal(localTools.length, 23);
   const shared = tools.filter((tool) => tool.name !== "get_player_prop_evidence").map((tool) => (
     tool.name === "query_stats" ? { ...tool,
       description: localTools.find((item) => item.name === "query_stats")!.description,
@@ -160,6 +176,28 @@ test("official client retains shared schemas, adds hosted evidence and isolates 
     assert.equal(body.get("resource"), issuer.api.baseUrl); assert.equal(body.get("audience"), issuer.api.baseUrl);
   }
   assert.equal(issuer.api.requests.filter((req) => req.path.startsWith("/api/v1/")).some((req) => req.authorization?.includes(SUBJECT_A)), false);
+});
+
+test("hosted availability reads accept delegated stats:read and keep discovery unauthenticated", async (t) => {
+  const issuer = await mockIssuer(); t.after(() => issuer.api.close());
+  const host = await gateway(issuer.api); t.after(() => host.shutdown());
+  const { client } = await connected(host.url, SUBJECT_B);
+  t.after(() => client.close());
+  for (const [name, args, schema] of [
+    ["get_goalie_status", { date: DATE }, "nhl-goalie-status-v1"],
+    ["get_injury_updates", { date: DATE, league_game_id: "2026020001" }, "nhl-injury-updates-v1"],
+  ] as const) {
+    const result = await client.callTool({ name, arguments: args });
+    assert.equal(result.isError, undefined);
+    assert.equal(result.structuredContent, undefined);
+    assert.match(JSON.stringify(result.content), new RegExp(schema));
+  }
+  const business = issuer.api.requests.filter(req => req.path.startsWith("/api/v1/nhl"));
+  assert.deepEqual(business.map(req => new URL(req.path, "http://localhost").pathname), ["/api/v1/nhl", GOALIE_PATH, INJURY_PATH]);
+  assert.equal(business[0]?.authorization, undefined);
+  for (const req of business.slice(1)) {
+    assert.ok(issuer.exchanges.some(exchange => exchange.subject === SUBJECT_B && req.authorization === `Bearer ${exchange.delegated}`));
+  }
 });
 
 test("one official client can split stateless messages across two instances and redact all secret echoes", async (t) => {
