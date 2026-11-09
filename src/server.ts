@@ -14,6 +14,7 @@ import { AgentActionClient, agentActionTools } from "./agent-actions.js";
 import { object } from "./discovery.js";
 import { compactPropScreen, PROP_MARKET_HELP, propEvidenceSchema, readPropEvidence } from "./prop-evidence.js";
 import { GAMECENTER_PAGE_BYTES } from "./gamecenter-compact.js";
+import { GAME_ODDS_DESCRIPTION, GAME_ODDS_PAGE_BYTES, GAME_ODDS_PAGE_HELP, gameOddsSchema, readGameOdds } from "./game-odds.js";
 
 const sportSchema = z.string().trim().min(1).max(32);
 const resourceSchema = z.string().trim().min(1).max(64);
@@ -193,6 +194,19 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
       return success(safeResponse, safeMetadata);
     }));
   }
+
+  server.registerTool("get_game_odds", {
+    description: GAME_ODDS_DESCRIPTION,
+    inputSchema: gameOddsSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  }, (input) => handler(secrets, async () => {
+    const page = await readGameOdds(http, discovery, input);
+    const text = redactCredentialEchoes(JSON.stringify(redactCredentialEchoes(page, secrets)), secrets);
+    if (Buffer.byteLength(text, "utf8") > GAME_ODDS_PAGE_BYTES) {
+      throw new UpstreamError({ status: 413, code: "game_odds_too_large", detail: GAME_ODDS_PAGE_HELP });
+    }
+    return { content: [{ type: "text", text }] };
+  }));
 
   if (dependencies.enableLocalSetup) {
     registerApiKeySetupTool(server, dependencies.setupLauncher);
