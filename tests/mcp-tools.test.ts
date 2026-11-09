@@ -23,7 +23,7 @@ test("legacy stats tools remain usable on an old server and preserve compact unc
   const api = await startMockApi(); t.after(() => api.close());
   const connection = await connectedClient(api.baseUrl); t.after(() => connection.close());
   assert.equal(connection.client.getServerVersion()?.version, "0.3.0");
-  assert.deepEqual((await connection.client.listTools()).tools.map((tool) => tool.name), ["list_resources", "describe_resource", "query_stats", ...agentNames, ...actionNames]);
+  assert.deepEqual((await connection.client.listTools()).tools.map((tool) => tool.name), ["list_resources", "describe_resource", "query_stats", ...agentNames, ...actionNames, "get_game_odds"]);
   const unavailable = await connection.client.callTool({ name: "list_saved_filters", arguments: {} });
   assert.equal(unavailable.isError, true);
   assert.match(JSON.stringify(unavailable), /agent_api_unavailable/);
@@ -61,7 +61,7 @@ test("configured Codex mode keeps query tools and adds secure key rotation", asy
 
   assert.deepEqual(
     (await client.listTools()).tools.map((tool) => tool.name),
-    ["list_resources", "describe_resource", "query_stats", ...agentNames, ...actionNames, "configure_api_key"],
+    ["list_resources", "describe_resource", "query_stats", ...agentNames, ...actionNames, "get_game_odds", "configure_api_key"],
   );
   const result = await client.callTool({ name: "configure_api_key", arguments: {} });
   assert.equal(result.isError, undefined);

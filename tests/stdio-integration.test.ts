@@ -34,7 +34,7 @@ test("official stdio client validates and runs a saved filter without saving or 
   const client = new Client({ name: "stdio-agent-test", version: "1" });
   t.after(() => client.close());
   await client.connect(transport);
-  assert.equal((await client.listTools()).tools.length, 19);
+  assert.equal((await client.listTools()).tools.length, 20);
   for (const name of ["validate_filter", "run_filter"]) {
     const result = await client.callTool({ name, arguments: { filter_id: 42, revision: 7 } });
     assert.equal(result.isError, undefined);

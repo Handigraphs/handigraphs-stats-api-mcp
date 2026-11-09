@@ -123,7 +123,7 @@ test("official client retains shared schemas, adds hosted evidence and isolates 
   t.after(() => a.client.close()); t.after(() => b.client.close());
   assert.equal(a.transport.sessionId, undefined); assert.equal(b.transport.sessionId, undefined);
   const tools = (await a.client.listTools()).tools;
-  assert.equal(tools.length, 20); assert.equal(tools.some((tool) => tool.name === "configure_api_key"), false);
+  assert.equal(tools.length, 21); assert.equal(tools.some((tool) => tool.name === "configure_api_key"), false);
   const local = createServer(requestConfig(host.config, "hg_test_synthetic_local"), { enableLocalSetup: true,
     setupLauncher: async () => ({ status: "launched", message: "Synthetic helper." }) });
   const localClient = new Client({ name: "local-contract-parity", version: "1" });
@@ -131,7 +131,7 @@ test("official client retains shared schemas, adds hosted evidence and isolates 
   t.after(() => localClient.close()); t.after(() => local.close());
   await Promise.all([local.connect(serverTransport), localClient.connect(clientTransport)]);
   const localTools = (await localClient.listTools()).tools;
-  assert.equal(localTools.length, 20);
+  assert.equal(localTools.length, 21);
   const shared = tools.filter((tool) => tool.name !== "get_player_prop_evidence").map((tool) => (
     tool.name === "query_stats" ? { ...tool,
       description: localTools.find((item) => item.name === "query_stats")!.description,

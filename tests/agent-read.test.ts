@@ -21,7 +21,7 @@ test("official client exposes nine focused read tools and preserves native rules
   const api = await startAgentMockApi(); t.after(() => api.close());
   const connection = await connect(api.baseUrl); t.after(() => connection.close());
   const tools = (await connection.client.listTools()).tools;
-  assert.equal(tools.length, 19);
+  assert.equal(tools.length, 20);
   assert.equal(tools.some((item) => /http_request/.test(item.name)), false);
   for (const tool of tools.slice(3, 12)) {
     assert.deepEqual(tool.annotations, { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true });

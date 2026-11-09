@@ -23,6 +23,7 @@ The filter tools require a compatible REST agent contract (implemented against 1
 | Saved filters | `list_saved_filters`, `get_saved_filter`, `save_filter`, `update_saved_filter` |
 | Saved Angles ideas | `list_saved_research`, `get_saved_research`, `update_saved_research` |
 | Stored Gamecenter evidence | `list_gamecenter_games`, `get_gamecenter_packet` |
+| Stored NHL game odds | `get_game_odds` |
 | Historical jobs | `start_filter_research`, `list_filter_research`, `get_filter_research`, `cancel_filter_research` |
 
 For example: “Research and test a few SOG filter ideas, show me the results, and create a filter for me.” The plugin's `research-handigraphs-filters` skill discovers the available metrics and canonical units, proposes a bounded comparison (normally three candidates), validates each native rule, and tests candidates sequentially with identical outcome settings. It may recommend no winner when coverage or sample size is inadequate. It cannot establish a globally optimal filter or infer profit from an unpriced hit rate.
@@ -186,6 +187,8 @@ For Gamecenter, discover the stored game ID with `list_gamecenter_games`. Packet
 Set `compact: true` on `get_gamecenter_packet` for a single JSON text result with props, market reviews, and their citation references. Omit `sections` or pass `["analysis"]`. Each item's `citation_indices` points to zero-based positions in the packet's `citation_ids`. Use the resulting original IDs as `evidence_ids` in a separate `sections: ["evidence"]` call with the same sport and game ID. The packet supplies one `evidence_href` for that REST section. The detailed packet remains the default.
 
 For a smaller tool preview, use `format: "compact_page"` in place of `compact`. Each JSON text page is at most 3.5 KiB (3,584 UTF-8 bytes), including its metadata, citation table and continuation cursor. Pass `next_cursor` back as `cursor` with the same format, sport and game ID until it is null. Omit `page_size` and `evidence_ids` from page calls. Citation indices apply only to their own page. Evidence lookup still uses the original IDs and a separate `sections: ["evidence"]` call. If the stored packet changes, restart without a cursor. An `oversized_item` reports the section and zero-based index of a whole item that exceeds the page budget. Continue paging for the remaining items and use the unpaged `compact: true` response for that item.
+
+For NHL game prices, call `get_game_odds({ date: "2026-11-09" })` for an Eastern slate. Use `next_cursor` with the same date and page size until null. For one fixture, use its `league_game_id` from the odds slate or Gamecenter with the date and omit pagination. This read returns latest stored full-game pregame moneylines, puck lines, and totals separately from Gamecenter analysis. `fetched_at` is database ingestion time, and `book: null` means the book is unknown. Tool pages are limited to 3.5 KiB. If a page exceeds that budget, request fewer games or a single game. The tool requires enabled `game_odds` discovery from the NHL Stats API.
 
 Successful tools return the upstream JSON in `structuredContent.response`, a minified JSON text block, and safe request/quota headers in `structuredContent.metadata`. Upstream problem responses become `isError` tool results. The server does not automatically retry `429` or `503` responses.
 
