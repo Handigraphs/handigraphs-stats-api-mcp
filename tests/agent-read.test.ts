@@ -199,6 +199,123 @@ test("compact Gamecenter leaves absent analysis unavailable", async (t) => {
   assert.equal(projected.citation_status, "unavailable");
   assert.deepEqual(projected.analysis, {});
   assert.deepEqual(projected.citation_ids, []);
+  const page = await connection.client.callTool({ name: "get_gamecenter_packet",
+    arguments: { sport: "mlb", game_id: "opaque:game 1", format: "compact_page" } });
+  assert.ok(Array.isArray(page.content) && page.content[0]?.type === "text");
+  assert.deepEqual(JSON.parse(page.content[0].text), {
+    ...projected, schema: "gamecenter-compact-page-v1", offset: 0, next_cursor: null,
+  });
+});
+
+test("compact Gamecenter pages preserve ordered items and exact page-local citations", async (t) => {
+  const game = { sport: "nhl", game_id: "opaque:game 1" };
+  const props = Array.from({ length: 7 }, (_, index) => ({
+    player: `Example ${index}`, reasoning: "Shot rate is rising. Ça mérite un suivi. ".repeat(11),
+    evidence_ids: [`skater:${index}:L10:sog_per_game`, "fact:shared"],
+    counterpoint: { text: "Small sample.", evidence_ids: ["fact:shared", `fact:concern:${index}`] },
+  }));
+  const market_reviews = Array.from({ length: 5 }, (_, index) => ({
+    market: `Market ${index}`, text: "Insufficient supporting evidence. ".repeat(14),
+    evidence_ids: [`fact:review:${index}`, "fact:shared"],
+  }));
+  const publication = { state: "published", generated_at: "2026-11-06T17:00:00Z" };
+  const api = await startAgentMockApi((request, response) => {
+    const url = new URL(request.url!, "http://localhost");
+    if (!url.pathname.startsWith("/api/v1/nhl/gamecenter/")) return false;
+    const ids = url.searchParams.get("evidence_ids")?.split(",");
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify(ids ? { evidence: ids.map((id) => ({ id, value: 1 })) } :
+      { ...game, publication, analysis: { props, market_reviews } }));
+    return true;
+  }); t.after(() => api.close());
+  const connection = await connect(api.baseUrl); t.after(() => connection.close());
+  const read = (args: Record<string, unknown>) => connection.client.callTool({ name: "get_gamecenter_packet", arguments: { ...game, ...args } });
+  const paged = { format: "compact_page" };
+  const seenProps: unknown[] = [];
+  const seenReviews: unknown[] = [];
+  let next: string | null = null;
+  let firstCursor = "";
+  let reads = 0;
+  do {
+    assert.ok(++reads <= props.length + market_reviews.length);
+    const result = await read({ ...paged, ...(next ? { cursor: next } : {}) });
+    assert.equal(result.isError, undefined);
+    assert.equal(result.structuredContent, undefined);
+    assert.ok(Array.isArray(result.content) && result.content[0]?.type === "text");
+    assert.equal(result.content.length, 1);
+    assert.ok(Buffer.byteLength(result.content[0].text, "utf8") <= 3584);
+    const page = JSON.parse(result.content[0].text);
+    assert.equal(page.schema, "gamecenter-compact-page-v1");
+    assert.equal(page.offset, seenProps.length + seenReviews.length);
+    assert.equal(page.oversized_item, undefined);
+    assert.equal(new Set(page.citation_ids).size, page.citation_ids.length);
+    assert.deepEqual(page.publication, { ...publication, sections: {} });
+    assert.match(page.evidence_href, /\?sections=evidence$/);
+    assert.equal(new URL(api.requests.at(-1)!.path, api.baseUrl).search, "?sections=analysis");
+    function item(value: Record<string, unknown>): Record<string, unknown> {
+      const { citation_indices, counterpoint, ...fields } = value;
+      return { ...fields,
+        evidence_ids: (citation_indices as number[]).map((index) => page.citation_ids[index]),
+        ...(counterpoint ? { counterpoint: item(counterpoint as Record<string, unknown>) } : {}),
+      };
+    }
+    seenProps.push(...page.analysis.props.map(item));
+    seenReviews.push(...page.analysis.market_reviews.map(item));
+    next = page.next_cursor;
+    if (reads === 1) firstCursor = page.next_cursor;
+  } while (next !== null);
+  assert.ok(reads > 1);
+  assert.deepEqual(seenProps, props);
+  assert.deepEqual(seenReviews, market_reviews);
+
+  const otherGame = await read({ ...paged, cursor: firstCursor, game_id: "another-game" });
+  assert.equal(otherGame.isError, true);
+  assert.match(JSON.stringify(otherGame), /Invalid or stale Gamecenter page cursor/);
+  publication.generated_at = "2026-11-06T19:00:00Z";
+  const stale = await read({ ...paged, cursor: firstCursor });
+  assert.equal(stale.isError, true);
+  assert.match(JSON.stringify(stale), /Restart with format=compact_page/);
+
+  const ids = [props[0]!.evidence_ids[0]!, market_reviews[0]!.evidence_ids[0]!];
+  const evidence = await read({ sections: ["evidence"], evidence_ids: ids });
+  assert.deepEqual((evidence.structuredContent as { response: { evidence: { id: string }[] } }).response.evidence.map((fact) => fact.id), ids);
+});
+
+test("an oversized item is identified and the next page advances to the next intact item", async (t) => {
+  const game = { sport: "nhl", game_id: "opaque:game 1" };
+  const packet = {
+    analysis: {
+      props: [{ reasoning: "é".repeat(2100), evidence_ids: ["fact:large"] }],
+      market_reviews: [{ text: "Fits", evidence_ids: ["fact:review"] }],
+    },
+  };
+  const api = await startAgentMockApi((request, response) => {
+    if (!request.url?.startsWith("/api/v1/nhl/gamecenter/")) return false;
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify(packet));
+    return true;
+  }); t.after(() => api.close());
+  const connection = await connect(api.baseUrl); t.after(() => connection.close());
+  async function read(args: Record<string, unknown>) {
+    const result = await connection.client.callTool({ name: "get_gamecenter_packet", arguments: { ...game, ...args } });
+    assert.equal(result.isError, undefined);
+    assert.ok(Array.isArray(result.content) && result.content[0]?.type === "text");
+    if (args.format) assert.ok(Buffer.byteLength(result.content[0].text, "utf8") <= 3584);
+    return JSON.parse(result.content[0].text);
+  }
+  const first = await read({ format: "compact_page" });
+  assert.deepEqual(first.oversized_item, { section: "props", index: 0 });
+  assert.deepEqual(first.analysis, { props: [], market_reviews: [] });
+  assert.deepEqual(first.citation_ids, []);
+  assert.equal(typeof first.next_cursor, "string");
+  const second = await read({ format: "compact_page", cursor: first.next_cursor });
+  assert.equal(second.offset, 1);
+  assert.equal(second.next_cursor, null);
+  assert.deepEqual(second.analysis.market_reviews, [{ text: "Fits", citation_indices: [0] }]);
+  assert.deepEqual(second.citation_ids, ["fact:review"]);
+  const full = await read({ compact: true });
+  assert.equal(full.analysis.props[0].reasoning, packet.analysis.props[0]!.reasoning);
+  assert.equal(full.citation_ids[full.analysis.props[0].citation_indices[0]], "fact:large");
 });
 
 test("strict schemas reject ambiguous selectors, extra fields, oversized rules, and invalid packet selectors", async (t) => {
@@ -225,6 +342,11 @@ test("strict schemas reject ambiguous selectors, extra fields, oversized rules, 
     ["get_gamecenter_packet", { sport: "nhl", game_id: "x", compact: true, evidence_ids: ["fact:1"] }],
     ["get_gamecenter_packet", { sport: "nhl", game_id: "x", compact: true, cursor: "evidence-page" }],
     ["get_gamecenter_packet", { sport: "nhl", game_id: "x", compact: true, page_size: 1 }],
+    ["get_gamecenter_packet", { sport: "nhl", game_id: "x", format: "compact_page", compact: false }],
+    ["get_gamecenter_packet", { sport: "nhl", game_id: "x", format: "compact_page", sections: ["evidence"] }],
+    ["get_gamecenter_packet", { sport: "nhl", game_id: "x", format: "compact_page", evidence_ids: ["fact:1"] }],
+    ["get_gamecenter_packet", { sport: "nhl", game_id: "x", format: "compact_page", page_size: 1 }],
+    ["get_gamecenter_packet", { sport: "nhl", game_id: "x", format: "compact_page", cursor: "rest-evidence-cursor" }],
   ];
   for (const [name, args] of cases) {
     const result = await connection.client.callTool({ name, arguments: args });

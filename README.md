@@ -185,6 +185,8 @@ For Gamecenter, discover the stored game ID with `list_gamecenter_games`. Packet
 
 Set `compact: true` on `get_gamecenter_packet` for a single JSON text result with props, market reviews, and their citation references. Omit `sections` or pass `["analysis"]`. Each item's `citation_indices` points to zero-based positions in the packet's `citation_ids`. Use the resulting original IDs as `evidence_ids` in a separate `sections: ["evidence"]` call with the same sport and game ID. The packet supplies one `evidence_href` for that REST section. The detailed packet remains the default.
 
+For a smaller tool preview, use `format: "compact_page"` in place of `compact`. Each JSON text page is at most 3.5 KiB (3,584 UTF-8 bytes), including its metadata, citation table and continuation cursor. Pass `next_cursor` back as `cursor` with the same format, sport and game ID until it is null. Omit `page_size` and `evidence_ids` from page calls. Citation indices apply only to their own page. Evidence lookup still uses the original IDs and a separate `sections: ["evidence"]` call. If the stored packet changes, restart without a cursor. An `oversized_item` reports the section and zero-based index of a whole item that exceeds the page budget. Continue paging for the remaining items and use the unpaged `compact: true` response for that item.
+
 Successful tools return the upstream JSON in `structuredContent.response`, a minified JSON text block, and safe request/quota headers in `structuredContent.metadata`. Upstream problem responses become `isError` tool results. The server does not automatically retry `429` or `503` responses.
 
 ## Security behavior
