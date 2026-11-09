@@ -24,6 +24,7 @@ The filter tools require a compatible REST agent contract (implemented against 1
 | Saved Angles ideas | `list_saved_research`, `get_saved_research`, `update_saved_research` |
 | Stored Gamecenter evidence | `list_gamecenter_games`, `get_gamecenter_packet` |
 | Stored NHL game odds | `get_game_odds` |
+| Stored NHL goalie status and injury updates | `get_goalie_status`, `get_injury_updates` |
 | Historical jobs | `start_filter_research`, `list_filter_research`, `get_filter_research`, `cancel_filter_research` |
 
 For example: “Research and test a few SOG filter ideas, show me the results, and create a filter for me.” The plugin's `research-handigraphs-filters` skill discovers the available metrics and canonical units, proposes a bounded comparison (normally three candidates), validates each native rule, and tests candidates sequentially with identical outcome settings. It may recommend no winner when coverage or sample size is inadequate. It cannot establish a globally optimal filter or infer profit from an unpriced hit rate.
@@ -189,6 +190,12 @@ Set `compact: true` on `get_gamecenter_packet` for a single JSON text result wit
 For a smaller tool preview, use `format: "compact_page"` in place of `compact`. Each JSON text page is at most 3.5 KiB (3,584 UTF-8 bytes), including its metadata, citation table and continuation cursor. Pass `next_cursor` back as `cursor` with the same format, sport and game ID until it is null. Omit `page_size` and `evidence_ids` from page calls. Citation indices apply only to their own page. Evidence lookup still uses the original IDs and a separate `sections: ["evidence"]` call. If the stored packet changes, restart without a cursor. An `oversized_item` reports the section and zero-based index of a whole item that exceeds the page budget. Continue paging for the remaining items and use the unpaged `compact: true` response for that item.
 
 For NHL game prices, call `get_game_odds({ date: "2026-11-09" })` for an Eastern slate. Use `next_cursor` with the same date and page size until null. For one fixture, use its `league_game_id` from the odds slate or Gamecenter with the date and omit pagination. This read returns latest stored full-game pregame moneylines, puck lines, and totals separately from Gamecenter analysis. `fetched_at` is database ingestion time, and `book: null` means the book is unknown. Tool pages are limited to 3.5 KiB. If a page exceeds that budget, request fewer games or a single game. The tool requires enabled `game_odds` discovery from the NHL Stats API.
+
+For NHL starters, call `get_goalie_status({ date: "2026-11-09", page_size: 2 })` for an Eastern slate. Continue with `next_cursor` and the same date and page size until null, or request one fixture with date and `league_game_id` alone. Read the frozen Gamecenter projection separately from the latest stored RotoWire pregame observation. Use `observed_at`, freshness and the explicit provider status when describing a starter.
+
+For team injury flags, call `get_injury_updates({ date: "2026-11-09", league_game_id: "2026020283", page_size: 4 })`. Use the game ID from goalie status or Gamecenter, and keep the same selectors when following `next_cursor`. Optional `side` narrows the read to one team. A null report means unavailable, while a complete report with zero players means the source listed no flags. Check `source_updated_at`, `source_freshness` and `coverage` before using a report. Daily Faceoff flags describe the team page and do not establish game-specific availability.
+
+Each tool requires its own enabled NHL discovery operation and returns one JSON page of up to 3.5 KiB. If a page exceeds the limit, reduce `page_size` or narrow the game or side. Restart injury paging without a cursor if the underlying report changes.
 
 Successful tools return the upstream JSON in `structuredContent.response`, a minified JSON text block, and safe request/quota headers in `structuredContent.metadata`. Upstream problem responses become `isError` tool results. The server does not automatically retry `429` or `503` responses.
 

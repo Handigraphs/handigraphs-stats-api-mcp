@@ -94,6 +94,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 const { agentReadTools } = await import("../dist/agent-read.js");
 const { agentActionTools } = await import("../dist/agent-actions.js");
 const { GAME_ODDS_DESCRIPTION } = await import("../dist/game-odds.js");
+const { nhlAvailabilityTools } = await import("../dist/nhl-availability.js");
 const packageManifest = await json("package.json");
 const codexMarketplace = await json(".agents/plugins/marketplace.json");
 const claudeMarketplace = await json(".claude-plugin/marketplace.json");
@@ -146,9 +147,10 @@ assert.equal(bundleManifest.user_config?.api_key?.sensitive, true);
 assert.equal(bundleManifest.server?.entry_point, "dist/index.js");
 assert.equal(bundleManifest.server?.mcp_config?.env?.HANDIGRAPHS_API_KEY, "${user_config.api_key}");
 assert.deepEqual(bundleManifest.tools.map(({ name }) => name).sort(),
-  ["describe_resource", "list_resources", "query_stats", "get_game_odds", ...agentReadTools.map(t => t.name), ...agentActionTools.map(t => t.name)].sort());
+  ["describe_resource", "list_resources", "query_stats", "get_game_odds",
+    ...[...agentReadTools, ...agentActionTools, ...nhlAvailabilityTools].map(tool => tool.name)].sort());
 assert.equal(bundleManifest.tools.find(item => item.name === "get_game_odds")?.description, GAME_ODDS_DESCRIPTION);
-for (const tool of [...agentReadTools, ...agentActionTools]) {
+for (const tool of [...agentReadTools, ...agentActionTools, ...nhlAvailabilityTools]) {
   assert.equal(bundleManifest.tools.find(item => item.name === tool.name)?.description, tool.description);
 }
 assert.deepEqual(codexManifest.interface.capabilities, ["Read", "Write"]);

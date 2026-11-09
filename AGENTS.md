@@ -42,9 +42,12 @@ comma-separated exact allowlists. Forwarded headers never grant trust.
 Every MCP message exchanges its own opaque MCP token at the configured issuer;
 only the resulting short-lived API token enters a fresh private client. Never
 store or share user tokens, private capabilities or account responses. Only the
-unauthenticated discovery client/cache is shared. Hosted exposes the 20 shared
+unauthenticated discovery client/cache is shared. Hosted exposes the 22 shared
 business tools plus `get_player_prop_evidence` and omits local key setup.
 The NHL evidence read requires compatible enabled API discovery and stats:read.
+The NHL goalie status and injury updates reads use independent discovery gates
+and pinned paths on both transports. Keep each page to one JSON text block of
+at most 3.5 KiB and preserve frozen, current, stale and unavailable states.
 Use `prop_screen=true` for a compact NHL candidate screen with common matchup
 metadata in `meta.matchup_basis`. See docs/player-prop-research.md for the two-call
 workflow and separate live acceptance. Backend permission/worker availability

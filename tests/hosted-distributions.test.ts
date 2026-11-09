@@ -73,7 +73,7 @@ test('local secret configuration, masked setup and Desktop extension snapshots r
     'plugins/handigraphs-stats-api/mcp.claude.json': 'd554dc2ff9922956a32fa8e053797ae77abf58ac374c2a82766ad7334750dbc4',
     'plugins/handigraphs-stats-api/.codex-plugin/plugin.json': 'edc82143a3c56c6febcb289f8ea9a2ecbb7944b0338f61db18d634eebf4eba3f',
     'plugins/handigraphs-stats-api/.claude-plugin/plugin.json': '7ed7ac7099a2ebb200d76d98b553d854fbd24258fefccc272960e8fa5d1b2d71',
-    'mcpb/manifest.json': '26effe73261ed624c320d6c863527c66bf82de141f9f7c8d4e0f0b4735662f68',
+    'mcpb/manifest.json': '8c8e2b0a4b86d53c000d6ae4955cdfec6ab2ea1f7583776c5e4a229d50613441',
     'plugins/handigraphs-stats-api/skills/setup-handigraphs-stats-api/SKILL.md': 'a244cb7ee29d4b6c1ecba883eb7e887c8be5dd584b6a8bd80dfa0f7af253dfa9',
     'plugins/handigraphs-stats-api/scripts/configure-macos.mjs': '29e8591b97bf346279fee0804d2f81fd72adaf97f2db14f7876eee4bf171262e',
     'plugins/handigraphs-stats-api/scripts/configure-windows.ps1': '7d0af7e5a94a76f0b5a9ec068c443f3b6556f2397e7dfb1a8ac8894ef18f9298',
@@ -99,7 +99,7 @@ test('official SDK clients retain shared schemas with hosted prop evidence and l
   }
   const local = await listing(true); const hosted = await listing(false);
   assert.equal(local.filter(tool => tool.name === 'configure_api_key').length, 1);
-  assert.equal(hosted.length, 21); assert.equal(hosted.some(tool => tool.name === 'configure_api_key'), false);
+  assert.equal(hosted.length, 23); assert.equal(hosted.some(tool => tool.name === 'configure_api_key'), false);
   assert.equal(local.some(tool => tool.name === 'get_player_prop_evidence'), false);
   const shared = hosted.filter(tool => tool.name !== 'get_player_prop_evidence').map(tool =>
     tool.name === 'query_stats' ? { ...tool, description: local.find(item => item.name === 'query_stats')!.description,
