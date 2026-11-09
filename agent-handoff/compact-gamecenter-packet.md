@@ -20,7 +20,13 @@ all eight props, six reviews and 111 distinct IDs. Full tool results were
 121,529 bytes detailed and 11,463 bytes compact. All 111 IDs resolved via the
 existing production evidence reader. The capture remains outside Git.
 
-Claude Code 2.1.283 connected to the isolated replay server. Its expired
-Anthropic OAuth session prevented an actual tool call. The client check is
-pending sign-in. This changes the hosted runtime and needs separate sandbox
-validation and owner acceptance before production promotion.
+Claude Desktop 4.23118.0.0 (Code tab) ran the isolated local replay. The
+expanded compact tool card's 10,652-byte JSON matched the built adapter
+byte-for-byte after minifying, including the final evidence link. Claude used
+two IDs from a prop and one from a market review in a single evidence call.
+All three returned facts matched the recorded production facts exactly. The
+standalone Windows CLI still reported an expired session, so this receipt
+covers the signed-in Desktop Code client.
+
+This changes the hosted runtime and needs separate sandbox validation and
+owner acceptance before production promotion.
