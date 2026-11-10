@@ -37,10 +37,24 @@ uses an ID returned by the screen.
   "arguments": {
     "market": "skater_shots_on_goal",
     "player_ids": ["8478460"],
-    "sections": ["hit_rates", "game_logs", "odds"]
+    "sections": ["hit_rates", "odds", "matchup", "opponent_recent"]
   }
 }
 ```
+
+When `prop_evidence.sections` lists them, two more sections put the matchup in
+the same call. `matchup` gives the opponent's season rank for the market among
+32 teams, with the shared basis once in `matchup_basis`. Rank 1 allows the most
+for an over. Send `side: "under"` and the rank and tier read for the under, where
+rank 1 allows the least; `side: "both"` adds `under_rank` and `under_tier`.
+`opponent_recent` reports how often players in the same position group cleared
+the resolved line against tonight's opponent over its last ten completed games,
+as `hit_count`, `appearance_count` and `hit_rate` per side. It needs a line and
+returns `line_required` without one. An unranked market or incomplete source is
+`unavailable` with a reason. Add `game_logs` when the user wants the games. All
+five sections with both sides and season results fit four players, not five.
+A server that does not list a section rejects it before any protected request;
+use the three original sections and the screen's matchup rank there.
 
 The API returns recent ten-game skater or five-start goalie rates. Five logs are
 the default when requested. Set `log_limit` up to ten or `include_season=true`

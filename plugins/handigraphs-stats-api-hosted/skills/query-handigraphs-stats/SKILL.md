@@ -47,7 +47,14 @@ and goalie saves follow the same shortlist workflow.
    to five IDs from the screen. For a named player whose ID is known, start at
    the evidence call.
 3. Call `get_player_prop_evidence` once with that market and those IDs. For full
-   prop research request `sections=[hit_rates,game_logs,odds]`. Defaults are over,
+   prop research request `sections=[hit_rates,odds,matchup,opponent_recent]` when
+   `prop_evidence.sections` lists the last two, otherwise
+   `sections=[hit_rates,game_logs,odds]`. `matchup` is the opponent's season rank
+   for the market; send `side=under` for an under so rank 1 means least allowed.
+   `opponent_recent` is how the player's position group did against tonight's
+   opponent at that line over its last ten games. Add `game_logs` when the user
+   wants the games; all five sections with both sides and season results fit four
+   players. Defaults are over,
    recent ten skater games or five goalie starts, and five logs per player.
    Supply an exact user-requested line when present. Otherwise use the site's
    resolved main line. Fixed record markets use their discovered fixed line.
