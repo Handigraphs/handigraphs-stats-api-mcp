@@ -2,6 +2,10 @@
 
 ## Unreleased — 0.3.0 candidate
 
+- Let `get_player_prop_evidence` request the `matchup` and `opponent_recent` sections
+  added in REST contract 1.22.0, so one call returns hit rates, quotes, the opponent's
+  side-aware season rank and its recent results by position. A section the server does
+  not advertise is rejected before any protected request. No version or release bump.
 - Release the hosted plugin `handigraphs-stats-api-hosted` (2026-10-25): the Codex
   marketplace entry is `AVAILABLE`, and the manifests, skills and docs describe the live
   `https://mcp.handigraphs.com/mcp` server with browser sign-in. Supersedes the earlier unavailable-candidate

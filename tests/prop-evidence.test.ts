@@ -20,6 +20,8 @@ async function fixture(t: test.TestContext, mode = "enabled") {
     }], ...(mode === "old" ? {} : { prop_evidence: {
       contract_version: 1, method: "POST", path: mode === "unsafe" ? "/api/v1/filters" : "/api/v1/nhl/prop-evidence",
       enabled: mode !== "disabled", markets: [{ key: "skater_shots_on_goal" }, { key: "skater_goals" }, { key: "skater_anytime_goalscorer" }],
+      ...(mode === "legacy_sections" ? {} : { sections: mode === "three_sections"
+        ? ["hit_rates", "game_logs", "odds"] : ["hit_rates", "game_logs", "odds", "matchup", "opponent_recent"] }),
     } }) });
     if (url.pathname === "/api/v1/nhl/metrics") return send({ metrics: {
       sog_per_game: { scale: "numeric" }, icf_per_game: { scale: "numeric" }, games_played: { scale: "integer" },
@@ -188,4 +190,43 @@ test("twelve-player screen and five-player logs/rates/quotes fit the complete co
   assert.equal(payload.data[0]!.context.matchup.rank, 4);
   const query = api.requests.find(item => item.path.startsWith("/api/v1/nhl/skaters?"))!;
   assert.equal(new URL(query.path, api.baseUrl).searchParams.has("prop_screen"), false);
+});
+
+const packet = { market: "skater_shots_on_goal", player_ids: ["8478460"], side: "under", line: 2.5,
+  sections: ["hit_rates", "game_logs", "odds", "matchup", "opponent_recent"] };
+
+test("one evidence call forwards the matchup and opponent-recent sections the server advertises", async (t) => {
+  const { api, client } = await fixture(t);
+  const tool = (await client.listTools()).tools.find(item => item.name === "get_player_prop_evidence")!;
+  assert.match(tool.description!, /matchup \(season opponent rank; side=under gives the under rank\)/);
+  assert.match(tool.description!, /opponent_recent/);
+  assert.ok(Buffer.byteLength(JSON.stringify(tool), "utf8") <= 2500);
+  const result = await client.callTool({ name: "get_player_prop_evidence", arguments: packet });
+  assert.equal(result.isError, undefined);
+  const reads = api.requests.filter(item => item.authorization !== undefined);
+  assert.equal(reads.length, 1);
+  assert.deepEqual(JSON.parse(reads[0]!.body!), packet);
+});
+
+for (const mode of ["three_sections", "legacy_sections"]) {
+  test(`a ${mode} server rejects the new sections before any protected request`, async (t) => {
+    const { api, client } = await fixture(t, mode);
+    const result = await client.callTool({ name: "get_player_prop_evidence", arguments: packet });
+    assert.equal(result.isError, true);
+    const detail = (result.structuredContent as { error: { detail: string } }).error.detail;
+    assert.match(detail, /does not offer the matchup and opponent_recent sections/);
+    assert.match(detail, /hit_rates, game_logs, odds/);
+    assert.equal(api.requests.some(item => item.authorization), false);
+    const original = await client.callTool({ name: "get_player_prop_evidence", arguments: request });
+    assert.equal(original.isError, undefined);
+    assert.equal(api.requests.filter(item => item.authorization).length, 1);
+  });
+}
+
+test("section bounds reject duplicates, unknown names and a sixth entry without a request", async (t) => {
+  const { api, client } = await fixture(t);
+  for (const sections of [["matchup", "matchup"], ["opponents"], [...packet.sections, "odds"]]) {
+    assert.equal((await client.callTool({ name: "get_player_prop_evidence", arguments: { ...packet, sections } })).isError, true);
+  }
+  assert.equal(api.requests.length, 0);
 });

@@ -11,13 +11,16 @@ export const propEvidenceSchema = z.object({
     .refine((ids) => new Set(ids).size === ids.length, "Player IDs must be unique."),
   line: z.number().finite().min(0).max(1000).optional(),
   side: z.enum(["over", "under", "both"]).optional(),
-  sections: z.array(z.enum(["hit_rates", "game_logs", "odds"])).min(1).max(3)
+  sections: z.array(z.enum(["hit_rates", "game_logs", "odds", "matchup", "opponent_recent"])).min(1).max(5)
     .refine((items) => new Set(items).size === items.length, "Sections must be unique.").optional(),
   log_limit: z.number().int().min(1).max(10).optional()
     .describe("Default five. Keep five for slate shortlists; use more only when the user requests extended logs."),
   include_season: z.boolean().optional()
     .describe("Omit for tonight's shortlist. Set true only when the user requests a season summary."),
 }).strict();
+
+// Servers before REST contract 1.22.0 advertise only these sections.
+const LEGACY_SECTIONS = ["hit_rates", "game_logs", "odds"];
 
 export function compactPropScreen(response: Record<string, unknown>): Record<string, unknown> {
   const rows = Array.isArray(response.data) ? response.data : [];
@@ -58,6 +61,13 @@ export async function readPropEvidence(http: StatsApiHttpClient, discovery: Disc
     ))].slice(0, 20);
     const choices = keys.length ? " Advertised market keys: " + keys.join(", ") + "." : "";
     throw new ToolInputError("Unknown NHL prop market. " + PROP_MARKET_HELP + choices);
+  }
+  const advertised = Array.isArray(descriptor.sections) ? descriptor.sections : LEGACY_SECTIONS;
+  const missing = (args.sections ?? []).filter((section) => !advertised.includes(section));
+  if (missing.length) {
+    throw new ToolInputError("This API server does not offer the " + missing.join(" and ") + " section"
+      + (missing.length > 1 ? "s" : "") + ". Request " + LEGACY_SECTIONS.join(", ")
+      + " and read the matchup rank from a query_stats screen.");
   }
   const response = await http.request("/api/v1/nhl/prop-evidence", { method: "POST", protectedData: true, body: args });
   if ("notModified" in response) throw new Error("Prop evidence unexpectedly returned 304.");
