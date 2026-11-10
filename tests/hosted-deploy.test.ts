@@ -428,15 +428,15 @@ test('workflow boundaries retain pinned source, default-off sandbox, production 
 test('committed owner acceptance names exactly the accepted pair, record and client versions', async () => {
   const value = parseOwnerAcceptance((await readFile(OWNER_ACCEPTANCE_FILE, 'utf8')).replace(/\r\n/g, '\n'));
   assert.equal(value.owner, 'cjbuskey');
-  assert.equal(value.tested_app_sha, 'f004abe542da0e3b26ec6253b333be1ce1c8e325');
+  assert.equal(value.tested_app_sha, 'c579d5819dc16b54c079fa18d52a1e616efd69fc');
   assert.equal(value.accepted_app_sha, value.tested_app_sha);
-  assert.equal(value.tested_mcp_sha, 'e5c95fe949b8132559328bb6fdb273a83046a3a2');
+  assert.equal(value.tested_mcp_sha, '01fd77a9fd79bcc481287e9bf88b90070a080560');
   assert.equal(value.accepted_mcp_sha, value.tested_mcp_sha);
   assert.equal(value.decided_on, '2026-11-09');
-  assert.equal(value.record_sha256, '24d8a45bf5b6f766d00a7e1c381504eff591f8332cc9835888a7cd7d989ca3d2');
+  assert.equal(value.record_sha256, '2bfaf4bede5b6cd404ffbfe418dfaed7a1ddf8df9a537109cbcd293a5e42f3eb');
   assert.deepEqual(value.clients, { codex_desktop: '26.1016.61520', codex_cli: '0.146.0', claude_code: '2.1.283' });
-  assert.match(value.summary, /Claude Desktop 4\.23118\.0\.0 Chat verified stored and freshly ingested NHL odds/);
-  assert.match(value.summary, /all 18 selections, nine BetOnline book labels and three ingestion timestamps matched/);
+  assert.match(value.summary, /Hosted Claude in Chrome used the sandbox OAuth connector to verify NHL goalie status and injury updates/);
+  assert.match(value.summary, /All seven expanded pages displayed without truncation/);
   assert.match(value.summary, /The client fields retain historical versions/);
   const prior = parseOwnerAcceptance((await readFile('docs/owner-acceptance-2026-10-24.json', 'utf8')).replace(/\r\n/g, '\n'));
   assert.equal(prior.tested_app_sha, '3dd38c3405d22d694d92e9bd076a8d4dfea87990');
