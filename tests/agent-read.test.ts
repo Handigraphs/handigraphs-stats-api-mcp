@@ -155,6 +155,8 @@ test("compact Gamecenter indexes exact citations and preserves detailed packet b
   assert.equal(new URL(api.requests.at(-1)!.path, api.baseUrl).search, "?sections=analysis");
 
   const compact = await read({ compact: true });
+  const alias = await read({ format: "compact", sections: ["analysis"] });
+  assert.deepEqual(alias, compact);
   assert.ok(Array.isArray(compact.content));
   const content = compact.content[0];
   assert.ok(content?.type === "text");
@@ -178,7 +180,7 @@ test("compact Gamecenter indexes exact citations and preserves detailed packet b
   assert.equal(projected.analysis.market_reviews[0].evaluation_scope.complete, false);
   const evidence = await read({ sections: ["evidence"], evidence_ids: citedIds(projected.analysis.props[0].counterpoint) });
   assert.deepEqual((evidence.structuredContent as { response: { evidence: { id: string }[] } }).response.evidence.map((fact) => fact.id), counterpoint.evidence_ids);
-  assert.equal(api.requests.filter((request) => request.authorization).length, 4);
+  assert.equal(api.requests.filter((request) => request.authorization).length, 5);
 });
 
 test("compact Gamecenter leaves absent analysis unavailable", async (t) => {

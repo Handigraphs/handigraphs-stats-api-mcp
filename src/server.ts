@@ -17,6 +17,7 @@ import { compactPropScreen, invocablePropEvidenceSections, PROP_MARKET_HELP, pro
 import { GAMECENTER_PAGE_BYTES } from "./gamecenter-compact.js";
 import { GAME_ODDS_DESCRIPTION, GAME_ODDS_PAGE_BYTES, GAME_ODDS_PAGE_HELP, gameOddsSchema, readGameOdds } from "./game-odds.js";
 import { NHL_AVAILABILITY_PAGE_BYTES, nhlAvailabilityTools, readNhlAvailability } from "./nhl-availability.js";
+import { compactResource, nhlRecipes } from "./resource-compact.js";
 
 const sportSchema = z.string().trim().min(1).max(32);
 const resourceSchema = z.string().trim().min(1).max(64);
@@ -38,11 +39,20 @@ function errorResult(problem: SafeProblem, apiKey: string | readonly string[]): 
 }
 
 function handler(secrets: readonly string[], callback: () => Promise<CallToolResult>): Promise<CallToolResult> {
+  const started = performance.now();
   return callback().then((result) => redactCredentialEchoes(result, secrets)).catch((error: unknown) => {
     if (error instanceof UpstreamError) return errorResult(error.problem, secrets);
     if (error instanceof ToolInputError) return errorResult({ status: 400, code: error.code, detail: error.message }, secrets);
     safeStderr("Handigraphs Stats API MCP error:", error, secrets);
     return errorResult({ status: 500, code: "mcp_internal_error", detail: "The MCP server could not complete the request." }, secrets);
+  }).then(result => {
+    // Only aggregate dimensions: never arguments, account IDs, bodies or traces.
+    const problem = object(object(result.structuredContent).error);
+    safeStderr("Handigraphs tool result", { duration_ms: Math.ceil(performance.now() - started),
+      bytes: Buffer.byteLength(JSON.stringify(result)), failed: result.isError === true,
+      status: typeof problem.status === "number" ? problem.status : 200,
+      code: typeof problem.code === "string" && /^[a-z_]{1,64}$/.test(problem.code) ? problem.code : null }, secrets);
+    return result;
   });
 }
 
@@ -64,8 +74,8 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   const secrets = Object.freeze([config.apiKey, ...(dependencies.redactionSecrets ?? [])]);
   const agent = new AgentReadClient(http, discovery, secrets);
   const actions = new AgentActionClient(http, discovery);
-  const revision = process.env.SOURCE_VERSION;
-  const runtime = { adapter_version: SERVER_VERSION, tool_catalog_revision: "slate-brief-v1",
+  const revision = process.env.HEROKU_SLUG_COMMIT ?? process.env.SOURCE_VERSION;
+  const runtime = { adapter_version: SERVER_VERSION, tool_catalog_revision: "nhl-research-v2",
     build_sha: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null,
     prop_evidence_tool: dependencies.enablePropEvidence === true, slate_brief_tool: true,
     catalog_refresh: "If discovery advertises sections missing from your tool schema, refresh tools or reconnect this same connection." };
@@ -92,10 +102,12 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
 
   server.registerTool("describe_resource", {
     title: "Describe a Handigraphs Stats API resource",
-    description: "Return live resource, metric, split, unit, and filter discovery.",
-    inputSchema: { sport: sportSchema, resource: resourceSchema },
+    description: "Return live metric definitions, units, splits, filters and research recipes. Compact text is the default (no benchmark cutpoints). Use metrics to narrow definitions, or detail=full for benchmark diagnostics.",
+    inputSchema: { sport: sportSchema, resource: resourceSchema,
+      detail: z.enum(["compact", "full"]).optional(),
+      metrics: z.array(z.string().trim().min(1).max(80)).min(1).max(100).optional() },
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, ({ sport, resource }) => handler(secrets, async () => {
+  }, ({ sport, resource, detail, metrics }) => handler(secrets, async () => {
     let description: Record<string, unknown>;
     try {
       description = await discovery.describe(sport, resource);
@@ -115,7 +127,15 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
         invocable_prop_evidence_sections: dependencies.enablePropEvidence
           ? invocablePropEvidenceSections(object(api.prop_evidence)) : [] };
     }
-    return success(description);
+    if (detail === "full") return success(description);
+    const recipe = sport === "nhl" && dependencies.enablePropEvidence ? nhlRecipes(resource) : undefined;
+    const result = { content: [{ type: "text" as const,
+      text: JSON.stringify({ ...compactResource(description, metrics), ...(recipe ? { research_recipe: recipe } : {}) }) }] };
+    if (Buffer.byteLength(JSON.stringify(result), "utf8") > 16384) {
+      throw new UpstreamError({ status: 413, code: "resource_description_too_large",
+        detail: "Narrow definitions with metrics=[...] or request detail=full. No definitions were truncated." });
+    }
+    return result;
   }));
 
   const filterSchema = z.object({
@@ -126,7 +146,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   server.registerTool("query_stats", {
     title: "Query Handigraphs stats",
     description: "Query one live Handigraphs Stats API resource. Use describe_resource first; pagination remains in this tool via cursor."
-      + (dependencies.enablePropEvidence ? " For tonight's NHL props, screen once with prop_screen=true and page_size=12. For shots on goal use L10 and only sog_per_game, icf_per_game, games_played plus matchup_market=shots, matchup_window=sea; then call get_player_prop_evidence once for up to five players (five logs, no season summary unless requested)." : ""),
+      + (dependencies.enablePropEvidence ? " Start broad NHL slate research with get_slate_brief. For custom props screen once with prop_screen=true and page_size=12. Shots: skaters L10, metrics sog_per_game, icf_per_game, games_played, matchup_market=shots. Saves: goalies season, metrics saves_per_game, games_started, save_pct, gsax_per_60, matchup_market=saves. Use day=today and matchup_window=sea. Follow with get_player_prop_evidence for up to five players; saves evidence uses five starts. Goalie L60/L120 are minute windows, not five starts." : ""),
     inputSchema: {
       sport: sportSchema,
       resource: resourceSchema,
@@ -198,7 +218,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
       const removeKey = (_key: string, value: unknown) => typeof value === "string" && config.apiKey ? value.split(config.apiKey).join("[REDACTED]") : value;
       const safeResponse = JSON.parse(JSON.stringify(response.json, removeKey)) as Record<string, unknown>;
       const paged = object(input).format === "compact_page";
-      if (tool.name === "get_gamecenter_packet" && (paged || object(input).compact === true)) {
+      if (tool.name === "get_gamecenter_packet" && (paged || object(input).format === "compact" || object(input).compact === true)) {
         const text = JSON.stringify(safeResponse);
         if (paged && Buffer.byteLength(redactCredentialEchoes(text, secrets), "utf8") > GAMECENTER_PAGE_BYTES) {
           throw new ToolInputError("Gamecenter page exceeds 3.5 KiB. Use compact=true for the full packet.");
@@ -230,10 +250,12 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   }, (input) => handler(secrets, async () => {
     const page = await readGameOdds(http, discovery, input);
     const text = redactCredentialEchoes(JSON.stringify(redactCredentialEchoes(page, secrets)), secrets);
-    if (Buffer.byteLength(text, "utf8") > GAME_ODDS_PAGE_BYTES) {
+    const result = { content: [{ type: "text" as const, text }] };
+    if (page.price_math === true ? Buffer.byteLength(JSON.stringify(result), "utf8") > 16384
+        : Buffer.byteLength(text, "utf8") > GAME_ODDS_PAGE_BYTES) {
       throw new UpstreamError({ status: 413, code: "game_odds_too_large", detail: GAME_ODDS_PAGE_HELP });
     }
-    return { content: [{ type: "text", text }] };
+    return result;
   }));
 
   for (const tool of nhlAvailabilityTools) {
@@ -244,10 +266,12 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     }, (input: unknown) => handler(secrets, async () => {
       const page = await readNhlAvailability(http, discovery, tool, input);
       const text = redactCredentialEchoes(JSON.stringify(redactCredentialEchoes(page, secrets)), secrets);
-      if (Buffer.byteLength(text, "utf8") > NHL_AVAILABILITY_PAGE_BYTES) {
+      const result = { content: [{ type: "text" as const, text }] };
+      if (page.schema === "nhl-injury-slate-v1" ? Buffer.byteLength(JSON.stringify(result), "utf8") > 32768
+          : Buffer.byteLength(text, "utf8") > NHL_AVAILABILITY_PAGE_BYTES) {
         throw new UpstreamError({ status: 413, code: `${tool.discoveryKey}_too_large`, detail: tool.sizeHelp });
       }
-      return { content: [{ type: "text", text }] };
+      return result;
     }));
   }
 

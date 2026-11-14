@@ -82,7 +82,7 @@ test("ambiguous POST network failures and timeouts are never resubmitted", async
     });
     await assert.rejects(http.request("filters", { method: "POST", protectedData: true, body: {}, idempotencyKey: "8f725545-48d9-4ba4-bb8e-b4ad5bf2ebd0" }), (error) => {
       assert.ok(error instanceof UpstreamError);
-      assert.equal(error.problem.code, "upstream_unavailable");
+      assert.equal(error.problem.code, name === "TimeoutError" ? "upstream_timeout" : "upstream_unavailable");
       assert.equal(error.problem.detail.includes("private"), false);
       return true;
     });

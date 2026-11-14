@@ -66,6 +66,19 @@ test("old, disabled or forged discovery cannot redirect a slate read", async t =
   }
 });
 
+test("v2 negotiation is explicit and custom bounds require advertised support", async t => {
+  const { api, read } = await connect(t, { ...descriptor, formats: ["legacy", "compact_v2"], price_controls: true },
+    { ...payload, schema: "nhl-slate-brief-v2" });
+  assert.equal((await read({ price_min: -400, price_max: 500 })).isError, undefined);
+  const query = new URL(api.requests.at(-1)!.path, api.baseUrl).searchParams;
+  assert.equal(query.get("format"), "compact_v2");
+  assert.equal(query.get("price_min"), "-400");
+  assert.equal(query.get("price_max"), "500");
+  const older = await connect(t);
+  assert.equal((await older.read({ price_min: -400 })).isError, true);
+  assert.equal(older.api.requests.filter(item => item.authorization).length, 0);
+});
+
 test("invalid market, wrong response date, oversized payload and 503 fail without retries", async t => {
   const invalid = await connect(t);
   assert.equal((await invalid.read({ markets: ["bad"] })).isError, true);

@@ -113,7 +113,7 @@ test("invalid selectors are local and expired injury cursors surface one actiona
     ["get_goalie_status", { league_game_id, page_size: 1 }],
     ["get_goalie_status", { league_game_id, cursor: "opaque" }],
     ["get_goalie_status", { page_size: 5 }],
-    ["get_injury_updates", {}],
+    ["get_injury_updates", { side: "home" }],
     ["get_injury_updates", { league_game_id, side: "both" }],
     ["get_injury_updates", { league_game_id, page_size: 13 }],
   ] as const) assert.equal((await read(name, args)).isError, true);
@@ -137,4 +137,27 @@ test("the UTF-8 ceiling preserves whole pages and malformed envelopes fail close
   const invalid = await read("get_injury_updates", { league_game_id });
   assert.equal(invalid.isError, true);
   assert.match(JSON.stringify(invalid), /injury_updates_invalid_response/);
+});
+
+test("date-only injury pages preserve flags, reports and cursor with one protected call", async t => {
+  const body = { ...firstInjuryPage, schema: "nhl-injury-slate-v1", games: [identity],
+    players: Array.from({ length: 30 }, (_, i) => ({ ...firstInjuryPage.players[0], player_name: "Flagged Ł " + i })) };
+  const { api, read } = await connect(t, { injury_updates: { ...injury,
+    slate: { enabled: true, schema: "nhl-injury-slate-v1" } } }, () => ({ body }));
+  for (const args of [{ page_size: 100 }, { page_size: 100, cursor: body.next_cursor }]) {
+    const result = await read("get_injury_updates", args);
+    assert.equal(result.isError, undefined);
+    assert.deepEqual(result.content, [{ type: "text", text: JSON.stringify(body) }]);
+    assert.ok(Buffer.byteLength(JSON.stringify(result)) < 32768);
+  }
+  assert.equal(api.requests.filter(item => item.authorization).length, 2);
+  assert.match(api.requests.at(-1)!.path, /page_size=100&cursor=report%2Brevision/);
+});
+
+test("older servers do not receive the new date-only injury selector", async t => {
+  const { api, read } = await connect(t, { injury_updates: injury }, () => assert.fail("Protected read issued"));
+  const result = await read("get_injury_updates", {});
+  assert.equal(result.isError, true);
+  assert.match(JSON.stringify(result), /does not advertise slate injury reads/);
+  assert.equal(api.requests.filter(item => item.authorization).length, 0);
 });

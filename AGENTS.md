@@ -46,8 +46,10 @@ unauthenticated discovery client/cache is shared. Hosted exposes the 23 shared
 business tools plus `get_player_prop_evidence` and omits local key setup.
 The NHL evidence read requires compatible enabled API discovery and stats:read.
 The NHL goalie status and injury updates reads use independent discovery gates
-and pinned paths on both transports. Keep each page to one JSON text block of
-at most 3.5 KiB and preserve frozen, current, stale and unavailable states.
+and pinned paths on both transports. Legacy pages remain one text block of at
+most 3.5 KiB. Advertised date-only injury pages permit 32 KiB for the complete
+MCP result; explicit game-odds price arithmetic permits 16 KiB. Keep frozen,
+current, stale and unavailable states distinct.
 Use `prop_screen=true` for a compact NHL candidate screen with common matchup
 metadata in `meta.matchup_basis`. See docs/player-prop-research.md for the two-call
 workflow and separate live acceptance. Backend permission/worker availability

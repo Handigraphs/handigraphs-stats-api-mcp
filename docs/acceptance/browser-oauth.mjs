@@ -12,6 +12,22 @@ const ISSUER = 'https://handigraphs-sandbox-web-49829810d1bb.herokuapp.com';
 const RESOURCE = 'https://mcp-sandbox.handigraphs.com/mcp';
 let stage = 'input', browser, callback;
 const clients = [], results = [], statuses = [];
+let closing;
+async function cleanupClient() {
+  closing ??= (async () => {
+    for (const client of clients) await client.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+    if (callback) await new Promise(resolve => callback.close(resolve));
+    if (process.connected) process.disconnect();
+  })();
+  return closing;
+}
+process.on('message', message => {
+  if (message?.event === 'abort') void cleanupClient().finally(() => process.exit(1));
+});
+process.on('disconnect', () => {
+  if (!closing) void cleanupClient().finally(() => process.exit(1));
+});
 function check(value) { assert.ok(value, 'acceptance assertion failed'); }
 function report(name, details = {}) { results.push({ name, ...details }); }
 async function safeFetch(input, init) {
@@ -122,9 +138,38 @@ async function main() {
   check(briefTool && evidenceTool && evidenceTool.inputSchema.properties.sections.items.type === 'string');
   const sectionSchema = evidenceTool.inputSchema.properties.sections.items;
   check(['enum', 'const', 'oneOf', 'anyOf', 'allOf'].every(key => !(key in sectionSchema)));
+  if (input.cohort_barrier === true) {
+    check(typeof process.send === 'function');
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('cohort_barrier_timeout')), 60000);
+      process.once('message', message => {
+        clearTimeout(timeout);
+        if (message?.event === 'go') resolve(); else reject(new Error('invalid_cohort_signal'));
+      });
+      process.send({ event: 'ready' });
+    });
+  }
+  // This must be the first protected stats read; never REST-warm the endpoint.
+  stage = 'cold_first_mcp_slate';
+  const firstStarted = performance.now();
+  const slateResult = await client.callTool({ name: 'get_slate_brief', arguments: { sport: 'nhl', date: input.date } });
+  const firstLatencyMs = Math.ceil(performance.now() - firstStarted);
+  if (input.cohort_barrier === true) {
+    const cold = unpack(slateResult);
+    report('cohort_cold', { latency_ms: firstLatencyMs, bytes: Buffer.byteLength(JSON.stringify(slateResult)),
+      cache: cold.coverage?.input_cache ?? {}, selection_status: cold.coverage?.selection_status });
+    for (let i = 0; i < 3; i++) {
+      const warmStarted = performance.now();
+      const result = await client.callTool({ name: 'get_slate_brief', arguments: { sport: 'nhl', date: input.date } });
+      check(unpack(result).games.length === input.game_count);
+      report('cohort_warm', { latency_ms: Math.ceil(performance.now()-warmStarted),
+        bytes: Buffer.byteLength(JSON.stringify(result)) });
+    }
+  }
   const descriptor = unpack(await client.callTool({ name: 'describe_resource', arguments: { sport: 'nhl', resource: 'skaters' } }));
   check(descriptor.prop_evidence.sections.includes('matchup') && descriptor.prop_evidence.sections.includes('opponent_recent'));
-  check(descriptor.mcp.tool_catalog_revision === 'slate-brief-v1' && descriptor.mcp.api_contract_version === '1.23.0');
+  check(descriptor.mcp.tool_catalog_revision === 'nhl-research-v2' && descriptor.mcp.api_contract_version === '1.24.0');
+  check(descriptor.slate_brief.formats.includes('compact_v2'));
   check(descriptor.mcp.prop_evidence_tool && descriptor.mcp.slate_brief_tool);
   check(descriptor.mcp.invocable_prop_evidence_sections.length === 5);
   const expectedBuild = process.env.HANDIGRAPHS_EXPECTED_MCP_SHA;
@@ -133,33 +178,40 @@ async function main() {
   report('fresh_client_catalog', { tools: catalog.length, sections: descriptor.prop_evidence.sections,
     runtime: descriptor.mcp });
   stage = 'full_slate_read';
-  const started = performance.now();
-  const slateResult = await client.callTool({ name: 'get_slate_brief', arguments: { sport: 'nhl', date: input.date } });
   const slate = unpack(slateResult), bytes = Buffer.byteLength(JSON.stringify(slateResult));
+  check(slate.schema === 'nhl-slate-brief-v2');
   check(bytes <= 32768 && slate.games.length === input.game_count && slate.coverage.returned <= 12);
-  check(slate.coverage.returned > 0);
-  report('full_slate', { bytes, latency_ms: Math.ceil(performance.now() - started), coverage: slate.coverage,
+  check(slate.coverage.selection_status !== 'unavailable');
+  check(slate.coverage.returned > 0 || slate.coverage.eligible === 0);
+  report('cold_first_mcp_slate', { bytes, latency_ms: firstLatencyMs, coverage: slate.coverage,
     markets: slate.groups.map(group => ({ market: group.market, returned: group.candidates.length,
       eligible: group.eligible, exclusions: group.exclusions })) });
   stage = 'evidence_sections';
   const shots = slate.groups.find(group => group.market === 'skater_shots_on_goal');
   const candidate = shots?.candidates[0] ?? slate.groups.find(group => group.candidates.length)?.candidates[0];
-  check(candidate);
+  // An empty qualified slate is valid. Select a real offered player via a custom
+  // screen in sparse-data acceptance; never invent a default candidate.
+  check(candidate || input.evidence_selector);
+  const selector = candidate?.evidence ?? input.evidence_selector;
   const evidenceResult = await client.callTool({ name: 'get_player_prop_evidence', arguments: {
-    ...candidate.evidence, sections: ['hit_rates', 'game_logs', 'odds', 'matchup', 'opponent_recent'] } });
+    ...selector, include_season: true, sections: ['hit_rates', 'game_logs', 'odds', 'matchup', 'opponent_recent'] } });
   const evidence = unpack(evidenceResult);
   const evidenceRows = evidence.data ?? evidence.result?.data;
   check(evidenceRows?.length === 1 && ['matchup', 'opponent_recent'].every(key => key in evidenceRows[0]));
-  check(evidence.schema === 'nhl-prop-evidence-v1' && evidence.market === candidate.evidence.market);
+  check(evidence.schema === 'nhl-prop-evidence-v1' && evidence.market === selector.market);
   check(evidence.slate_date === slate.slate_date && evidence.season === slate.season && evidence.game_type === 2);
+  if (candidate) {
   check(evidenceRows[0].player_id === candidate.player_id && evidenceRows[0].line === candidate.line);
-  for (const [side, rate] of Object.entries(candidate.hit_rates)) {
+  for (const [side, rate] of [[candidate.side, candidate.recent]]) {
     const observed = evidenceRows[0].hit_rates.recent[side];
     check(observed.hits === rate.hits && observed.misses === rate.misses && observed.hit_rate === rate.hit_rate);
-    check(observed.sample_size === candidate.sample.sample_size);
+    check(observed.sample_size === candidate.recent.sample_size);
+    const baseline = evidenceRows[0].hit_rates.season[side];
+    check(baseline.hits === candidate.season.hits && baseline.sample_size === candidate.season.sample_size);
     const quote = evidenceRows[0].odds[side], age = Date.now() - Date.parse(quote.fetched_at);
     check(quote.status === 'available' && quote.game_id === candidate.league_game_id);
-    check(quote.source_market_key === candidate.source_market_key && age >= 0 && age <= 45 * 60 * 1000);
+    check(quote.source_market_key === candidate.quote.source_market_key && age >= 0 && age <= 45 * 60 * 1000);
+  }
   }
   report('advertised_evidence_sections_invocable', { bytes: Buffer.byteLength(JSON.stringify(evidenceResult)) });
   stage = 'refresh_rotation';
@@ -214,8 +266,6 @@ let output;
 try { output = await main(); }
 catch (error) { output = { passed: false, stage, failure_class: error.constructor.name, results, statuses }; process.exitCode = 1; }
 finally {
-  for (const client of clients) await client.close().catch(() => {});
-  if (browser) await browser.close().catch(() => {});
-  if (callback) await new Promise(resolve => callback.close(resolve));
+  await cleanupClient();
 }
 process.stdout.write(JSON.stringify(output) + '\n');

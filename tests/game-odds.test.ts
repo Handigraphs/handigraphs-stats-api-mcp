@@ -81,3 +81,19 @@ test("malformed selectors fail locally and the byte ceiling never clips a game",
   assert.equal(JSON.stringify(result).includes("é".repeat(30)), false);
   assert.equal(api.requests.length, 2);
 });
+
+test("price arithmetic is discovery gated and the complete opt-in envelope remains bounded", async t => {
+  const payload = { ...firstPage, price_math: true, detail: 'x'.repeat(4000) };
+  const { api, read } = await connect(t, { game_odds: { ...descriptor, price_math: { parameter: 'include_price_math' } } },
+    query => { assert.equal(query.get('include_price_math'), 'true'); return payload; });
+  const result = await read({ include_price_math: true });
+  assert.equal(result.isError, undefined);
+  assert.ok(Buffer.byteLength(JSON.stringify(result)) <= 16384);
+  assert.equal(api.requests.filter(item => item.authorization).length, 1);
+  const old = await connect(t, { game_odds: descriptor }, query => {
+    assert.equal(query.has('include_price_math'), false); return firstPage;
+  });
+  assert.equal((await old.read({ include_price_math: true })).isError, true);
+  assert.equal(old.api.requests.filter(item => item.authorization).length, 0);
+  assert.equal((await old.read({ include_price_math: false })).isError, undefined);
+});

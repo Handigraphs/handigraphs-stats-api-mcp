@@ -161,7 +161,8 @@ export class StatsApiHttpClient {
       const detail = error instanceof Error && error.name === "TimeoutError"
         ? "The Handigraphs Stats API request timed out."
         : "The Handigraphs Stats API could not be reached.";
-      throw new UpstreamError({ status: 503, code: "upstream_unavailable", detail });
+      throw new UpstreamError({ status: 503, code: error instanceof Error && error.name === "TimeoutError"
+        ? "upstream_timeout" : "upstream_unavailable", detail });
     }
     if (response.status === 304) {
       if (options.method === "GET" && options.etag) return { notModified: true };

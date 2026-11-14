@@ -16,7 +16,7 @@ export const propEvidenceSchema = z.object({
   log_limit: z.number().int().min(1).max(10).optional()
     .describe("Default five. Keep five for slate shortlists; use more only when the user requests extended logs."),
   include_season: z.boolean().optional()
-    .describe("Omit for tonight's shortlist. Set true only when the user requests a season summary."),
+    .describe("Use true to check the exact-line season baseline. It overlaps the recent sample; omit unneeded game_logs to stay compact."),
 }).strict();
 
 // Servers before REST contract 1.22.0 advertise only these sections.
