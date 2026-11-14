@@ -5,7 +5,7 @@ game logs, hit rates and current ingested quotes. See
 [the two-call workflow](docs/player-prop-research.md) for the candidate example,
 bounds, freshness and backend rollout requirements.
 
-Canonical MCP adapter for the Handigraphs Stats API v1, with supported local stdio distributions and a hosted server at `https://mcp.handigraphs.com/mcp`. The 0.3.0 candidate is unreleased; installing the published package does not yet provide these new research features. The authenticated server exposes 19 business tools, including the original three stats tools:
+Canonical MCP adapter for the Handigraphs Stats API v1, with supported local stdio distributions and a hosted server at `https://mcp.handigraphs.com/mcp`. The published local package is 0.3.0; current source, hosted builds and cached client catalogs can expose different capabilities. The current local source exposes 23 business tools, including the original three stats tools:
 
 - `list_resources({ sport? })` discovers sports and resources.
 - `describe_resource({ sport, resource })` discovers metrics, canonical units, splits, and supported filters.
@@ -197,7 +197,7 @@ For team injury flags, call `get_injury_updates({ date: "2026-11-09", league_gam
 
 Each tool requires its own enabled NHL discovery operation and returns one JSON page of up to 3.5 KiB. If a page exceeds the limit, reduce `page_size` or narrow the game or side. Restart injury paging without a cursor if the underlying report changes.
 
-Successful tools return the upstream JSON in `structuredContent.response`, a minified JSON text block, and safe request/quota headers in `structuredContent.metadata`. Upstream problem responses become `isError` tool results. The server does not automatically retry `429` or `503` responses.
+Most successful tools return upstream JSON in `structuredContent.response`, a minified JSON text block, and safe request/quota headers in `structuredContent.metadata`. Bounded Gamecenter compact pages, odds, availability and slate briefs intentionally return one JSON text block only. Parse that block when `structuredContent` is absent. Upstream problem responses become `isError` tool results. The server does not automatically retry `429` or `503` responses.
 
 ## Security behavior
 
@@ -255,3 +255,7 @@ Maintainers should use the GitHub Release workflow described in [docs/releasing.
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
+
+### Compact NHL slate brief (source; activation separate)
+
+`get_slate_brief({sport:"nhl",date:"YYYY-MM-DD"})` reads today's regular-season NHL slate when API discovery enables it. It returns complete game context and up to 12 offered exact-line candidates grouped by market, within 32 KiB for the complete tool result. `candidate_limit` and `markets` narrow it. Five graded observations are required; saves need a fresh confirmed starter. Coverage reports exclusions and whole candidates omitted for count or byte limits. These are statistical candidates, not probabilities or expected value. Use exact evidence selectors for follow-up and Gamecenter for published analysis. The API flag starts disabled; source merge is not activation. Runtime/capability identifiers are in resource discovery; reconnect the same connection if a cached catalog omits advertised sections.

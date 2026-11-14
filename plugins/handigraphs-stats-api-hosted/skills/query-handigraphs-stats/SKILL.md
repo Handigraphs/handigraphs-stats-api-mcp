@@ -53,8 +53,8 @@ and goalie saves follow the same shortlist workflow.
    for the market; send `side=under` for an under so rank 1 means least allowed.
    `opponent_recent` is how the player's position group did against tonight's
    opponent at that line over its last ten games. Add `game_logs` when the user
-   wants the games; all five sections with both sides and season results fit four
-   players. Defaults are over,
+   wants the games; all five sections with both sides and season results were verified for three
+   players; four can exceed the byte cap. Defaults are over,
    recent ten skater games or five goalie starts, and five logs per player.
    Supply an exact user-requested line when present. Otherwise use the site's
    resolved main line. Fixed record markets use their discovered fixed line.
@@ -75,6 +75,19 @@ and goalie saves follow the same shortlist workflow.
    an explicit historical filter test or save request.
 
 ## Shared business workflow
+
+For broad NHL slate requests, inspect `slate_brief` in fresh resource discovery.
+When enabled, call `get_slate_brief` once with an explicit Eastern date and
+sport `nhl`. It supports today and regular season only. Candidates are grouped
+by market and ordered by sample completeness and directional matchup rank, not
+predicted value. Report fewer picks when coverage is insufficient. Game lines
+are context; do not turn a statistical watch into a price-edge claim. Follow
+exact evidence selectors for detail when the corresponding tool is available.
+Keep unknown freshness, missing quotes, mixed books, and starter limitations.
+If unavailable, use the existing composable tools without switching connections.
+`describe_resource.mcp` distinguishes adapter and API capabilities. A client
+whose cached schema omits advertised sections must refresh tools or reconnect
+the same connection; a merged source change does not update its tool catalog.
 
 Use live discovery instead of guessing resource, metric, split, unit, or filter names.
 

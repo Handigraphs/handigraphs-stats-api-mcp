@@ -52,7 +52,7 @@ the resolved line against tonight's opponent over its last ten completed games,
 as `hit_count`, `appearance_count` and `hit_rate` per side. It needs a line and
 returns `line_required` without one. An unranked market or incomplete source is
 `unavailable` with a reason. Add `game_logs` when the user wants the games. All
-five sections with both sides and season results fit four players, not five.
+five sections with both sides and season results were verified for three players; four can exceed the byte cap.
 A server that does not list a section rejects it before any protected request;
 use the three original sections and the screen's matchup rank there.
 
@@ -101,3 +101,5 @@ acceptance/runtime compatibility and native environment approval.
 After deployment, clients refresh their tool catalog through reconnect or a new
 chat. The hosted plugin's revised bundled skill follows its separately approved
 plugin release. Direct URL clients receive the routing hints in tool descriptions.
+
+For broad tonight requests, use the discovery-enabled `get_slate_brief` first. Keep the two-call screen/evidence workflow for custom research. Never pad a top five with unsupported candidates or justify a price as a parlay leg without evidence.

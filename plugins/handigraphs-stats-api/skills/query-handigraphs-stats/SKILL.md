@@ -17,6 +17,19 @@ connection does not rotate or revoke a local key.
 
 ## Shared business workflow
 
+For broad NHL slate requests, inspect `slate_brief` in fresh resource discovery.
+When enabled, call `get_slate_brief` once with an explicit Eastern date and
+sport `nhl`. It supports today and regular season only. Candidates are grouped
+by market and ordered by sample completeness and directional matchup rank, not
+predicted value. Report fewer picks when coverage is insufficient. Game lines
+are context; do not turn a statistical watch into a price-edge claim. Follow
+exact evidence selectors for detail when the corresponding tool is available.
+Keep unknown freshness, missing quotes, mixed books, and starter limitations.
+If unavailable, use the existing composable tools without switching connections.
+`describe_resource.mcp` distinguishes adapter and API capabilities. A client
+whose cached schema omits advertised sections must refresh tools or reconnect
+the same connection; a merged source change does not update its tool catalog.
+
 Use live discovery instead of guessing resource, metric, split, unit, or filter names.
 
 For native saved filters, Angles historical tests, or research-and-save requests,

@@ -42,7 +42,7 @@ comma-separated exact allowlists. Forwarded headers never grant trust.
 Every MCP message exchanges its own opaque MCP token at the configured issuer;
 only the resulting short-lived API token enters a fresh private client. Never
 store or share user tokens, private capabilities or account responses. Only the
-unauthenticated discovery client/cache is shared. Hosted exposes the 22 shared
+unauthenticated discovery client/cache is shared. Hosted exposes the 23 shared
 business tools plus `get_player_prop_evidence` and omits local key setup.
 The NHL evidence read requires compatible enabled API discovery and stats:read.
 The NHL goalie status and injury updates reads use independent discovery gates

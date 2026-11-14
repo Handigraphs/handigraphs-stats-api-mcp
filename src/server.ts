@@ -9,10 +9,11 @@ import { FILTER_OPERATORS, validateAndBuildQuery, type QueryInput } from "./quer
 import { redact, redactCredentialEchoes, safeStderr } from "./redaction.js";
 import { registerApiKeySetupTool, type SetupLauncher } from "./setup.js";
 import { SERVER_VERSION } from "./version.js";
+import { readSlateBrief, slateBriefSchema, SLATE_BRIEF_BYTES, SLATE_BRIEF_DESCRIPTION } from "./slate-brief.js";
 import { AgentReadClient, agentReadTools } from "./agent-read.js";
 import { AgentActionClient, agentActionTools } from "./agent-actions.js";
 import { object } from "./discovery.js";
-import { compactPropScreen, PROP_MARKET_HELP, propEvidenceSchema, readPropEvidence } from "./prop-evidence.js";
+import { compactPropScreen, invocablePropEvidenceSections, PROP_MARKET_HELP, propEvidenceSchema, readPropEvidence } from "./prop-evidence.js";
 import { GAMECENTER_PAGE_BYTES } from "./gamecenter-compact.js";
 import { GAME_ODDS_DESCRIPTION, GAME_ODDS_PAGE_BYTES, GAME_ODDS_PAGE_HELP, gameOddsSchema, readGameOdds } from "./game-odds.js";
 import { NHL_AVAILABILITY_PAGE_BYTES, nhlAvailabilityTools, readNhlAvailability } from "./nhl-availability.js";
@@ -63,6 +64,11 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   const secrets = Object.freeze([config.apiKey, ...(dependencies.redactionSecrets ?? [])]);
   const agent = new AgentReadClient(http, discovery, secrets);
   const actions = new AgentActionClient(http, discovery);
+  const revision = process.env.SOURCE_VERSION;
+  const runtime = { adapter_version: SERVER_VERSION, tool_catalog_revision: "slate-brief-v1",
+    build_sha: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null,
+    prop_evidence_tool: dependencies.enablePropEvidence === true, slate_brief_tool: true,
+    catalog_refresh: "If discovery advertises sections missing from your tool schema, refresh tools or reconnect this same connection." };
   const server = new McpServer({ name: "handigraphs-stats-api", version: SERVER_VERSION },
     dependencies.maxToolInputElements === undefined ? {} : { maxToolInputElements: dependencies.maxToolInputElements });
 
@@ -73,7 +79,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, ({ sport }) => handler(secrets, async () => {
     if (sport) {
-      try { return success({ sport, resources: await discovery.resources(sport) }); }
+      try { return success({ sport, resources: await discovery.resources(sport), mcp: runtime }); }
       catch (error) {
         if (!(error instanceof ToolInputError)) throw error;
         return success({ sport, resources: await discovery.resources(sport, true) });
@@ -81,7 +87,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     }
     const sports = await discovery.sports();
     const resources = await Promise.all(sports.map(async (id) => ({ sport: id, resources: await discovery.resources(id) })));
-    return success({ sports: resources });
+    return success({ sports: resources, mcp: runtime });
   }));
 
   server.registerTool("describe_resource", {
@@ -100,6 +106,14 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     if (dependencies.enablePropEvidence && sport === "nhl") {
       const evidence = object((await discovery.get("nhl")).prop_evidence);
       if (evidence.contract_version === 1) description.prop_evidence = evidence;
+    }
+    description.mcp = { ...runtime, api_contract_version: (await discovery.get("")).contract_version ?? null };
+    if (sport === "nhl") {
+      const api = await discovery.get(sport);
+      description.slate_brief = api.slate_brief ?? { enabled: false };
+      description.mcp = { ...object(description.mcp), api_prop_evidence_sections: object(api.prop_evidence).sections ?? [],
+        invocable_prop_evidence_sections: dependencies.enablePropEvidence
+          ? invocablePropEvidenceSections(object(api.prop_evidence)) : [] };
     }
     return success(description);
   }));
@@ -195,6 +209,19 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
       return success(safeResponse, safeMetadata);
     }));
   }
+
+  server.registerTool("get_slate_brief", {
+    description: SLATE_BRIEF_DESCRIPTION,
+    inputSchema: slateBriefSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  }, input => handler(secrets, async () => {
+    const payload = redactCredentialEchoes(await readSlateBrief(http, discovery, input), secrets);
+    const result = { content: [{ type: "text" as const, text: JSON.stringify(payload) }] };
+    if (Buffer.byteLength(JSON.stringify(result), "utf8") > SLATE_BRIEF_BYTES) {
+      throw new UpstreamError({ status: 413, code: "slate_brief_too_large", detail: "Request fewer candidates or markets. No content was truncated." });
+    }
+    return result;
+  }));
 
   server.registerTool("get_game_odds", {
     description: GAME_ODDS_DESCRIPTION,
