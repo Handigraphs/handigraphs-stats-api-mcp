@@ -15,10 +15,12 @@ observed and passed on app `3dd38c34` / MCP `a2909a6e` (validated record sha256
 only by a stray gitlink on app main, removed in `b38cc79e` with no runtime change.
 The owner (cjbuskey) chose a recorded sign-off over another campaign. That record
 is preserved verbatim in [the historical acceptance](owner-acceptance-2026-10-24.json).
-The current proposal covers the November 14 sandbox verification for
-[NHL prop packet sections](nhl-prop-packet-acceptance.md),
-spanning Stats API contract `1.22.0` and hosted MCP `450f6da41868e5d610c0b599b9f3d31dede01749`.
-It requires the owner's explicit merge approval.
+The current record covers the owner's November 14 authorization and completed
+[NHL slate/browser OAuth acceptance](slate-brief-acceptance.md), spanning app
+`eadd76610a683390a356ed82f7ebe829dbbb9e92` (contract `1.23.0`) and hosted MCP
+`d3ea0c45619c3e1e5e229d076284789caf16d5c1`. The earlier
+[NHL prop packet sections](nhl-prop-packet-acceptance.md) acceptance is preserved
+in its dated historical record. Native production environment approval remains required.
 See [NHL goalie status and injury updates](nhl-lineup-availability-acceptance.md),
 [NHL game odds](nhl-game-odds-acceptance.md),
 [compact Gamecenter pagination](compact-pagination-acceptance.md),
@@ -43,8 +45,10 @@ approval issue, sandbox releases or app main. They require all of:
    fails closed and needs a new owner decision.
 4. The native GitHub `production` environment approval, rechecked after the wait.
 
-The proposed runtime is the exact MCP commit verified against live sandbox for
-`nhl-prop-packet-sections` (`get_player_prop_evidence`). The `clients` map carries historical versions.
+The accepted runtime is the exact MCP commit verified against live sandbox for
+`slate-brief-v1`, expanded evidence and browser OAuth. The `clients` map carries
+historical native versions; the incremental test used the actual official SDK
+and Chromium browser, without claiming a native product-client or load campaign.
 The `summary` identifies the sandbox verification scope and results.
 Runtime OAuth activation remains a separate operation.
 The private PR-09 interface below is retained for reference and future releases.
