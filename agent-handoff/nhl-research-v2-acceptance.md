@@ -22,3 +22,14 @@ Private reports remain local under the workspace's separate research-v2 evidence
 directory; credentials never written. Only safe aggregate summaries may be
 checkpointed. Remaining: diagnose cohort, native original-prompt benchmark and
 advertised sections/selector checks, then fresh owner/production gates.
+
+Follow-up checkpoint: diagnostics retain only safe client observations and named
+assertion stages; an empty qualified slate uses a separate real-player screen to
+test evidence invocability. These operator-only files do not change runtime.
+Gateway result metrics independently showed first tool durations 5632–7226 ms,
+above target; no logical tool errors were observed. App #885 shares canonical
+game certification, and #886 coalesces offer grouping while rechecking quote age
+on every request. Final app candidate is now
+`5d3d0e0797a1b24a5fba90065d8ef251d7ca292d`; its sandbox deployment is pending.
+Rerun with deployed MCP runtime `4c00b72ba6f9799cd6000e2ee19826a8b8a6bebe`.
+Historical owner acceptance remains unchanged. No production or publication.
