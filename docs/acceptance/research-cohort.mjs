@@ -4,7 +4,7 @@ import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const children = [], ready = new Set();
-let readyTimer;
+let readyTimer, stage = 'input', observations = [], measurements = {};
 function percentile(values, p) { return [...values].sort((a,b) => a-b)[Math.ceil(values.length*p)-1]; }
 async function main() {
   const chunks = [];
@@ -13,6 +13,7 @@ async function main() {
   assert.equal(input.confirm, 'ACCEPT_NHL_RESEARCH_COHORT_SANDBOX');
   assert.ok(Array.isArray(input.owners) && input.owners.length === 5);
   assert.equal(new Set(input.owners.map(owner => owner.marker)).size, 5);
+  stage = 'authorization_barrier';
   let startAll, rejectAll;
   const barrier = new Promise((resolve, reject) => { startAll = resolve; rejectAll = reject; });
   readyTimer = setTimeout(() => rejectAll(new Error('cohort_not_ready')), 120000);
@@ -50,17 +51,24 @@ async function main() {
   const completed = Promise.all(runs);
   completed.catch(() => {});
   await barrier;
+  stage = 'cohort_clients';
   for (const child of children) child.send({ event: 'go' });
-  const results = await completed;
-  assert.ok(results.every(result => result.passed));
+  const results = observations = await completed;
   const cold = results.flatMap(result => result.results.filter(item => item.name === 'cohort_cold'));
   const warm = results.flatMap(result => result.results.filter(item => item.name === 'cohort_warm'));
+  measurements = { cold_calls: cold.length, warm_calls: warm.length,
+    cold_ms: cold.map(item => item.latency_ms), warm_ms: warm.map(item => item.latency_ms) };
+  assert.ok(results.every(result => result.passed));
+  stage = 'sample_counts';
   assert.equal(cold.length, 5); assert.equal(warm.length, 15);
+  stage = 'cold_cache_evidence';
   assert.ok(cold.some(item => item.cache['brief-v2-context'] === 'miss'));
   assert.ok(cold.some(item => item.cache['brief-v2-history_skater'] === 'miss'));
+  stage = 'payload_bounds';
   assert.ok([...cold, ...warm].every(item => item.bytes <= 32768));
   const coldP95 = percentile(cold.map(item => item.latency_ms), .95);
   const warmP95 = percentile(warm.map(item => item.latency_ms), .95);
+  stage = 'latency_bounds';
   assert.ok(coldP95 < 6000 && warmP95 < 2000);
   return { passed: true, owners: 5, cold_calls: 5, warm_calls: 15, cold_p95_ms: coldP95,
     warm_p95_ms: warmP95, max_bytes: Math.max(...cold.map(item => item.bytes), ...warm.map(item => item.bytes)),
@@ -68,7 +76,8 @@ async function main() {
 }
 let output;
 try { output = await main(); }
-catch (error) { output = { passed: false, failure_class: error.constructor.name, ready_owners: ready.size }; process.exitCode = 1; }
+catch (error) { output = { passed: false, stage, failure_class: error.constructor.name,
+  ready_owners: ready.size, measurements, clients: observations }; process.exitCode = 1; }
 finally {
   clearTimeout(readyTimer);
   await Promise.all(children.filter(child => child.exitCode === null).map(child => new Promise(resolve => {

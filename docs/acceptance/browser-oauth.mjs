@@ -189,10 +189,19 @@ async function main() {
   stage = 'evidence_sections';
   const shots = slate.groups.find(group => group.market === 'skater_shots_on_goal');
   const candidate = shots?.candidates[0] ?? slate.groups.find(group => group.candidates.length)?.candidates[0];
-  // An empty qualified slate is valid. Select a real offered player via a custom
-  // screen in sparse-data acceptance; never invent a default candidate.
-  check(candidate || input.evidence_selector);
-  const selector = candidate?.evidence ?? input.evidence_selector;
+  // An empty qualified slate is valid. A separate real-player screen can test
+  // section invocability without manufacturing a candidate, line or usable quote.
+  let selector = candidate?.evidence ?? input.evidence_selector;
+  if (!selector) {
+    const screen = unpack(await client.callTool({ name: 'query_stats', arguments: {
+      sport: 'nhl', resource: 'skaters', day: 'today', split: 'L10',
+      metrics: ['sog_per_game', 'icf_per_game', 'games_played'], sort: '-sog_per_game',
+      page_size: 12, prop_screen: true, stat_format: 'compact', matchup_market: 'shots', matchup_window: 'sea' } }));
+    const id = screen.data?.[0]?.entity?.id;
+    check(typeof id === 'string' && /^[1-9][0-9]*$/.test(id));
+    selector = { market: 'skater_shots_on_goal', player_ids: [id] };
+    report('empty_qualified_slate_screen_fallback', { candidate_count: 0 });
+  }
   const evidenceResult = await client.callTool({ name: 'get_player_prop_evidence', arguments: {
     ...selector, include_season: true, sections: ['hit_rates', 'game_logs', 'odds', 'matchup', 'opponent_recent'] } });
   const evidence = unpack(evidenceResult);
@@ -232,10 +241,21 @@ async function main() {
   }
   report('refresh_rotation', { generations: 2, fresh_connections: 2 });
   const frozenAccess = tokens.access_token;
-  stage = 'browser_revocation';
+  // Retain status classes only, never request/response bodies or grant identifiers.
+  page.on('response', response => {
+    const url = new URL(response.url());
+    if (url.origin !== ISSUER) return;
+    const kind = url.pathname === '/api/account/oauth/connections' ? 'account_connections'
+      : /^\/api\/account\/oauth\/connections\/[^/]+\/revoke$/.test(url.pathname) ? 'account_revoke' : null;
+    if (kind) statuses.push({ kind, status: response.status() });
+  });
+  stage = 'browser_revocation_account_page';
   await page.goto(ISSUER + '/account/api', { waitUntil: 'domcontentloaded' });
+  stage = 'browser_revocation_connection_button';
   await page.getByRole('button', { name: `Revoke connection to ${clientName}`, exact: true }).click();
+  stage = 'browser_revocation_confirmation';
   await page.getByRole('button', { name: 'Revoke app', exact: true }).click();
+  stage = 'browser_revocation_success_notice';
   await page.getByText('Connection revoked.', { exact: false }).waitFor();
   stage = 'completed_revocation_denial';
   const deniedStatuses = [];
