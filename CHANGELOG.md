@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add discovery-gated NHL `get_slate_brief` on both transports, with one protected read, exact-line grouped evidence and a 32 KiB complete-result limit.
+- Expose safe adapter/build/catalog and effective API section diagnostics; validate section names against compatible live discovery.
+- Clarify text-only compact results, partial coverage and batch-size guidance. No activation or publication is implied.
+
 ## Unreleased — 0.3.0 candidate
 
 - Let `get_player_prop_evidence` request the `matchup` and `opponent_recent` sections

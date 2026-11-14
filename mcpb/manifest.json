@@ -118,6 +118,10 @@
     {
       "name": "cancel_filter_research",
       "description": "Request idempotent cancellation of an owned API research job when the user asks to stop it or an agreed research stop condition applies. Return the actual state; cancel_requested is not cancelled. Does not delete completed results or refund an attempt. Requires research:run."
+    },
+    {
+      "name": "get_slate_brief",
+      "description": "Start broad tonight NHL research here when enabled by live discovery. One bounded read returns the complete game list, game odds as context, starter observations and up to 12 offered exact-line statistical candidates grouped by market. Use an explicit Eastern date; today and regular season only. Five graded observations required; saves require a fresh confirmed starter. Samples and matchup ranks order candidates, not predicted value. Return fewer picks when coverage is insufficient. Follow exact evidence selectors for detail. No generation, saves, research jobs or bets."
     }
   ],
   "keywords": [

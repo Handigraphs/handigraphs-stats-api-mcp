@@ -147,7 +147,7 @@ assert.equal(bundleManifest.user_config?.api_key?.sensitive, true);
 assert.equal(bundleManifest.server?.entry_point, "dist/index.js");
 assert.equal(bundleManifest.server?.mcp_config?.env?.HANDIGRAPHS_API_KEY, "${user_config.api_key}");
 assert.deepEqual(bundleManifest.tools.map(({ name }) => name).sort(),
-  ["describe_resource", "list_resources", "query_stats", "get_game_odds",
+  ["describe_resource", "list_resources", "query_stats", "get_game_odds", "get_slate_brief",
     ...[...agentReadTools, ...agentActionTools, ...nhlAvailabilityTools].map(tool => tool.name)].sort());
 assert.equal(bundleManifest.tools.find(item => item.name === "get_game_odds")?.description, GAME_ODDS_DESCRIPTION);
 for (const tool of [...agentReadTools, ...agentActionTools, ...nhlAvailabilityTools]) {

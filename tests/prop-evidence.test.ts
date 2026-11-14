@@ -223,10 +223,10 @@ for (const mode of ["three_sections", "legacy_sections"]) {
   });
 }
 
-test("section bounds reject duplicates, unknown names and a sixth entry without a request", async (t) => {
+test("section bounds reject invalid selectors without a protected request", async (t) => {
   const { api, client } = await fixture(t);
   for (const sections of [["matchup", "matchup"], ["opponents"], [...packet.sections, "odds"]]) {
     assert.equal((await client.callTool({ name: "get_player_prop_evidence", arguments: { ...packet, sections } })).isError, true);
   }
-  assert.equal(api.requests.length, 0);
+  assert.equal(api.requests.filter(item => item.authorization).length, 0);
 });

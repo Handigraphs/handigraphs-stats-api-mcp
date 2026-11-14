@@ -11,7 +11,7 @@ export const propEvidenceSchema = z.object({
     .refine((ids) => new Set(ids).size === ids.length, "Player IDs must be unique."),
   line: z.number().finite().min(0).max(1000).optional(),
   side: z.enum(["over", "under", "both"]).optional(),
-  sections: z.array(z.enum(["hit_rates", "game_logs", "odds", "matchup", "opponent_recent"])).min(1).max(5)
+  sections: z.array(z.string().regex(/^[a-z_]{1,40}$/).describe("Use sections from live prop_evidence discovery; refresh/reconnect if a cached client schema still restricts sections.")).min(1).max(5)
     .refine((items) => new Set(items).size === items.length, "Sections must be unique.").optional(),
   log_limit: z.number().int().min(1).max(10).optional()
     .describe("Default five. Keep five for slate shortlists; use more only when the user requests extended logs."),
@@ -21,6 +21,18 @@ export const propEvidenceSchema = z.object({
 
 // Servers before REST contract 1.22.0 advertise only these sections.
 const LEGACY_SECTIONS = ["hit_rates", "game_logs", "odds"];
+
+export function compatiblePropEvidence(descriptor: Record<string, unknown>): boolean {
+  return descriptor.contract_version === 1 && descriptor.method === "POST"
+    && descriptor.path === "/api/v1/nhl/prop-evidence" && descriptor.enabled === true;
+}
+
+export function invocablePropEvidenceSections(descriptor: Record<string, unknown>): string[] {
+  if (!compatiblePropEvidence(descriptor)) return [];
+  const advertised = Array.isArray(descriptor.sections) ? descriptor.sections : LEGACY_SECTIONS;
+  return [...new Set(advertised.filter((key): key is string =>
+    typeof key === "string" && /^[a-z_]{1,40}$/.test(key)))];
+}
 
 export function compactPropScreen(response: Record<string, unknown>): Record<string, unknown> {
   const rows = Array.isArray(response.data) ? response.data : [];
@@ -49,8 +61,7 @@ export function compactPropScreen(response: Record<string, unknown>): Record<str
 export async function readPropEvidence(http: StatsApiHttpClient, discovery: DiscoveryClient, input: unknown): Promise<JsonResponse> {
   const args = propEvidenceSchema.parse(input);
   const descriptor = object((await discovery.get("nhl")).prop_evidence);
-  if (descriptor.contract_version !== 1 || descriptor.method !== "POST"
-      || descriptor.path !== "/api/v1/nhl/prop-evidence" || descriptor.enabled !== true) {
+  if (!compatiblePropEvidence(descriptor)) {
     throw new UpstreamError({ status: 503, code: "prop_evidence_unavailable",
       detail: "This API server does not advertise enabled NHL prop evidence. Keep available stats and report the missing capability." });
   }
@@ -62,7 +73,7 @@ export async function readPropEvidence(http: StatsApiHttpClient, discovery: Disc
     const choices = keys.length ? " Advertised market keys: " + keys.join(", ") + "." : "";
     throw new ToolInputError("Unknown NHL prop market. " + PROP_MARKET_HELP + choices);
   }
-  const advertised = Array.isArray(descriptor.sections) ? descriptor.sections : LEGACY_SECTIONS;
+  const advertised = invocablePropEvidenceSections(descriptor);
   const missing = (args.sections ?? []).filter((section) => !advertised.includes(section));
   if (missing.length) {
     throw new ToolInputError("This API server does not offer the " + missing.join(" and ") + " section"
