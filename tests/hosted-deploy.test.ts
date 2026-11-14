@@ -428,16 +428,16 @@ test('workflow boundaries retain pinned source, default-off sandbox, production 
 test('committed owner acceptance names exactly the accepted pair, record and client versions', async () => {
   const value = parseOwnerAcceptance((await readFile(OWNER_ACCEPTANCE_FILE, 'utf8')).replace(/\r\n/g, '\n'));
   assert.equal(value.owner, 'cjbuskey');
-  assert.equal(value.tested_app_sha, 'c579d5819dc16b54c079fa18d52a1e616efd69fc');
+  assert.equal(value.tested_app_sha, '9fdaa673c62bd97e1d53c9f9be7c480f83b27895');
   assert.equal(value.accepted_app_sha, value.tested_app_sha);
-  assert.equal(value.tested_mcp_sha, '01fd77a9fd79bcc481287e9bf88b90070a080560');
+  assert.equal(value.tested_mcp_sha, '450f6da41868e5d610c0b599b9f3d31dede01749');
   assert.equal(value.accepted_mcp_sha, value.tested_mcp_sha);
-  assert.equal(value.decided_on, '2026-11-09');
-  assert.equal(value.record_sha256, '2bfaf4bede5b6cd404ffbfe418dfaed7a1ddf8df9a537109cbcd293a5e42f3eb');
+  assert.equal(value.decided_on, '2026-11-14');
+  assert.equal(value.record_sha256, 'ab7594a279e2d49f4a7872d36382be8d4c043ddaba2cddb42af6a19a55a7340f');
   assert.deepEqual(value.clients, { codex_desktop: '26.1016.61520', codex_cli: '0.146.0', claude_code: '2.1.283' });
-  assert.match(value.summary, /Hosted Claude in Chrome used the sandbox OAuth connector to verify NHL goalie status and injury updates/);
-  assert.match(value.summary, /All seven expanded pages displayed without truncation/);
-  assert.match(value.summary, /The client fields retain historical versions/);
+  assert.match(value.summary, /Verified nhl-prop-packet-sections \(MCP 450f6da4, hosted-sandbox v14 ready\/live\/401\) with live handigraphs-sandbox-web \(9fdaa673, contract 1\.22\.0\)/);
+  assert.match(value.summary, /matchup matched PostgreSQL attach_matchups/);
+  assert.match(value.summary, /Client fields retain historical versions/);
   const prior = parseOwnerAcceptance((await readFile('docs/owner-acceptance-2026-10-24.json', 'utf8')).replace(/\r\n/g, '\n'));
   assert.equal(prior.tested_app_sha, '3dd38c3405d22d694d92e9bd076a8d4dfea87990');
   assert.equal(prior.accepted_app_sha, 'b38cc79ebd71625ba93fe7f3e1fef20342a47c54');
