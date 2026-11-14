@@ -15,11 +15,12 @@ observed and passed on app `3dd38c34` / MCP `a2909a6e` (validated record sha256
 only by a stray gitlink on app main, removed in `b38cc79e` with no runtime change.
 The owner (cjbuskey) chose a recorded sign-off over another campaign. That record
 is preserved verbatim in [the historical acceptance](owner-acceptance-2026-10-24.json).
-The current proposal covers the November 9 hosted Claude sandbox replay for
-[NHL goalie status and injury updates](nhl-lineup-availability-acceptance.md),
-including the Cloud Run scraper, Stats API, and hosted MCP rollout order.
+The current proposal covers the November 14 sandbox verification for
+[NHL prop packet sections](nhl-prop-packet-acceptance.md),
+spanning Stats API contract `1.22.0` and hosted MCP `450f6da41868e5d610c0b599b9f3d31dede01749`.
 It requires the owner's explicit merge approval.
-See [NHL game odds](nhl-game-odds-acceptance.md),
+See [NHL goalie status and injury updates](nhl-lineup-availability-acceptance.md),
+[NHL game odds](nhl-game-odds-acceptance.md),
 [compact Gamecenter pagination](compact-pagination-acceptance.md),
 [the November 8 recovery replay](mcp-recovery-acceptance.md), and
 [the earlier NHL research acceptance](nhl-prop-production-readiness.md)
@@ -42,9 +43,9 @@ approval issue, sandbox releases or app main. They require all of:
    fails closed and needs a new owner decision.
 4. The native GitHub `production` environment approval, rechecked after the wait.
 
-The proposed runtime is the exact MCP commit tested in hosted Claude for
-both availability tools. The `clients` map carries historical versions.
-The `summary` identifies the current Claude browser test and its scope.
+The proposed runtime is the exact MCP commit verified against live sandbox for
+`nhl-prop-packet-sections` (`get_player_prop_evidence`). The `clients` map carries historical versions.
+The `summary` identifies the sandbox verification scope and results.
 Runtime OAuth activation remains a separate operation.
 The private PR-09 interface below is retained for reference and future releases.
 
