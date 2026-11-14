@@ -168,7 +168,9 @@ async function main() {
   }
   const descriptor = unpack(await client.callTool({ name: 'describe_resource', arguments: { sport: 'nhl', resource: 'skaters' } }));
   check(descriptor.prop_evidence.sections.includes('matchup') && descriptor.prop_evidence.sections.includes('opponent_recent'));
-  check(descriptor.mcp.tool_catalog_revision === 'nhl-research-v2' && descriptor.mcp.api_contract_version === '1.24.0');
+  const expectedContract = process.env.HANDIGRAPHS_EXPECTED_API_CONTRACT ?? '1.24.0';
+  check(/^\d+\.\d+\.\d+$/.test(expectedContract));
+  check(descriptor.mcp.tool_catalog_revision === 'nhl-research-v2' && descriptor.mcp.api_contract_version === expectedContract);
   check(descriptor.slate_brief.formats.includes('compact_v2'));
   check(descriptor.mcp.prop_evidence_tool && descriptor.mcp.slate_brief_tool);
   check(descriptor.mcp.invocable_prop_evidence_sections.length === 5);
