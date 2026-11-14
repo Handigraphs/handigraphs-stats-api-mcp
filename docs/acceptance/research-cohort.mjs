@@ -54,11 +54,11 @@ async function main() {
   stage = 'cohort_clients';
   for (const child of children) child.send({ event: 'go' });
   const results = observations = await completed;
-  assert.ok(results.every(result => result.passed));
   const cold = results.flatMap(result => result.results.filter(item => item.name === 'cohort_cold'));
   const warm = results.flatMap(result => result.results.filter(item => item.name === 'cohort_warm'));
   measurements = { cold_calls: cold.length, warm_calls: warm.length,
     cold_ms: cold.map(item => item.latency_ms), warm_ms: warm.map(item => item.latency_ms) };
+  assert.ok(results.every(result => result.passed));
   stage = 'sample_counts';
   assert.equal(cold.length, 5); assert.equal(warm.length, 15);
   stage = 'cold_cache_evidence';

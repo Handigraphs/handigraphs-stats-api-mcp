@@ -33,3 +33,22 @@ on every request. Final app candidate is now
 `5d3d0e0797a1b24a5fba90065d8ef251d7ca292d`; its sandbox deployment is pending.
 Rerun with deployed MCP runtime `4c00b72ba6f9799cd6000e2ee19826a8b8a6bebe`.
 Historical owner acceptance remains unchanged. No production or publication.
+
+Attempt 02 on app `5d3d0e0` / gateway `4c00b72`: five fresh owner digests,
+cold p95 4042 ms, warm p95 2106 ms, max complete result 31452 bytes, no unexpected
+429/503; all evidence sections and two refresh rotations passed for every owner.
+Two browser revocation checks timed out, three completed UI revoke -> gateway401
+and invalid_grant. Overall failed; exact cleanup and flag restoration succeeded.
+Added status-only account/revoke diagnostics and separate UI stages. Coordinator
+retains safe latency observations even when a later client check fails.
+
+Actual Claude.ai with the refreshed sandbox catalog reproduced a five-player,
+all-sections 413 and recovered using fewer sections/players. Its evidence tool
+description still told it to omit season history. Correct that description to
+request same-line season context for priced recommendations, and explain the
+8 KiB budget and focused follow-ups. This changes runtime metadata: final
+acceptance must name the newly deployed gateway SHA, never relabel `4c00b72`.
+Full adapter profile passed (209 tests, two platform skips), production dependency
+audit zero vulnerabilities, typecheck/build/pack/distributions/MCPB checks passed.
+Initial test failures were two expected old-description assertions, updated to
+the corrected guidance. New PR/merge approval and sandbox deployment pending.

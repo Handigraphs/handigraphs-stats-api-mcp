@@ -241,10 +241,21 @@ async function main() {
   }
   report('refresh_rotation', { generations: 2, fresh_connections: 2 });
   const frozenAccess = tokens.access_token;
-  stage = 'browser_revocation';
+  // Retain status classes only, never request/response bodies or grant identifiers.
+  page.on('response', response => {
+    const url = new URL(response.url());
+    if (url.origin !== ISSUER) return;
+    const kind = url.pathname === '/api/account/oauth/connections' ? 'account_connections'
+      : /^\/api\/account\/oauth\/connections\/[^/]+\/revoke$/.test(url.pathname) ? 'account_revoke' : null;
+    if (kind) statuses.push({ kind, status: response.status() });
+  });
+  stage = 'browser_revocation_account_page';
   await page.goto(ISSUER + '/account/api', { waitUntil: 'domcontentloaded' });
+  stage = 'browser_revocation_connection_button';
   await page.getByRole('button', { name: `Revoke connection to ${clientName}`, exact: true }).click();
+  stage = 'browser_revocation_confirmation';
   await page.getByRole('button', { name: 'Revoke app', exact: true }).click();
+  stage = 'browser_revocation_success_notice';
   await page.getByText('Connection revoked.', { exact: false }).waitFor();
   stage = 'completed_revocation_denial';
   const deniedStatuses = [];

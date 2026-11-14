@@ -176,7 +176,9 @@ test("twelve-player screen and five-player logs/rates/quotes fit the complete co
   assert.match(tool.description!, /Saves: goalies season/);
   assert.match(tool.description!, /L60\/L120 are minute windows/);
   const evidenceTool = (await client.listTools()).tools.find(item => item.name === "get_player_prop_evidence")!;
-  assert.match(evidenceTool.description!, /keep five log rows and omit include_season unless the user requests/);
+  assert.match(evidenceTool.description!, /include_season=true for the same exact line/);
+  assert.match(evidenceTool.description!, /five players may exceed the 8 KiB response budget/);
+  assert.doesNotMatch(evidenceTool.description!, /omit include_season/);
   const screen = await client.callTool({ name: "query_stats", arguments: { sport: "nhl", resource: "skaters", split: "L10",
     metrics: ["sog_per_game", "icf_per_game", "games_played"], sort: "-sog_per_game", day: "today",
     page_size: 12, matchup_market: "shots", matchup_window: "sea", prop_screen: true } });
@@ -200,7 +202,7 @@ const packet = { market: "skater_shots_on_goal", player_ids: ["8478460"], side: 
 test("one evidence call forwards the matchup and opponent-recent sections the server advertises", async (t) => {
   const { api, client } = await fixture(t);
   const tool = (await client.listTools()).tools.find(item => item.name === "get_player_prop_evidence")!;
-  assert.match(tool.description!, /matchup \(season opponent rank; side=under gives the under rank\)/);
+  assert.match(tool.description!, /season opponent rank \(side=under gives the under rank\)/);
   assert.match(tool.description!, /opponent_recent/);
   assert.ok(Buffer.byteLength(JSON.stringify(tool), "utf8") <= 2500);
   const result = await client.callTool({ name: "get_player_prop_evidence", arguments: packet });
