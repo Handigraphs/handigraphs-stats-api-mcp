@@ -34,3 +34,13 @@ automatic interactive recovery can turn a revoked credential into a passing read
 This is bounded functional acceptance, not a new multi-client load campaign or
 publication. Record the actual source pair and cleanup result; retain historical
 native-client versions only when they are clearly labeled historical.
+
+For the separately authorized research-v2 five-owner acceptance,
+`research-cohort.mjs` coordinates exactly five fresh browser/SDK clients at an IPC
+barrier before the first protected slate call. Each measures one first call and
+three warm calls, then verifies the catalog, evidence, refresh and revocation.
+The app's `accept_research_cohort_sandbox.py` owns finite fixture creation and
+marker-bound recovery. Secrets use private stdin/IPC only. Cache evidence must
+show actual context and skater-history misses; a warm run cannot be labeled cold.
+The p95 thresholds are <6s cold and <2s warm, complete results <=32 KiB. This
+harness still establishes no native Claude.ai catalog or conversation acceptance.

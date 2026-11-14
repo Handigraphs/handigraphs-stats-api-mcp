@@ -78,12 +78,33 @@ and goalie saves follow the same shortlist workflow.
 
 For broad NHL slate requests, inspect `slate_brief` in fresh resource discovery.
 When enabled, call `get_slate_brief` once with an explicit Eastern date and
-sport `nhl`. It supports today and regular season only. Candidates are grouped
-by market and ordered by sample completeness and directional matchup rank, not
-predicted value. Report fewer picks when coverage is insufficient. Game lines
+sport `nhl`. It supports today and regular season only. The adapter negotiates
+advertised compact_v2. V2 keeps odds -250 through +300, at least 8/10 graded
+skater games or five goalie starts, recent observed rate at least break-even
+plus 10 percentage points and an overlapping season baseline at least break-even
+(ten skater games/five starts). It selects one side and at most one item/player.
+These are descriptive research gates, never win probabilities or EV. Do not
+loosen price bounds automatically to fill a list. Legacy servers keep their
+sample/matchup ordering. Report fewer picks when coverage is insufficient. Game lines
 are context; do not turn a statistical watch into a price-edge claim. Follow
 exact evidence selectors for detail when the corresponding tool is available.
 Keep unknown freshness, missing quotes, mixed books, and starter limitations.
+Read named injury alerts before discussing sides. Date-only get_injury_updates
+returns slate flags with bounded whole-record paging; follow next_cursor instead
+of calling every game. Stale or incomplete team reports never establish clearance.
+For custom saves use goalies, day=today, split=season, prop_screen=true,
+page_size=12, metrics saves_per_game/games_started/save_pct/gsax_per_60 and
+matchup_market=saves, matchup_window=sea. Follow with goalie_saves evidence;
+its recent sample is five starts. L60/L120 are minute windows, not recent starts.
+Use describe_resource detail=compact (default) for definitions and units;
+detail=full includes benchmark diagnostics. Compact tools intentionally use a
+single text block; absence of duplicate structuredContent is not a data failure.
+Gamecenter format=compact accepts omitted sections or sections=[analysis].
+Request cited evidence separately; preserve partial/unavailable market reviews.
+opponent_recent describes a broad position cohort including low-volume players;
+it is optional background, not a similar-player forecast or selection score.
+get_game_odds include_price_math=true adds break-even and normalized same-book
+paired prices when advertised. Stored started-game prices stay historical context.
 If unavailable, use the existing composable tools without switching connections.
 `describe_resource.mcp` distinguishes adapter and API capabilities. A client
 whose cached schema omits advertised sections must refresh tools or reconnect

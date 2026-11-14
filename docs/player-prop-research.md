@@ -8,8 +8,13 @@ and bounds. For shots on goal the key is `skater_shots_on_goal`. The tool uses
 `stats:read` with current
 account eligibility, Terms and shared quotas.
 
-For “who are the best shots on goal candidates tonight”, discover skater metrics
-once, then screen recent volume and season opponent ranks.
+For broad tonight research, start with the advertised slate brief. It negotiates
+compact_v2, applying the versioned recent/season price gates and preserving named
+injury risks. Read its injury `report_columns` and report references; use date-only
+get_injury_updates for complete flags and bounded paging. Unknown importance,
+stale coverage and omitted flags require review. Qualified candidates are research,
+not probabilities or EV. For a custom shots screen, discover compact skater
+definitions once, then compare recent volume and season opponent ranks.
 
 ```json
 {
@@ -47,7 +52,10 @@ the same call. `matchup` gives the opponent's season rank for the market among
 32 teams, with the shared basis once in `matchup_basis`. Rank 1 allows the most
 for an over. Send `side: "under"` and the rank and tier read for the under, where
 rank 1 allows the least; `side: "both"` adds `under_rank` and `under_tier`.
-`opponent_recent` reports how often players in the same position group cleared
+`opponent_recent` is optional broad position-cohort background, including low-volume
+players; it is not a similar-player forecast and does not rank the brief. It
+reports unique_players and the player_appearances sample unit alongside how often
+players in the same position group cleared
 the resolved line against tonight's opponent over its last ten completed games,
 as `hit_count`, `appearance_count` and `hit_rate` per side. It needs a line and
 returns `line_required` without one. An unranked market or incomplete source is
@@ -76,7 +84,7 @@ players support logs and explicit-line hit rates. `line_required` requests a lin
 before calculating an unpriced totals hit rate.
 
 For stored Gamecenter prop research, call `list_gamecenter_games` for the Eastern
-date, then call `get_gamecenter_packet` with the returned game ID and `compact: true`.
+date, then call `get_gamecenter_packet` with the returned game ID and `format: "compact"`.
 Read `analysis.props` and `analysis.market_reviews` when available. Resolve each
 item's zero-based `citation_indices` against the packet's `citation_ids`, then
 request just the IDs you need with `sections: ["evidence"]` and `evidence_ids`.
@@ -103,3 +111,18 @@ chat. The hosted plugin's revised bundled skill follows its separately approved
 plugin release. Direct URL clients receive the routing hints in tool descriptions.
 
 For broad tonight requests, use the discovery-enabled `get_slate_brief` first. Keep the two-call screen/evidence workflow for custom research. Never pad a top five with unsupported candidates or justify a price as a parlay leg without evidence.
+
+For custom goalie saves, use the existing prop_screen on goalies, day=today,
+split=season, metrics saves_per_game/games_started/save_pct/gsax_per_60 and
+matchup_market=saves, matchup_window=sea. Follow with goalie_saves evidence, whose
+recent sample uses five starts. L60/L120 are minute windows, not recent starts.
+Skater matchup discovery also supports assists, points, pp_points and blocks when
+advertised. Unknown or incomplete league samples remain unranked.
+
+The v2 brief defaults to -250 through +300; at least 8/10 graded skater games or
+five goalie starts; recent observed rate at least price break-even +10pp and
+overlapping season rate at least break-even (minimum ten skater games/five starts).
+It selects one side and at most one item per player, balancing qualified markets.
+Custom bounds require explicit user research intent; never loosen them to pad a
+list. Same-book paired normalization is opt-in price arithmetic, not fair odds
+from a calibrated sports model. Compact tools intentionally return text only.

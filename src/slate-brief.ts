@@ -5,12 +5,14 @@ import type { StatsApiHttpClient } from "./http.js";
 
 const PATH = "/api/v1/nhl/slate-brief";
 export const SLATE_BRIEF_BYTES = 32768;
-export const SLATE_BRIEF_DESCRIPTION = "Start broad tonight NHL research here when enabled by live discovery. One bounded read returns the complete game list, game odds as context, starter observations and up to 12 offered exact-line statistical candidates grouped by market. Use an explicit Eastern date; today and regular season only. Five graded observations required; saves require a fresh confirmed starter. Samples and matchup ranks order candidates, not predicted value. Return fewer picks when coverage is insufficient. Follow exact evidence selectors for detail. No generation, saves, research jobs or bets.";
+export const SLATE_BRIEF_DESCRIPTION = "Start broad tonight NHL research here. One bounded read includes all games, contextual odds, starter observations and named injury alerts when v2 is enabled. V2 selects specific offered sides at -250 to +300: at least eight of ten graded skater games or five goalie starts, recent observed rate >= quoted break-even +10pp, season rate >= break-even with at least ten games/five starts. These overlapping samples are descriptive research, not win probabilities or betting value. Flagged out/IR/GTD players and unconfirmed save starters do not qualify. Inspect selection_status and per-market exclusions; do not pad a top five. Follow exact evidence selectors. Date is Eastern today, regular season only; <=12 candidates, <=one/player, complete result <=32 KiB. Legacy servers retain v1; no generation, account writes or bets.";
 export const slateBriefSchema = z.object({
   sport: z.literal("nhl"), date: z.iso.date(),
   markets: z.array(z.string().regex(/^[a-z0-9_]{1,80}$/)).min(1).max(10)
     .refine(items => new Set(items).size === items.length, "Markets must be unique.").optional(),
   candidate_limit: z.number().int().min(1).max(12).optional(),
+  price_min: z.number().int().min(-100000).max(100000).optional().describe('V2 only. Explicit custom research lower price bound; default -250. Do not loosen automatically to fill a list.'),
+  price_max: z.number().int().min(-100000).max(100000).optional().describe('V2 only. Explicit custom research upper price bound; default +300.'),
 }).strict();
 
 export async function readSlateBrief(http: StatsApiHttpClient, discovery: DiscoveryClient, input: unknown) {
@@ -25,11 +27,17 @@ export async function readSlateBrief(http: StatsApiHttpClient, discovery: Discov
     throw new ToolInputError("Use market keys from slate_brief.markets in NHL discovery.");
   }
   const url = http.resolve(PATH);
+  const v2 = Array.isArray(descriptor.formats) && descriptor.formats.includes('compact_v2');
+  if ((args.price_min !== undefined || args.price_max !== undefined) && (!v2 || descriptor.price_controls !== true)) {
+    throw new ToolInputError('This API does not advertise v2 price controls. Use the available evidence tools.');
+  }
+  if ((args.price_min ?? -250) > (args.price_max ?? 300)) throw new ToolInputError('price_min must not exceed price_max.');
+  if (v2) url.searchParams.set('format', 'compact_v2');
   for (const [key, value] of Object.entries(args)) {
     if (value !== undefined) url.searchParams.set(key, Array.isArray(value) ? value.join(",") : String(value));
   }
   const response = await http.get(url.href, { protectedData: true });
-  if ("notModified" in response || response.json.schema !== "nhl-slate-brief-v1"
+  if ("notModified" in response || response.json.schema !== (v2 ? "nhl-slate-brief-v2" : "nhl-slate-brief-v1")
       || response.json.slate_date !== args.date || response.json.sport !== sport
       || response.json.game_type !== 2 || !Array.isArray(response.json.games)
       || response.json.games.length > 16 || !Array.isArray(response.json.groups)) {

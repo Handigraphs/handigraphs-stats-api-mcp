@@ -37,7 +37,7 @@ const gameId = text(200).refine((value) => !/[\\/\u0000-\u001f\u007f]/.test(valu
 const uniqueStrings = (maxItems: number, maxLength: number) => z.array(text(maxLength).refine((value) => !value.includes(","), "Commas are not allowed within a selector.")).min(1).max(maxItems).refine((value) => new Set(value).size === value.length, "Duplicate selectors are not allowed.");
 const GAMECENTER_SECTIONS = ["summary", "context", "availability", "analysis", "evidence"];
 const GAMECENTER_ANALYSIS_HELP = 'Use sections=["analysis"] for props and market_reviews when available. Retrieve cited facts separately with sections=["evidence"] and evidence_ids.';
-const GAMECENTER_COMPACT_HELP = "Set compact=true for props and market reviews only. citation_indices are zero-based offsets into citation_ids. Pass the resolved IDs as evidence_ids in a separate evidence request.";
+const GAMECENTER_COMPACT_HELP = 'Prefer format="compact" for props/market reviews only; compact=true is its legacy alias. For either compact mode OMIT sections, or use exactly sections=["analysis"]. Summary/context/availability need a standard read. Evidence needs a separate standard sections=["evidence"] request. citation_indices are zero-based offsets into citation_ids.';
 const GAMECENTER_PAGE_HELP = 'Set format="compact_page" for props and market reviews in pages of up to 3.5 KiB. Omit compact. Pass next_cursor as cursor with the same format, sport and game_id until null. Citation indices are page-local. An oversized_item identifies a whole item available in the unpaged compact=true packet.';
 
 const schemas = {
@@ -52,7 +52,7 @@ const schemas = {
   get_gamecenter_packet: z.object({ sport: text(32), game_id: gameId, sections: uniqueStrings(5, 32).optional().describe(
     "Packet selectors: " + GAMECENTER_SECTIONS.join(", ") + ". " + GAMECENTER_ANALYSIS_HELP,
   ), compact: z.boolean().optional().describe(GAMECENTER_COMPACT_HELP),
-  format: z.enum(["compact_page"]).optional().describe(GAMECENTER_PAGE_HELP),
+  format: z.enum(["compact", "compact_page"]).optional().describe(GAMECENTER_PAGE_HELP),
   evidence_ids: uniqueStrings(100, 200).optional(), cursor, page_size: positiveInt.max(100).optional() }).strict(),
 };
 export type AgentReadTool = keyof typeof schemas;
@@ -138,7 +138,10 @@ export class AgentReadClient {
           const { sport, ...query } = schemas.list_gamecenter_games.parse(args);
           return this.call("gamecenter_games", query, { sport });
         }
-        const { sport, game_id, compact, format, ...query } = schemas.get_gamecenter_packet.parse(args);
+        const { sport, game_id, compact: legacyCompact, format: requestedFormat, ...query } = schemas.get_gamecenter_packet.parse(args);
+        if (requestedFormat && legacyCompact !== undefined) throw new ToolInputError('Choose format or legacy compact, not both. Example: format="compact" with sections omitted.');
+        const compact = requestedFormat === 'compact' || legacyCompact;
+        const format = requestedFormat === 'compact_page' ? requestedFormat : undefined;
         if (format && (compact !== undefined || query.evidence_ids || query.page_size !== undefined ||
             (query.sections && (query.sections.length !== 1 || query.sections[0] !== "analysis")))) {
           throw new ToolInputError('format="compact_page" reads analysis only. Omit compact, evidence_ids and page_size. Omit sections or use sections=["analysis"].');

@@ -32,12 +32,12 @@ export const nhlAvailabilityTools = [
     responseSchema: "nhl-injury-updates-v1",
     items: "players",
     sizeHelp: "Reduce page_size or request one side.",
-    description: "Read stored Daily Faceoff NHL team injury reports for an Eastern date and league_game_id. These are team-page flags, not game-specific availability. Check source_updated_at, source freshness and coverage. A null report is unavailable. Follow next_cursor with the same selectors, including optional side and page_size (1 to 12).",
+    description: "Read named Daily Faceoff NHL injury flags. With slate discovery support, send date only for all-game coverage and a page of flags ordered by goalie/GTD/key-player importance (page_size 1-100). Follow next_cursor with identical selectors; coverage reports omitted/unavailable data. Use league_game_id for a focused legacy page (1-12) and optional side. These are team-page reports, never game-specific clearance. Stale GTDs remain visible; check source_updated_at, observed_at and coverage. Do not call once per game merely to validate the slate.",
     inputSchema: z.object({
       date,
-      league_game_id: leagueGameId,
+      league_game_id: leagueGameId.optional(),
       side: z.enum(["away", "home"]).optional(),
-      page_size: z.number().int().min(1).max(12).optional(),
+      page_size: z.number().int().min(1).max(100).optional(),
       cursor: cursor.optional(),
     }).strict(),
   },
@@ -54,7 +54,17 @@ export async function readNhlAvailability(
       (args.cursor !== undefined || args.page_size !== undefined)) {
     throw new ToolInputError("Use league_game_id by itself with date, or omit it for slate pagination.");
   }
+  const slate = tool.name === 'get_injury_updates' && args.league_game_id === undefined;
+  if (tool.name === 'get_injury_updates') {
+    const injury = args as { side?: string; page_size?: number };
+    if ((slate && injury.side !== undefined) || (!slate && (injury.page_size ?? 8) > 12)) {
+      throw new ToolInputError('Slate mode omits side; game-specific injury pages allow at most 12 flags.');
+    }
+  }
   const descriptor = object((await discovery.get("nhl"))[tool.discoveryKey]);
+  if (slate && (object(descriptor.slate).enabled !== true || object(descriptor.slate).schema !== 'nhl-injury-slate-v1')) {
+    throw new ToolInputError('This API does not advertise slate injury reads; use one league_game_id for focused legacy evidence.');
+  }
   if (descriptor.enabled !== true || descriptor.contract_version !== 1 ||
       descriptor.method !== "GET" || descriptor.path !== tool.path || descriptor.schema !== tool.responseSchema) {
     throw new UpstreamError({
@@ -69,7 +79,7 @@ export async function readNhlAvailability(
   const result = await http.get(url.href, { protectedData: true });
   const page = "notModified" in result ? {} : result.json;
   const next = page.next_cursor;
-  if (page.schema !== tool.responseSchema || page.sport !== "nhl" || page.date !== args.date ||
+  if (page.schema !== (slate ? 'nhl-injury-slate-v1' : tool.responseSchema) || page.sport !== "nhl" || page.date !== args.date ||
       !Array.isArray(page[tool.items]) || (next !== null && (typeof next !== "string" || !next || next.length > 2048))) {
     throw new UpstreamError({
       status: 503, code: `${tool.discoveryKey}_invalid_response`,
