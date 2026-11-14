@@ -189,10 +189,19 @@ async function main() {
   stage = 'evidence_sections';
   const shots = slate.groups.find(group => group.market === 'skater_shots_on_goal');
   const candidate = shots?.candidates[0] ?? slate.groups.find(group => group.candidates.length)?.candidates[0];
-  // An empty qualified slate is valid. Select a real offered player via a custom
-  // screen in sparse-data acceptance; never invent a default candidate.
-  check(candidate || input.evidence_selector);
-  const selector = candidate?.evidence ?? input.evidence_selector;
+  // An empty qualified slate is valid. A separate real-player screen can test
+  // section invocability without manufacturing a candidate, line or usable quote.
+  let selector = candidate?.evidence ?? input.evidence_selector;
+  if (!selector) {
+    const screen = unpack(await client.callTool({ name: 'query_stats', arguments: {
+      sport: 'nhl', resource: 'skaters', day: 'today', split: 'L10',
+      metrics: ['sog_per_game', 'icf_per_game', 'games_played'], sort: '-sog_per_game',
+      page_size: 12, prop_screen: true, stat_format: 'compact', matchup_market: 'shots', matchup_window: 'sea' } }));
+    const id = screen.data?.[0]?.entity?.id;
+    check(typeof id === 'string' && /^[1-9][0-9]*$/.test(id));
+    selector = { market: 'skater_shots_on_goal', player_ids: [id] };
+    report('empty_qualified_slate_screen_fallback', { candidate_count: 0 });
+  }
   const evidenceResult = await client.callTool({ name: 'get_player_prop_evidence', arguments: {
     ...selector, include_season: true, sections: ['hit_rates', 'game_logs', 'odds', 'matchup', 'opponent_recent'] } });
   const evidence = unpack(evidenceResult);
