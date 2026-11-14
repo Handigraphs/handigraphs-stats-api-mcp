@@ -29,4 +29,19 @@ wildcard. No runtime changes after f9d9b4a. Syntax check pending; final app depl
 fresh five-owner cold OAuth, refreshed native-client acceptance and production
 owner/native gates remain. Historical owner records are unchanged. No publication
 or production activation. Credentials/wire traces remain absent from evidence.
-Checkpoint pending commit and remote verification.
+Operator checkpoint d3873d5783e20093b016c56af9ec79cb72df6bf6 was pushed and
+verified. Final app #888 merged to aec596bf9d51bf21c5d0f3d48feb47b88db16dee;
+sandbox deployment 43654251134 and exact-SHA L4 43654519624 passed.
+
+Cohort 03 on that exact app / f9d9b4a passed latency: cold p95 3688 ms, warm
+p95 1116 ms, five cold/15 warm, no unexpected 429/503. Every owner passed all
+evidence sections and two refresh rotations. Three UI confirmation timeouts
+prevented revoke submission; two owners completed browser revoke/gateway401/
+invalid_grant. Cleanup succeeded and journal was removed. Not overall acceptance.
+Status-only diagnostics pinpointed browser_revocation_confirmation, with only
+connection-list 200s and no revoke request. ApiAccessPage mounts ConnectedAppsPanel
+in both its loading and loaded branches; the parent transition can discard an
+early opened confirmation. Await the stable loaded/error account page before
+opening confirmation. No retries, raised timeouts or weakened denial assertions.
+The early-click panel reset is an existing website UX follow-up, outside this
+MCP change. Next finite fresh cohort must establish cold cache misses again.

@@ -253,6 +253,10 @@ async function main() {
   });
   stage = 'browser_revocation_account_page';
   await page.goto(ISSUER + '/account/api', { waitUntil: 'domcontentloaded' });
+  // The loading branch also mounts a connected-apps panel. Wait for its parent
+  // transition before clicking: a remount would discard the open confirmation.
+  stage = 'browser_revocation_account_ready';
+  await page.getByTestId('api-access-page').or(page.getByTestId('api-access-error')).waitFor({ state: 'visible' });
   stage = 'browser_revocation_connection_button';
   await page.getByRole('button', { name: `Revoke connection to ${clientName}`, exact: true }).click();
   stage = 'browser_revocation_confirmation';
