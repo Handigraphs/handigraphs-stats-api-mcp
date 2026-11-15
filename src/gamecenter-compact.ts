@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
 import { object } from "./discovery.js";
 import { ToolInputError } from "./errors.js";
+import { pageCurrentOffers } from './gamecenter-offers.js';
 
 const PROP_FIELDS = ["market", "player", "player_id", "team", "pick", "status", "reasoning", "text", "review_notes"];
 const REVIEW_FIELDS = ["market", "status", "selection_status", "assessment_status", "reason_codes",
   "selected_count", "evaluation_scope", "text", "review_notes"];
 const PACKET_FIELDS = ["sport", "game_id", "league_game_id", "game_date", "away_team", "home_team",
-  "freshness", "citation_status", "content_role"];
+  "freshness", "citation_status", "content_role", "current_offers"];
 const PUBLICATION_FIELDS = ["state", "mode", "assessment_status", "reason", "reason_codes", "source_schema",
   "generated_at", "published_at", "last_attempt_at", "cross_check"];
 const ANALYSIS_SECTIONS = ["props", "market_reviews"] as const;
@@ -64,12 +65,15 @@ export function compactGamecenterPacket(packet: Record<string, unknown>, request
 }
 
 export function compactGamecenterPage(packet: CompactPacket, cursor: string | undefined): Record<string, unknown> {
-  const { analysis, citation_ids, ...header } = packet;
+  const { analysis, citation_ids, current_offers, ...header } = packet;
   const entries = ANALYSIS_SECTIONS.flatMap((section) =>
     (analysis[section] ?? []).map((item, index) => ({ section, item, index })));
   // The projection includes the exact evidence URL, binding the cursor to the sport and game
   // even if the upstream packet has no analysis or game identity fields.
-  const stamp = createHash("sha256").update(JSON.stringify(packet)).digest("base64url");
+  // Current prices are independent annotations; only the frozen publication
+  // binds the page cursor. A quote refresh never relabels its citations.
+  const { current_offers: _currentOffers, ...frozenPacket } = packet;
+  const stamp = createHash("sha256").update(JSON.stringify(frozenPacket)).digest("base64url");
   const decoded = cursor === undefined ? null : GAMECENTER_PAGE_CURSOR.exec(cursor);
   const offset = decoded ? Number(decoded[1]) : 0;
   if (cursor !== undefined && (!decoded || decoded[2] !== stamp || offset >= entries.length)) {
@@ -101,6 +105,8 @@ export function compactGamecenterPage(packet: CompactPacket, cursor: string | un
       schema: "gamecenter-compact-page-v1",
       offset,
       analysis: pageAnalysis,
+      ...(current_offers ? { current_offers: pageCurrentOffers(current_offers, oversizedItem ? [] :
+        entries.slice(offset, end).filter(entry => entry.section === 'props').map(entry => entry.index)) } : {}),
       citation_ids: [...indices.keys()].map((original) => citation_ids[original]),
       ...(oversizedItem ? { oversized_item: oversizedItem } : {}),
       next_cursor: end < entries.length ? `gcp1.${end}.${stamp}` : null,
