@@ -75,7 +75,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   const agent = new AgentReadClient(http, discovery, secrets);
   const actions = new AgentActionClient(http, discovery);
   const revision = process.env.HEROKU_SLUG_COMMIT ?? process.env.SOURCE_VERSION;
-  const runtime = { adapter_version: SERVER_VERSION, tool_catalog_revision: "nhl-ranked-shortlist-v1",
+  const runtime = { adapter_version: SERVER_VERSION, tool_catalog_revision: "nhl-availability-caps-v1",
     build_sha: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null,
     prop_evidence_tool: dependencies.enablePropEvidence === true, slate_brief_tool: true,
     catalog_refresh: "If discovery advertises sections missing from your tool schema, refresh tools or reconnect this same connection." };

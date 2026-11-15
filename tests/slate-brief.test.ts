@@ -219,3 +219,74 @@ test('ranked continuation retains selectors and global ranks without repeating c
   assert.equal((await read({ view: 'shortlist', candidate_limit: 10, cursor: 'synthetic-page-two' })).isError, undefined);
   assert.equal(api.requests.filter(item => item.authorization).length, 1);
 });
+
+
+const cappedDescriptor = { ...rankedDescriptor, shortlist: { ...rankedDescriptor.shortlist,
+  max_candidates_per_game: { minimum: 1, maximum: 12, default: null, scope: 'whole_shortlist_after_player_dedup' } } };
+function cappedPage(offset = 0) {
+  const base = rankedPage();
+  const candidates = base.candidates.slice(0, 2).map((item, i) => ({ ...item,
+    player_id: String(offset+i+1), candidate_id: 'capped-'+(offset+i+1), rank: offset+i+1,
+    pool_rank: (offset+i)*2+1, league_game_id: String(42+offset+i), team_context_ref: String(42+offset+i)+':AAA' }));
+  return { ...base, candidates,
+    team_contexts: Object.fromEntries(candidates.map(item => [item.team_context_ref, {
+      league_game_id: item.league_game_id, team: item.team, reported_players: [] }])),
+    next_cursor: offset === 0 ? 'cap-page-two' : null,
+    groups: [{ market: 'skater_shots_on_goal', eligible: 4, returned: 2, remaining: 2-offset, pool_eligible: 140 }],
+    coverage: { eligible: 4, eligible_player_markets: 140, returned: 2, offset, remaining: 2-offset },
+    ranking: { ...base.ranking, unique_player_count: 4, max_candidates_per_game: 1,
+      unique_players_before_game_cap: 8, game_cap_excluded: 4 } };
+}
+
+test('advertised whole-list game cap passes unchanged through a fresh client and continuation', async t => {
+  const { api, client, read } = await connect(t, cappedDescriptor, (url: URL) => cappedPage(url.searchParams.has('cursor') ? 2 : 0));
+  const tool = (await client.listTools()).tools.find(item => item.name === 'get_slate_brief')!;
+  assert.ok(tool.inputSchema.properties!.max_candidates_per_game);
+  for (const cursor of [undefined, 'cap-page-two']) {
+    const result = await read({ view: 'shortlist', candidate_limit: 2, max_candidates_per_game: 1, cursor });
+    assert.equal(result.isError, undefined);
+    assert.ok(Buffer.byteLength(JSON.stringify(result)) <= 32768);
+  }
+  const calls = api.requests.filter(item => item.authorization);
+  assert.equal(calls.length, 2);
+  for (const request of calls) {
+    const query = new URL(request.path, api.baseUrl).searchParams;
+    assert.equal(query.get('max_candidates_per_game'), '1');
+    assert.equal(query.get('candidate_limit'), '2');
+    assert.equal(query.get('view'), 'shortlist');
+  }
+});
+
+test('unsupported cap and invalid scope or range never issue a protected read', async t => {
+  for (const advertised of [descriptor, pagedDescriptor, rankedDescriptor]) {
+    const { api, read } = await connect(t, advertised);
+    assert.equal((await read({ view: 'shortlist', max_candidates_per_game: 1 })).isError, true);
+    assert.equal(api.requests.filter(item => item.authorization).length, 0);
+  }
+  const { api, read } = await connect(t, cappedDescriptor);
+  for (const args of [{}, { view: 'research' }, ...[0, 13, 1.5, true].map(cap => ({ view: 'shortlist', max_candidates_per_game: cap }))]) {
+    assert.equal((await read({ max_candidates_per_game: 1, ...args })).isError, true);
+  }
+  assert.equal(api.requests.filter(item => item.authorization).length, 0);
+});
+
+test('cap counts, game density and original pool ranks fail closed without retries', async t => {
+  const mutations = [
+    (body: ReturnType<typeof cappedPage>) => { body.ranking.game_cap_excluded = 5; },
+    (body: ReturnType<typeof cappedPage>) => { body.ranking.max_candidates_per_game = 2; },
+    (body: ReturnType<typeof cappedPage>) => { body.candidates[1]!.pool_rank = 1; },
+    (body: ReturnType<typeof cappedPage>) => { body.candidates[1]!.pool_rank = 9; },
+    (body: ReturnType<typeof cappedPage>) => {
+      body.candidates[1]!.league_game_id = body.candidates[0]!.league_game_id;
+      body.candidates[1]!.team_context_ref = body.candidates[0]!.team_context_ref;
+    },
+  ];
+  for (const mutate of mutations) {
+    const body = cappedPage(); mutate(body);
+    const { api, read } = await connect(t, cappedDescriptor, body);
+    const result = await read({ view: 'shortlist', candidate_limit: 2, max_candidates_per_game: 1 });
+    assert.equal(result.isError, true);
+    assert.match(JSON.stringify(result), /slate_brief_invalid_response/);
+    assert.equal(api.requests.filter(item => item.authorization).length, 1);
+  }
+});

@@ -17,11 +17,11 @@ export const nhlAvailabilityTools = [
     responseSchema: "nhl-goalie-status-v1",
     items: "games",
     sizeHelp: "Reduce page_size or request one league_game_id.",
-    description: "Read stored NHL pregame starter observations for an Eastern date. The frozen Gamecenter projection and latest RotoWire observation are separate. Confirmed means RotoWire explicitly reported confirmation. Use league_game_id for one game or follow next_cursor with the same date and page_size (1 to 4) for a slate.",
+    description: "Read stored NHL pregame starter observations for an Eastern date. Frozen Gamecenter projections and latest RotoWire observations have separate clocks. Confirmed means the provider explicitly reported confirmation. Use league_game_id for one game. page_size (1 to 4, default 2) is an upper bound: advertised adaptive pages keep whole games within the byte budget and disclose returned/remaining/byte_limited. Follow next_cursor with the SAME date and requested page_size until null; do not shrink that selector while continuing. An intrinsically oversized game remains an explicit error. No automatic retries.",
     inputSchema: z.object({
       date,
       league_game_id: leagueGameId.optional(),
-      page_size: z.number().int().min(1).max(4).optional(),
+      page_size: z.number().int().min(1).max(4).optional().describe('Maximum games per page; byte limits may return fewer. Follow next_cursor with this same requested value.'),
       cursor: cursor.optional(),
     }).strict(),
   },
@@ -85,6 +85,19 @@ export async function readNhlAvailability(
       status: 503, code: `${tool.discoveryKey}_invalid_response`,
       detail: "The Stats API did not return a compatible NHL availability page.",
     });
+  }
+  if (tool.name === 'get_goalie_status' && descriptor.adaptive_pages === true) {
+    const coverage = object(page.coverage), games = page.games as unknown[];
+    const requested = args.league_game_id === undefined ? args.page_size ?? 2 : 1;
+    if (coverage.requested_page_size !== requested || coverage.returned !== games.length || games.length > requested
+        || ![coverage.offset, coverage.total_games, coverage.remaining].every(n =>
+          typeof n === 'number' && Number.isSafeInteger(n) && n >= 0)
+        || Number(coverage.offset)+games.length+Number(coverage.remaining) !== coverage.total_games
+        || typeof coverage.byte_limited !== 'boolean' || (next !== null) !== (Number(coverage.remaining) > 0)
+        || (games.length === 0 && next !== null)) {
+      throw new UpstreamError({ status: 503, code: 'goalie_status_invalid_response',
+        detail: 'The adaptive goalie page has inconsistent counts or continuation. No retry occurred.' });
+    }
   }
   return page;
 }

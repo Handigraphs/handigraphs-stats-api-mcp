@@ -5,18 +5,19 @@ import type { StatsApiHttpClient } from "./http.js";
 
 const PATH = "/api/v1/nhl/slate-brief";
 export const SLATE_BRIEF_BYTES = 32768;
-export const SLATE_BRIEF_DESCRIPTION = "Start broad tonight NHL research here. For a top N request use advertised v4 view=shortlist and candidate_limit=N: the complete covered eligible player-market pool is ranked by season observed hit rate minus quoted break-even, with one market per player globally. This historical screening order is not probability, EV or a betting-value model. Shortlist defaults to context-light; shared team_contexts are always included for its ordered flat candidates. view=research retains round-robin market browsing and all alternatives. Research first pages default to game/goalie/injury context, continuations omit it. Follow next_cursor with identical date, view, markets, limit, prices and pregame_only; never claim a partial research pool is the global top N. Snapshots expire180s/eight newer snapshots; no automatic restart. Injury matched_known_entry is separate from overall listed/not_listed/unknown and unresolved report identities: never medical clearance. Read shared reported_players as team facts, excluding the candidate itself for teammate interpretation; no usage effects. Relationship IDs do not certify correlation or bookmaker settlement equivalence. Preserve source/quote clocks, started/stale status and coverage warnings. Existing price/sample gates remain -250 to +300, 8 recent/10 season skater games or 5/5 goalie starts, recent observed rate >= break-even +10pp, season >= break-even. Overlapping samples are not forecasts. Out/IR/GTD and unconfirmed save starters do not qualify. Do not pad a top five. Older APIs retain v3 paging and v2/legacy representations; explicit unsupported view is rejected. Eastern today/regular season only, <=12/page and <=32KiB complete result. No generation, saves or bets.";
+export const SLATE_BRIEF_DESCRIPTION = "Start broad tonight NHL research here. For a top N request use advertised v4 view=shortlist and candidate_limit=N: the complete covered eligible player-market pool is ranked by season observed hit rate minus quoted break-even, with one market per player globally. This historical screening order is not probability, EV or a betting-value model. Shortlist defaults to context-light; shared team_contexts are always included for its ordered flat candidates. view=research retains round-robin market browsing and all alternatives. Research first pages default to game/goalie/injury context, continuations omit it. candidate_limit is an upper bound; check coverage.returned/byte_limited/remaining and next_cursor. Advertised max_candidates_per_game optionally caps the whole shortlist after player dedup; default uncapped, rank is selected order and pool_rank is uncapped order. This controls concentration, not correlation or risk. Follow next_cursor with identical date, view, markets, limit, game cap, prices and pregame_only; never claim a partial research pool is the global top N. Snapshots expire180s/eight newer snapshots; no automatic restart. Injury matched_known_entry is separate from overall listed/not_listed/unknown and unresolved report identities: never medical clearance. Read shared reported_players as team facts, excluding the candidate itself for teammate interpretation; no usage effects. Relationship IDs do not certify correlation or bookmaker settlement equivalence. Preserve source/quote clocks, started/stale status and coverage warnings. Existing price/sample gates remain -250 to +300, 8 recent/10 season skater games or 5/5 goalie starts, recent observed rate >= break-even +10pp, season >= break-even. Overlapping samples are not forecasts. Out/IR/GTD and unconfirmed save starters do not qualify. Do not pad a top five. Older APIs retain v3 paging and v2/legacy representations; explicit unsupported view is rejected. Eastern today/regular season only, <=12/page and <=32KiB complete result. No generation, saves or bets.";
 export const slateBriefSchema = z.object({
   sport: z.literal("nhl"), date: z.iso.date(),
   markets: z.array(z.string().regex(/^[a-z0-9_]{1,80}$/)).min(1).max(10)
     .refine(items => new Set(items).size === items.length, "Markets must be unique.").optional(),
-  candidate_limit: z.number().int().min(1).max(12).optional(),
+  candidate_limit: z.number().int().min(1).max(12).optional().describe('Upper bound, not a promised count. Check coverage.returned/byte_limited/remaining and next_cursor; follow it with unchanged selectors for more.'),
+  max_candidates_per_game: z.number().int().min(1).max(12).optional().describe('Advertised v4 shortlist only. Optional cap across the whole frozen list after player dedup, not per page. Default uncapped. rank is selected order; pool_rank is original uncapped order.'),
   view: z.enum(['research', 'shortlist']).optional().describe('V4 only. Use shortlist for top N from the complete eligible pool; season-gap order and one market/player globally. Defaults research.'),
-  price_min: z.number().int().min(-100000).max(100000).optional().describe('V2 only. Explicit custom research lower price bound; default -250. Do not loosen automatically to fill a list.'),
-  price_max: z.number().int().min(-100000).max(100000).optional().describe('V2 only. Explicit custom research upper price bound; default +300.'),
-  cursor: z.string().min(1).max(2048).optional().describe('V3 only. Follow next_cursor with unchanged selection controls. No automatic restart after expiry.'),
-  include_context: z.boolean().optional().describe('V3 only. Default true on the first page, false on continuations. May change while paging.'),
-  pregame_only: z.boolean().optional().describe('V3 only. Default true. False includes all slate game context; snapshot scope stays fixed while paging.'),
+  price_min: z.number().int().min(-100000).max(100000).optional().describe('V2+. Explicit custom research lower price bound; default -250. Do not loosen automatically to fill a list.'),
+  price_max: z.number().int().min(-100000).max(100000).optional().describe('V2+. Explicit custom research upper price bound; default +300.'),
+  cursor: z.string().min(1).max(2048).optional().describe('V3+. Follow next_cursor with unchanged selection controls, including an explicit game cap. No automatic restart after expiry.'),
+  include_context: z.boolean().optional().describe('V3+. First research page defaults true; v4 shortlist and continuations default false. May change while paging.'),
+  pregame_only: z.boolean().optional().describe('V3+. Default true. False includes all slate game context; snapshot scope stays fixed while paging.'),
 }).strict();
 
 export async function readSlateBrief(http: StatsApiHttpClient, discovery: DiscoveryClient, input: unknown) {
@@ -39,6 +40,11 @@ export async function readSlateBrief(http: StatsApiHttpClient, discovery: Discov
     && Array.isArray(object(descriptor.shortlist).views)
     && ['research', 'shortlist'].every(view => (object(descriptor.shortlist).views as unknown[]).includes(view));
   if (!v4 && args.view !== undefined) throw new ToolInputError('This API does not advertise v4 ranked views. Explicit view was not ignored; use supported research tools and disclose partial coverage.');
+  const cap = object(object(descriptor.shortlist).max_candidates_per_game);
+  if (args.max_candidates_per_game !== undefined && (!v4 || args.view !== 'shortlist'
+      || cap.minimum !== 1 || cap.maximum !== 12 || cap.scope !== 'whole_shortlist_after_player_dedup')) {
+    throw new ToolInputError('Per-game caps require advertised v4 shortlist support and explicit view=shortlist. No selector was ignored or data request sent.');
+  }
   if (!v4 && !v3 && (args.cursor !== undefined || args.include_context !== undefined || args.pregame_only !== undefined)) {
     throw new ToolInputError('This API does not advertise v3 pagination/context controls. Use the available unpaged brief or focused evidence; no selectors were silently ignored.');
   }
@@ -110,6 +116,26 @@ export async function readSlateBrief(http: StatsApiHttpClient, discovery: Discov
             || ranking.one_market_per_player !== true || ranking.unique_player_count !== coverage.eligible))) {
         throw new UpstreamError({ status: 503, code: 'slate_brief_invalid_response',
           detail: 'The ranked pool, global ranks or page-local team references are inconsistent.' });
+      }
+      if (args.max_candidates_per_game !== undefined) {
+        const before = ranking.unique_players_before_game_cap, excluded = ranking.game_cap_excluded;
+        const gameCounts = new Map<string, number>();
+        let previousPoolRank = 0;
+        const invalid = candidates.some(candidate => {
+          const item = object(candidate), game = String(item.league_game_id), poolRank = item.pool_rank;
+          gameCounts.set(game, (gameCounts.get(game) ?? 0)+1);
+          if (typeof poolRank !== 'number' || !Number.isSafeInteger(poolRank) || poolRank < Number(item.rank)
+              || poolRank <= previousPoolRank || (typeof before === 'number' && poolRank > before)) return true;
+          previousPoolRank = poolRank;
+          return gameCounts.get(game)! > args.max_candidates_per_game!;
+        });
+        if (ranking.max_candidates_per_game !== args.max_candidates_per_game
+            || typeof before !== 'number' || !Number.isSafeInteger(before)
+            || typeof excluded !== 'number' || !Number.isSafeInteger(excluded) || excluded < 0
+            || before !== Number(coverage.eligible)+excluded || invalid) {
+          throw new UpstreamError({ status: 503, code: 'slate_brief_invalid_response',
+            detail: 'The API game cap, excluded population or uncapped ranks are inconsistent.' });
+        }
       }
     }
   }
