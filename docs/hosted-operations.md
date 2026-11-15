@@ -16,14 +16,17 @@ only by a stray gitlink on app main, removed in `b38cc79e` with no runtime chang
 The owner (cjbuskey) chose a recorded sign-off over another campaign. That record
 is preserved verbatim in [the historical acceptance](owner-acceptance-2026-10-24.json).
 The current candidate record covers completed
-[NHL ranked shortlist acceptance](nhl-ranked-shortlist-acceptance.md), spanning app
-`97a8a4c9221238efa79903f56f6b09da9f0c1fec` (contract `1.26.0`) and hosted MCP
-`0422559edf191806ce3854201fa2494af25573ef`. Its merge requires the owner's
-explicit acceptance and production decision. Five fresh OAuth clients retrieved
-all 63 unique players from 169 qualified selections; actual Claude received the
-complete top ten in one brief read. Sandbox used timestamp-preserving production
-lineup mirrors. Positive Gamecenter watch-price joins remain fixture-only evidence;
-source coverage and older history limits are explicit. The prior
+[NHL availability and game-cap acceptance](nhl-availability-acceptance.md), spanning
+app `a9c7bd9379b1862ebf105dca58558a042ed24fdd` (contract `1.27.0`) and hosted MCP
+`4a42f1a6ca5f6b50f4940206fa90ccbf0ecf95c4`. Its merge requires the owner's explicit
+acceptance and production decision. Five fresh OAuth owners retrieved all73 players
+from184 eligible selections, all five goalie games at requested page_size4, and
+all ten cap2 selections across four pages. Actual Claude completed seven calls
+without errors or retries. Sandbox history/starter/injury limits and narrow
+read-only production spot checks are explicit; no new data mirror was performed.
+Positive Gamecenter watch-price joins remain fixture-only evidence. The prior
+[NHL ranked shortlist acceptance](nhl-ranked-shortlist-acceptance.md) is preserved
+in [its dated record](owner-acceptance-2026-11-15-nhl-ranked-shortlist.json). The prior
 [NHL brief pagination acceptance](nhl-brief-pagination-acceptance.md) is preserved
 in [its dated record](owner-acceptance-2026-11-15-nhl-brief-pagination.json). The prior
 [NHL research v2 acceptance](nhl-research-v2-acceptance.md) is preserved in
@@ -57,7 +60,8 @@ approval issue, sandbox releases or app main. They require all of:
 4. The native GitHub `production` environment approval, rechecked after the wait.
 
 The candidate runtime is the exact MCP commit verified against live sandbox for
-ranked shortlists, expanded evidence invocability, real browser OAuth and actual Claude.ai. The
+adaptive goalie pages, optional whole-list game caps, expanded evidence invocability,
+real browser OAuth and actual Claude.ai. The
 `clients` map carries historical native versions; this incremental test used
 the official SDK/Chromium and Claude.ai Opus 5.5 High. It is not a general load
 campaign or a new acceptance of every native client in that historical map.
