@@ -169,7 +169,8 @@ async function main() {
     for (let i = 0; i < 3; i++) {
       const warmStarted = performance.now();
       const result = await client.callTool({ name: 'get_slate_brief', arguments: briefArguments });
-      check(unpack(result).games.length === input.game_count);
+      const warm = unpack(result);
+      check(warm.scope.included_games === input.game_count && !warm.context_included && warm.games.length === 0);
       report('cohort_warm', { latency_ms: Math.ceil(performance.now()-warmStarted),
         bytes: Buffer.byteLength(JSON.stringify(result)) });
     }
