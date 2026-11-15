@@ -23,3 +23,12 @@ human gate. Status: implementation and focused SDK tests complete.23 official-cl
 pass for old/new representations, capped continuation and adaptive goalie pages;
 TypeScript passes. Full packaging/profile validation follows. No runtime/account
 mutation.
+
+
+Code checkpoint b82134c5980ccaef2dcc4836e09d301b1cd80191 is pushed and remote
+verified. Full profile passed:228 tests (226 passed,2 intentional skips),
+zero production dependency vulnerabilities, TypeScript/build/pack/distributions/
+MCPB checks. Desktop extension validation passed unsigned, as expected. No release
+artifact was published. Companion backend API1.27 must deploy first. Updated
+browser acceptance includes page_size4 full-slate goalie traversal and cap1 reads
+after cold/warm/cursor barriers, without warming the measured first protected read.
