@@ -428,16 +428,23 @@ test('workflow boundaries retain pinned source, default-off sandbox, production 
 test('committed owner acceptance names exactly the accepted pair, record and client versions', async () => {
   const value = parseOwnerAcceptance((await readFile(OWNER_ACCEPTANCE_FILE, 'utf8')).replace(/\r\n/g, '\n'));
   assert.equal(value.owner, 'cjbuskey');
-  assert.equal(value.tested_app_sha, 'eadd76610a683390a356ed82f7ebe829dbbb9e92');
+  assert.equal(value.tested_app_sha, 'aec596bf9d51bf21c5d0f3d48feb47b88db16dee');
   assert.equal(value.accepted_app_sha, value.tested_app_sha);
-  assert.equal(value.tested_mcp_sha, 'd3ea0c45619c3e1e5e229d076284789caf16d5c1');
+  assert.equal(value.tested_mcp_sha, 'f9d9b4a5c87cb6eb306fdc897b329e2101352d09');
   assert.equal(value.accepted_mcp_sha, value.tested_mcp_sha);
-  assert.equal(value.decided_on, '2026-11-14');
-  assert.equal(value.record_sha256, '2ffdf24b723e67710996c056edcdd5305384ef067ecfd887b913e859fd032580');
+  assert.equal(value.decided_on, '2026-11-15');
+  assert.equal(value.record_sha256, '568ff32c7513d97772745dffe21c3a2e40f841c797ce3322938d379007b93cb8');
   assert.deepEqual(value.clients, { codex_desktop: '26.1016.61520', codex_cli: '0.146.0', claude_code: '2.1.283' });
-  assert.match(value.summary, /Verified slate-brief-v1 on app eadd7661 \/ MCP d3ea0c45/);
+  assert.match(value.summary, /sandbox app aec596bf \/ MCP f9d9b4a, API 1.24.1/);
+  assert.match(value.summary, /cold p95 3610ms, warm p95 1248ms/);
+  assert.match(value.summary, /Actual Claude.ai/);
   assert.match(value.summary, /browser revocation followed by completed gateway 401/);
   assert.match(value.summary, /Client fields retain historical native versions/);
+  assert.match(value.summary, /Effective only after owner-authorized merge/);
+  const previousSlate = parseOwnerAcceptance((await readFile('docs/owner-acceptance-2026-11-14-slate-brief-v1.json', 'utf8')).replace(/\r\n/g, '\n'));
+  assert.equal(previousSlate.tested_app_sha, 'eadd76610a683390a356ed82f7ebe829dbbb9e92');
+  assert.equal(previousSlate.tested_mcp_sha, 'd3ea0c45619c3e1e5e229d076284789caf16d5c1');
+  assert.equal(previousSlate.record_sha256, '2ffdf24b723e67710996c056edcdd5305384ef067ecfd887b913e859fd032580');
   const previousPacket = parseOwnerAcceptance((await readFile('docs/owner-acceptance-2026-11-14-prop-packet.json', 'utf8')).replace(/\r\n/g, '\n'));
   assert.equal(previousPacket.tested_app_sha, '9fdaa673c62bd97e1d53c9f9be7c480f83b27895');
   assert.equal(previousPacket.tested_mcp_sha, '450f6da41868e5d610c0b599b9f3d31dede01749');

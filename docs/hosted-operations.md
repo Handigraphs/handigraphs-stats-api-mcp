@@ -15,10 +15,13 @@ observed and passed on app `3dd38c34` / MCP `a2909a6e` (validated record sha256
 only by a stray gitlink on app main, removed in `b38cc79e` with no runtime change.
 The owner (cjbuskey) chose a recorded sign-off over another campaign. That record
 is preserved verbatim in [the historical acceptance](owner-acceptance-2026-10-24.json).
-The current record covers the owner's November 14 authorization and completed
-[NHL slate/browser OAuth acceptance](slate-brief-acceptance.md), spanning app
-`eadd76610a683390a356ed82f7ebe829dbbb9e92` (contract `1.23.0`) and hosted MCP
-`d3ea0c45619c3e1e5e229d076284789caf16d5c1`. The earlier
+The current candidate record covers completed
+[NHL research v2 acceptance](nhl-research-v2-acceptance.md), spanning app
+`aec596bf9d51bf21c5d0f3d48feb47b88db16dee` (contract `1.24.1`) and hosted MCP
+`f9d9b4a5c87cb6eb306fdc897b329e2101352d09`. Its merge requires the owner's
+explicit acceptance and production decision. The prior
+[NHL slate/browser OAuth acceptance](slate-brief-acceptance.md) is preserved in
+[its dated record](owner-acceptance-2026-11-14-slate-brief-v1.json). The earlier
 [NHL prop packet sections](nhl-prop-packet-acceptance.md) acceptance is preserved
 in its dated historical record. Native production environment approval remains required.
 See [NHL goalie status and injury updates](nhl-lineup-availability-acceptance.md),
@@ -45,10 +48,11 @@ approval issue, sandbox releases or app main. They require all of:
    fails closed and needs a new owner decision.
 4. The native GitHub `production` environment approval, rechecked after the wait.
 
-The accepted runtime is the exact MCP commit verified against live sandbox for
-`slate-brief-v1`, expanded evidence and browser OAuth. The `clients` map carries
-historical native versions; the incremental test used the actual official SDK
-and Chromium browser, without claiming a native product-client or load campaign.
+The candidate runtime is the exact MCP commit verified against live sandbox for
+research v2, expanded evidence, real browser OAuth and actual Claude.ai. The
+`clients` map carries historical native versions; this incremental test used
+the official SDK/Chromium and Claude.ai Opus 5.5 Extra. It is not a general load
+campaign or a new acceptance of every native client in that historical map.
 The `summary` identifies the sandbox verification scope and results.
 Runtime OAuth activation remains a separate operation.
 The private PR-09 interface below is retained for reference and future releases.

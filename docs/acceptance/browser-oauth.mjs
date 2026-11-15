@@ -168,7 +168,9 @@ async function main() {
   }
   const descriptor = unpack(await client.callTool({ name: 'describe_resource', arguments: { sport: 'nhl', resource: 'skaters' } }));
   check(descriptor.prop_evidence.sections.includes('matchup') && descriptor.prop_evidence.sections.includes('opponent_recent'));
-  check(descriptor.mcp.tool_catalog_revision === 'nhl-research-v2' && descriptor.mcp.api_contract_version === '1.24.0');
+  const expectedContract = process.env.HANDIGRAPHS_EXPECTED_API_CONTRACT ?? '1.24.0';
+  check(/^\d+\.\d+\.\d+$/.test(expectedContract));
+  check(descriptor.mcp.tool_catalog_revision === 'nhl-research-v2' && descriptor.mcp.api_contract_version === expectedContract);
   check(descriptor.slate_brief.formats.includes('compact_v2'));
   check(descriptor.mcp.prop_evidence_tool && descriptor.mcp.slate_brief_tool);
   check(descriptor.mcp.invocable_prop_evidence_sections.length === 5);
@@ -251,6 +253,10 @@ async function main() {
   });
   stage = 'browser_revocation_account_page';
   await page.goto(ISSUER + '/account/api', { waitUntil: 'domcontentloaded' });
+  // The loading branch also mounts a connected-apps panel. Wait for its parent
+  // transition before clicking: a remount would discard the open confirmation.
+  stage = 'browser_revocation_account_ready';
+  await page.getByTestId('api-access-page').or(page.getByTestId('api-access-error')).waitFor({ state: 'visible' });
   stage = 'browser_revocation_connection_button';
   await page.getByRole('button', { name: `Revoke connection to ${clientName}`, exact: true }).click();
   stage = 'browser_revocation_confirmation';
