@@ -156,6 +156,11 @@ async function main() {
   const firstStarted = performance.now();
   const slateResult = await client.callTool({ name: 'get_slate_brief', arguments: briefArguments });
   const firstLatencyMs = Math.ceil(performance.now() - firstStarted);
+  if (slateResult.isError) {
+    const problem = slateResult.structuredContent?.error ?? {};
+    report('first_slate_error', { status: Number.isSafeInteger(problem.status) ? problem.status : null,
+      code: typeof problem.code === 'string' && /^[a-z_]{1,64}$/.test(problem.code) ? problem.code : null });
+  }
   if (input.cohort_barrier === true) {
     const cold = unpack(slateResult);
     report('cohort_cold', { latency_ms: firstLatencyMs, bytes: Buffer.byteLength(JSON.stringify(slateResult)),

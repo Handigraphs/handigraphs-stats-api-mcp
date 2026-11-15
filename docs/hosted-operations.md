@@ -16,10 +16,14 @@ only by a stray gitlink on app main, removed in `b38cc79e` with no runtime chang
 The owner (cjbuskey) chose a recorded sign-off over another campaign. That record
 is preserved verbatim in [the historical acceptance](owner-acceptance-2026-10-24.json).
 The current candidate record covers completed
-[NHL research v2 acceptance](nhl-research-v2-acceptance.md), spanning app
-`aec596bf9d51bf21c5d0f3d48feb47b88db16dee` (contract `1.24.1`) and hosted MCP
-`f9d9b4a5c87cb6eb306fdc897b329e2101352d09`. Its merge requires the owner's
-explicit acceptance and production decision. The prior
+[NHL brief pagination acceptance](nhl-brief-pagination-acceptance.md), spanning app
+`8f2a049b2dda36fef2ab2b583b562e5d084daac6` (contract `1.25.0`) and hosted MCP
+`2c7c80b3794169cc46dfecee950077bdad0ed470`. Its merge requires the owner's
+explicit acceptance and production decision. All current live games had started;
+positive pagination is separately verified with synthetic real-Redis fixtures,
+not claimed as positive current-price hosted evidence. The prior
+[NHL research v2 acceptance](nhl-research-v2-acceptance.md) is preserved in
+[its dated record](owner-acceptance-2026-11-15-nhl-research-v2.json). The earlier
 [NHL slate/browser OAuth acceptance](slate-brief-acceptance.md) is preserved in
 [its dated record](owner-acceptance-2026-11-14-slate-brief-v1.json). The earlier
 [NHL prop packet sections](nhl-prop-packet-acceptance.md) acceptance is preserved
@@ -49,9 +53,9 @@ approval issue, sandbox releases or app main. They require all of:
 4. The native GitHub `production` environment approval, rechecked after the wait.
 
 The candidate runtime is the exact MCP commit verified against live sandbox for
-research v2, expanded evidence, real browser OAuth and actual Claude.ai. The
+brief pagination, expanded evidence invocability, real browser OAuth and actual Claude.ai. The
 `clients` map carries historical native versions; this incremental test used
-the official SDK/Chromium and Claude.ai Opus 5.5 Extra. It is not a general load
+the official SDK/Chromium and Claude.ai Opus 5.5 High. It is not a general load
 campaign or a new acceptance of every native client in that historical map.
 The `summary` identifies the sandbox verification scope and results.
 Runtime OAuth activation remains a separate operation.
