@@ -177,9 +177,9 @@ async function main() {
   }
   const descriptor = unpack(await client.callTool({ name: 'describe_resource', arguments: { sport: 'nhl', resource: 'skaters' } }));
   check(descriptor.prop_evidence.sections.includes('matchup') && descriptor.prop_evidence.sections.includes('opponent_recent'));
-  const expectedContract = process.env.HANDIGRAPHS_EXPECTED_API_CONTRACT ?? '1.26.0';
+  const expectedContract = process.env.HANDIGRAPHS_EXPECTED_API_CONTRACT ?? '1.27.0';
   check(/^\d+\.\d+\.\d+$/.test(expectedContract));
-  check(descriptor.mcp.tool_catalog_revision === 'nhl-ranked-shortlist-v1' && descriptor.mcp.api_contract_version === expectedContract);
+  check(descriptor.mcp.tool_catalog_revision === 'nhl-availability-caps-v1' && descriptor.mcp.api_contract_version === expectedContract);
   check(descriptor.slate_brief.formats.includes('compact_v4'));
   check(descriptor.mcp.prop_evidence_tool && descriptor.mcp.slate_brief_tool);
   check(descriptor.mcp.invocable_prop_evidence_sections.length === 5);
@@ -249,6 +249,35 @@ async function main() {
       report('cross_owner_cursor_denied', { status: 400 });
     } else report('cross_owner_cursor_no_live_witness', { eligible: slate.coverage.eligible });
   }
+  stage = 'adaptive_goalie_pages';
+  check(descriptor.goalie_status.adaptive_pages === true);
+  let goalieCursor, goaliePages = 0;
+  const goalieGames = new Set();
+  do {
+    const result = await client.callTool({ name: 'get_goalie_status', arguments: {
+      date: input.date, page_size: 4, ...(goalieCursor ? { cursor: goalieCursor } : {}) } });
+    const page = unpack(result);
+    check(Buffer.byteLength(JSON.stringify(result)) <= 3584);
+    check(page.coverage.requested_page_size === 4 && page.coverage.returned === page.games.length);
+    for (const game of page.games) {
+      check(!goalieGames.has(game.league_game_id)); goalieGames.add(game.league_game_id);
+    }
+    check(goalieGames.size + page.coverage.remaining === page.coverage.total_games);
+    goalieCursor = page.next_cursor; goaliePages++;
+    check(goaliePages <= 16);
+  } while (goalieCursor);
+  check(goalieGames.size === input.game_count);
+  report('adaptive_goalie_pages', { pages: goaliePages, games: goalieGames.size, requested_page_size: 4 });
+  stage = 'whole_shortlist_game_cap';
+  check(descriptor.slate_brief.shortlist.max_candidates_per_game.scope === 'whole_shortlist_after_player_dedup');
+  const capped = unpack(await client.callTool({ name: 'get_slate_brief', arguments: {
+    ...briefArguments, max_candidates_per_game: 1 } }));
+  check(capped.ranking.max_candidates_per_game === 1);
+  check(capped.ranking.unique_players_before_game_cap === capped.coverage.eligible + capped.ranking.game_cap_excluded);
+  check(new Set(capped.candidates.map(item => item.league_game_id)).size === capped.candidates.length);
+  check(capped.candidates.every((item, index) => item.rank === index+1 && item.pool_rank >= item.rank));
+  report('whole_shortlist_game_cap', { returned: capped.coverage.returned, eligible: capped.coverage.eligible,
+    before: capped.ranking.unique_players_before_game_cap, excluded: capped.ranking.game_cap_excluded });
   stage = 'evidence_sections';
   // An empty qualified slate is valid. A separate real-player screen can test
   // section invocability without manufacturing a candidate, line or usable quote.

@@ -86,6 +86,12 @@ Shortlist defaults context-light. Flat ordered candidates reference team_context
 included on that same page, so no prior response is needed to read team facts.
 matched_known_entry concerns resolved report entries; overall unknown remains
 when identities are unresolved. Neither field establishes medical clearance.
+candidate_limit is an upper bound. Check coverage.returned, byte_limited and
+remaining; follow next_cursor with unchanged selectors, including any game cap.
+When advertised, max_candidates_per_game (1..12) optionally limits the whole
+shortlist after global player dedup; default uncapped. rank is selected order;
+pool_rank retains uncapped position. This controls concentration, not correlation
+or risk, and can return fewer than requested even with a larger uncapped pool.
 Research view keeps round-robin browsing and alternative markets. Never describe
 five items from partial unranked research pages as the full-pool top five.
 It supports today and regular season only. Advertised compact_v3 defaults to
@@ -121,7 +127,12 @@ its recent sample is five starts. L60/L120 are minute windows, not recent starts
 Use describe_resource detail=compact (default) for definitions and units;
 detail=full includes benchmark diagnostics. Compact tools intentionally use a
 single text block; absence of duplicate structuredContent is not a data failure.
+get_goalie_status page_size (1..4, default2) is an upper bound. Advertised
+adaptive pages preserve whole games and report counts/byte_limited. Follow
+next_cursor with the SAME requested page_size; one oversized game can still fail.
 Gamecenter format=compact accepts omitted sections or sections=[analysis].
+Pass a returned packet game_id unchanged: schedule and publication IDs are both
+accepted opaque selectors. Join tools by league_game_id.
 When advertised, include_current_offers=true attaches separate stored exact-line,
 book, price and ingestion-time annotations to NHL watches. Preserve the published
 reasoning and citation dependencies; a current offer is not evidence that its

@@ -1,6 +1,6 @@
 # NHL ranked shortlist
 
-API1.26 advertises compact_v4 in NHL discovery. For a top-ten request use
+API1.27 advertises compact_v4 in NHL discovery. For a top-ten request use
 `get_slate_brief({sport:"nhl",date:"YYYY-MM-DD",view:"shortlist",candidate_limit:10})`.
 Selection runs over the complete covered eligible player-market pool before
 pagination. Exact season hit counts/graded samples and quoted break-even determine
@@ -27,10 +27,41 @@ incomplete. Shared reported players are team facts: exclude the candidate itself
 for teammate interpretation. No medical clearance or usage effects are inferred.
 
 Cursors retain the existing fixed180s/eight-snapshot limits and now bind view as
-well as format/date/markets/limit/prices/pregame scope. Context is representation
+well as format/date/markets/limit/game cap/prices/pregame scope. Context is representation
 only and may change. No continuation source reads, silent restarts or retries.
 Explicit unsupported view fails before a protected request on older APIs; v3/v2/
 legacy remain supported. The complete serialized MCP brief stays <=32KiB.
+
+## Availability follow-up
+
+Optional advertised `max_candidates_per_game` (1..12) applies only to an explicit
+`view=shortlist`. It limits the entire frozen list after global player dedup,
+before pagination; default remains uncapped. `rank` counts selected positions and
+`pool_rank` retains uncapped positions. `ranking.unique_players_before_game_cap`
+and `game_cap_excluded` disclose the population removed. `coverage.eligible` counts
+the capped pool; raw player-market counts stay unchanged. A game cap controls
+concentration; it is not a correlation model or a guarantee of safer selections.
+
+`candidate_limit` is an upper bound. Inspect returned/byte_limited/remaining and
+follow next_cursor with unchanged selectors (including cap), without restarting
+or broadening controls silently. Requested twelve can return fewer when bytes,
+coverage, player collapse or the explicit game cap limit the list.
+
+Advertised adaptive `get_goalie_status` pages retain whole games within the
+existing3.5KiB ceiling. `page_size=4` requests at most four games; coverage reports
+requested/actual/offset/total/remaining/byte_limited. Follow next_cursor with the
+same requested page_size until null. One protected GET per page, no retries;
+an intrinsically oversized single game still fails explicitly.
+
+The backend's future injury captures may resolve a missing provider-ID bridge by
+a unique normalized exact name on the canonical current team, including goalies
+and injured players. Wrong-team, ambiguous or conflicting provider mappings stay
+unresolved. This does not rewrite old reports, assign permanent provider IDs,
+provide medical clearance or certify reports whose source coverage is missing.
+
+Packet `game_id` values from brief selectors and list responses are opaque and
+both schedule/publication forms are accepted. Pass them unchanged. Cross-tool
+joins use `league_game_id`. Accepted publication prose/citations remain intact.
 
 ## Gamecenter prices
 

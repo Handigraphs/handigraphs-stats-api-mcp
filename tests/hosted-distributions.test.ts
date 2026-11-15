@@ -74,7 +74,7 @@ test('local secret configuration, masked setup and Desktop extension snapshots r
     'plugins/handigraphs-stats-api/.codex-plugin/plugin.json': 'edc82143a3c56c6febcb289f8ea9a2ecbb7944b0338f61db18d634eebf4eba3f',
     'plugins/handigraphs-stats-api/.claude-plugin/plugin.json': '7ed7ac7099a2ebb200d76d98b553d854fbd24258fefccc272960e8fa5d1b2d71',
     // Intentional tool-description refresh; secret configuration is unchanged.
-    'mcpb/manifest.json': 'a03a2709c2967e0cd527e96a563fd677debba86aca7ee9495451b116f32ce420',
+    'mcpb/manifest.json': '24f301a2fb53ea5d063ef459d90691be06350447852a86e4c91a0ff7c174ffb0',
     'plugins/handigraphs-stats-api/skills/setup-handigraphs-stats-api/SKILL.md': 'a244cb7ee29d4b6c1ecba883eb7e887c8be5dd584b6a8bd80dfa0f7af253dfa9',
     'plugins/handigraphs-stats-api/scripts/configure-macos.mjs': '29e8591b97bf346279fee0804d2f81fd72adaf97f2db14f7876eee4bf171262e',
     'plugins/handigraphs-stats-api/scripts/configure-windows.ps1': '7d0af7e5a94a76f0b5a9ec068c443f3b6556f2397e7dfb1a8ac8894ef18f9298',

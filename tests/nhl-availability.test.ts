@@ -28,6 +28,53 @@ const firstInjuryPage = {
   next_cursor: "report+revision",
 };
 
+function adaptivePage(offset = 0) {
+  const returned = Math.min(2, 5-offset);
+  return { ...firstGoaliePage, games: Array.from({ length: returned }, (_, i) => ({
+    ...firstGoaliePage.games[0], league_game_id: String(100+offset+i) })),
+    next_cursor: offset+returned < 5 ? String(offset+returned) : null,
+    coverage: { requested_page_size: 4, returned, offset, total_games: 5,
+      remaining: 5-offset-returned, byte_limited: returned < Math.min(4, 5-offset) } };
+}
+
+test('adaptive goalie pages retain requested four and cover every whole game in a fresh client', async t => {
+  const { api, read } = await connect(t, { goalie_status: { ...goalie, adaptive_pages: true } }, url => ({
+    body: adaptivePage(Number(url.searchParams.get('cursor') ?? 0)) }));
+  const seen: string[] = [];
+  let cursor: string | null = null;
+  do {
+    const result = await read('get_goalie_status', { page_size: 4, ...(cursor ? { cursor } : {}) });
+    assert.equal(result.isError, undefined);
+    assert.equal(result.structuredContent, undefined);
+    assert.ok(Buffer.byteLength(JSON.stringify(result)) <= 3584);
+    const page = JSON.parse((result.content as { text: string }[])[0]!.text) as ReturnType<typeof adaptivePage>;
+    seen.push(...page.games.map(item => item.league_game_id));
+    cursor = page.next_cursor;
+  } while (cursor);
+  assert.deepEqual(seen, ['100', '101', '102', '103', '104']);
+  const calls = api.requests.filter(item => item.authorization);
+  assert.equal(calls.length, 3);
+  assert.ok(calls.every(item => new URL(item.path, api.baseUrl).searchParams.get('page_size') === '4'));
+});
+
+test('adaptive goalie invalid counts, missing coverage and no-progress cursor reject one read', async t => {
+  for (const change of [
+    { coverage: undefined },
+    { coverage: { ...adaptivePage().coverage, requested_page_size: 2 } },
+    { coverage: { ...adaptivePage().coverage, returned: 3 } },
+    { coverage: { ...adaptivePage().coverage, remaining: 4 } },
+    { next_cursor: null },
+    { games: [], coverage: { ...adaptivePage().coverage, returned: 0, remaining: 5 } },
+  ]) {
+    const { api, read } = await connect(t, { goalie_status: { ...goalie, adaptive_pages: true } }, () => ({
+      body: { ...adaptivePage(), ...change } }));
+    const result = await read('get_goalie_status', { page_size: 4 });
+    assert.equal(result.isError, true);
+    assert.match(JSON.stringify(result), /goalie_status_invalid_response/);
+    assert.equal(api.requests.filter(item => item.authorization).length, 1);
+  }
+});
+
 async function connect(t: TestContext, discovery: Record<string, unknown>,
   response: (url: URL) => { status?: number; body: unknown }) {
   const api = await startMockApi((request, reply) => {
