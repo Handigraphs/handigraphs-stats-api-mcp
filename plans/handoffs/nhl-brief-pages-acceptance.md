@@ -29,4 +29,6 @@ approval, followed by bounded production reads. Existing authorization covers
 the rollout, but the canonical owner acceptance must name this concrete pair.
 No new flags, DDL, scraper generation, account eligibility expansion or publication.
 Private reports and screenshot stay outside the public repository.
-Code and final pushed checkpoint will be identified in the closing report.
+Code/record checkpoint318040b300d4b85043f45593af9cc9b20d1f69ae was pushed and
+remote-verified before opening PR59. This following handoff-only commit does not
+change runtime, observations or validation; its final SHA is in the closing report.
