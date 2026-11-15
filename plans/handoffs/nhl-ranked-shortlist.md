@@ -36,6 +36,9 @@ updated after confirming no secret/config/version change; the earlier hash-only
 failure is resolved. SDK fixture checks include one protected top-ten call from a
 140-selection pool, global continuation ranks and quote/citation page preservation.
 
+Code checkpoint: fddbcf6a48f2d2664bac4b6a4b6662f3c2d79e5d, pushed and remote
+verified. The following handoff-only commit is distinct from the code checkpoint.
+
 Remaining: source CI; backend1.26 deployment before adapter sandbox; explicit
 canonical merge permission; new real-Redis/fresh OAuth and actual Claude checks;
 owner exact-pair acceptance record and production human approval. Old acceptance
