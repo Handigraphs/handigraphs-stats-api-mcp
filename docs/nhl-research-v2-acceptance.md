@@ -1,7 +1,8 @@
 # NHL research v2 acceptance
 
-The final sandbox SDK/browser cohort passed. Actual Claude.ai replay is in
-progress; no new owner production decision is recorded yet.
+The final sandbox SDK/browser cohort and actual Claude.ai compatibility checks
+completed. Production requires owner-authorized acceptance/merge and the native
+human environment gate; this candidate does not record that decision in advance.
 
 | Component | Tested revision |
 | --- | --- |
@@ -55,7 +56,45 @@ reset remains an independent UX follow-up.
 
 ## Actual Claude.ai
 
-Final fresh-catalog replay and focused evidence/goalie/Gamecenter checks pending.
+The fresh Claude.ai catalog visibly contained the corrected same-line season and
+8 KiB evidence guidance. Opus 5.5 Extra completed the original prompt with twelve
+protected reads and no payload errors. Five additional UI attempts were marked
+Stopped/client-cancelled; these were not empty API responses. It used focused
+hit_rates/odds/matchup batches with include_season=true, validated both over and
+under sides, excluded games that started during the session, and disclosed mixed
+books, overlapping samples, missing game odds and stale goalie observations.
+It produced no numeric win-probability, EV or parlay-benefit claim. It still added
+qualitative assertions about prop stability, shared-game correlation and injury
+role effects that source data does not establish; these are caller judgments,
+not MCP model output or verified conclusions.
+
+All focused native checks returned data on their first completed attempt:
+
+- Compact goalie discovery reported API 1.24.1, adapter 0.3.0 and tool revision
+  nhl-research-v2, with advertised/invocable evidence sections matching. The safe
+  build SHA was null; deployment records bind the tested commits above.
+- The explicit 20262027 goalie screen returned twelve unique player IDs with no
+  duplicates. Matchups were available; old statistics dates remained visible.
+- A single upcoming goalie evidence call returned all five sections available,
+  including exact-line season rates. The 27.5 line came from an ingested quote;
+  none was manufactured. Starter qualification remains separate from evidence.
+- Date-only injuries reported fourteen games, twenty-eight reports and eighty
+  flags, with fifty complete records on the first page and continuation disclosed.
+  Stale reports and five unresolved canonical identities remained explicit.
+- Gamecenter list and format=compact plus sections=[analysis] returned explicit
+  not_published state for the pending packet, with unknown freshness and no
+  invented analysis/citations. No published-packet live check was possible for
+  that sandbox date; fixture coverage preserves published citation dependencies.
+
+The separate bounded native test window restored its flags and removed its
+journal. The client made no account/filter/research-job mutations. A private
+screenshot of the final native result is retained without authentication details.
+
+Two apparent format discrepancies are intentional: 30000 is the API body budget,
+while 32 KiB bounds the complete MCP envelope; prop_screen's twelve-row limit is
+per page, with cursor continuation. meta.season is an ending-year label, while
+context.season is the full eight-digit ID. Existing raw screens can include
+started games and stale projections; the brief applies pregame/starter gates.
 
 ## Limits and rollout boundary
 

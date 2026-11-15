@@ -59,3 +59,22 @@ dependency audit zero vulnerabilities, typecheck/build/pack/distributions/MCPB.
 Native final fresh-catalog Claude.ai replay is in progress in a separate finite
 sandbox flag window; do not count the earlier mixed-rollout native observations
 as final-pair acceptance. No owner production decision or activation yet.
+
+Final native check completed on the exact pair: original prompt had twelve
+completed protected calls, zero payload errors, five UI-cancelled attempts. It
+used include_season=true with focused evidence sections and excluded games that
+started mid-run. It made no numeric win-probability/EV/parlay-benefit claims, but
+unsupported qualitative prop-stability/correlation/role judgments remain caller
+limitations. All focused checks passed: compact discovery/API1.24.1 parity,
+twelve unique goalie IDs in the explicit current-season screen, all five goalie
+evidence sections available with a real offered line, date-only injury coverage,
+and compact+analysis pending Gamecenter state without 400. No published sandbox
+packet existed for that date. Native feature-window flags restored; journal gone.
+
+Prepared a proposed owner record, preserving the prior v1 record verbatim in its
+dated archive. Observation digest 568ff32c7513d97772745dffe21c3a2e40f841c797ce3322938d379007b93cb8.
+Its effective acceptance still requires explicit owner-authorized merge; native
+human production approval and V2 activation remain separate pending decisions.
+No runtime changes after f9d9b4a. Validate the full profile and docs-only runtime
+comparison, then open a concrete PR for that owner decision. Never approve the
+production environment as an agent or relabel historical evidence.
