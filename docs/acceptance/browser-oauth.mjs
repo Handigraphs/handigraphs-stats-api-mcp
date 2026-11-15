@@ -138,7 +138,7 @@ async function main() {
   check(briefTool && evidenceTool && evidenceTool.inputSchema.properties.sections.items.type === 'string');
   const sectionSchema = evidenceTool.inputSchema.properties.sections.items;
   check(['enum', 'const', 'oneOf', 'anyOf', 'allOf'].every(key => !(key in sectionSchema)));
-  check(['cursor', 'include_context', 'pregame_only', 'view'].every(key => key in briefTool.inputSchema.properties));
+  check(['cursor', 'include_context', 'pregame_only', 'view', 'max_candidates_per_game'].every(key => key in briefTool.inputSchema.properties));
   check('include_current_offers' in catalog.find(tool => tool.name === 'get_gamecenter_packet').inputSchema.properties);
   const briefArguments = { sport: 'nhl', date: input.date, pregame_only: false, view: 'shortlist', candidate_limit: 10 };
   if (input.cohort_barrier === true) {
@@ -278,6 +278,39 @@ async function main() {
   check(capped.candidates.every((item, index) => item.rank === index+1 && item.pool_rank >= item.rank));
   report('whole_shortlist_game_cap', { returned: capped.coverage.returned, eligible: capped.coverage.eligible,
     before: capped.ranking.unique_players_before_game_cap, excluded: capped.ranking.game_cap_excluded });
+  stage = 'capped_snapshot_pagination';
+  const capArgs = { ...briefArguments, candidate_limit: 3, max_candidates_per_game: 2 };
+  let capPage = unpack(await client.callTool({ name: 'get_slate_brief', arguments: capArgs }));
+  const capTotal = capPage.coverage.eligible, capBefore = capPage.ranking.unique_players_before_game_cap;
+  const capGames = new Map(), capPlayers = new Set();
+  let capPages = 0, previousPoolRank = 0;
+  do {
+    capPages++;
+    check(capPages <= 12 && capPage.ranking.max_candidates_per_game === 2);
+    check(capPage.ranking.unique_players_before_game_cap === capBefore);
+    check(capPage.coverage.eligible === capTotal && capBefore === capTotal + capPage.ranking.game_cap_excluded);
+    for (const item of capPage.candidates) {
+      check(!capPlayers.has(item.player_id)); capPlayers.add(item.player_id);
+      check(item.rank === capPlayers.size && item.pool_rank > previousPoolRank);
+      previousPoolRank = item.pool_rank;
+      capGames.set(item.league_game_id, (capGames.get(item.league_game_id) ?? 0)+1);
+      check(capGames.get(item.league_game_id) <= 2);
+    }
+    check(capPlayers.size + capPage.coverage.remaining === capTotal);
+    if (!capPage.next_cursor) break;
+    if (capPages === 1) {
+      const denied = await client.callTool({ name: 'get_slate_brief', arguments: {
+        ...capArgs, max_candidates_per_game: 1, cursor: capPage.next_cursor } });
+      check(denied.isError === true && denied.structuredContent?.error?.status === 400
+        && denied.structuredContent?.error?.code === 'invalid_cursor');
+    }
+    capPage = unpack(await client.callTool({ name: 'get_slate_brief', arguments: {
+      ...capArgs, cursor: capPage.next_cursor } }));
+    check(capPage.coverage.returned > 0);
+  } while (true);
+  report('capped_snapshot_pagination', { cap: 2, pages: capPages, unique_candidates: capPlayers.size,
+    eligible: capTotal, before: capBefore, game_count: capGames.size,
+    positive_continuation: capPages > 1, max_per_game: capGames.size ? Math.max(...capGames.values()) : 0 });
   stage = 'evidence_sections';
   // An empty qualified slate is valid. A separate real-player screen can test
   // section invocability without manufacturing a candidate, line or usable quote.
