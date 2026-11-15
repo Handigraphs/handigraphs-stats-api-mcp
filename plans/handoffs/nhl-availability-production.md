@@ -66,3 +66,28 @@ read-only goalie/cap/evidence checks. Verify future injury capture identity matc
 with read-only SQL. Pre-producer baseline found all3 known source IDs unresolved
 and all3 permanent provider IDs still null; do not repair rows directly. Preserve
 source clocks and ambiguous/old observations. No package publication.
+
+
+## Human receipt and live MCP
+
+Owner returned after submitting approvals. GitHub records native MCP approval by
+cjbuskey, and production run43769558786 succeeded including the deploy mutation
+job atccc2ad9. Browser also visibly confirmed success and the human approval;
+private screenshot retained. Web remains live/verified at API1.27.0.
+
+Original scraper request43769558768 expired with no issue893 comment. Its later
+attempt2 displayed overall success but intentionally skipped both approval and
+Cloud Run mutation. That rerun did not deploy. Under existing rollout authority,
+a fresh first-attempt run43774683796 was dispatched at the same accepted appa9c7bd93
+with normal preflight, no break-glass. Replacement issue894 binds digest
+67de08c47b1ecb42ca507505053e5f3f50c9fa6ad45cabbcd674ae3f4f07ad35.
+Owner independently posted the exact approval at2026-11-15T23:26:29Z, comment
+6903151316 bycjbuskey, unedited (created_at=updated_at). Browser and API verified
+it; no additional approval was requested or submitted by an agent. Its5-minute
+cooldown ends no earlier than23:31:29Z; request expiry23:55:04Z. Mutation not yet
+complete at this checkpoint. Preserve the issue open and let the gate recheck.
+
+Actual production Claude smoke is running through the existing production
+connector; its visible brief schema already contains11 inputs. No production
+account/cohort/flag changes or credentials/traces. Final bounded client output,
+producer mutation success and new normal-capture identity evidence remain.
