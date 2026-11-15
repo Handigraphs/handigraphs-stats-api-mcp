@@ -91,3 +91,84 @@ Actual production Claude smoke is running through the existing production
 connector; its visible brief schema already contains11 inputs. No production
 account/cohort/flag changes or credentials/traces. Final bounded client output,
 producer mutation success and new normal-capture identity evidence remain.
+
+## Production rollout complete — 2026-11-15
+
+This section supersedes the pending status above. Root Codex Windows desktop
+session is the active writer; this branch contains operations notes only.
+
+Production web [43769043201](https://github.com/cjbuskey/handigraphs-app/actions/runs/43769043201)
+and canonical MCP [43769558786](https://github.com/Handigraphs/handigraphs-stats-api-mcp/actions/runs/43769558786)
+both completed their actual mutation jobs successfully. MCP validation and
+owner/runtime acceptance passed, and cjbuskey's native human production approval
+was verified. App remains `a9c7bd9379b1862ebf105dca58558a042ed24fdd`, API 1.27.0.
+Deployed MCP source `ccc2ad94a456e4897e105d2a193ff3486e22b1ff` remains
+runtime-equivalent to tested `4a42f1a6ca5f6b50f4940206fa90ccbf0ecf95c4`; there
+were no runtime edits or npm/MCPB publication.
+
+Replacement scrapers-web [43774683796](https://github.com/cjbuskey/handigraphs-app/actions/runs/43774683796)
+succeeded on its first attempt, after exact-SHA sandbox preflight, issue 894 human
+approval/cooldown and the actual Cloud Run mutation. Revision
+`handigraphs-scrapers-web-00039-ttd` is Ready; authenticated /health is healthy.
+Original 43769558768 attempt 1 expired and attempt 2 skipped mutation; its green
+rerun was not deployment. No agent comment/approval or bypass was used.
+
+### Actual production Claude verification
+
+[Production client chat](https://claude.ai/chat/c7e2da33-1456-466f-8acf-5a358e79391e)
+used the existing production connection, without account, flag or scope changes.
+Visible schema had 11 brief inputs; discovery reported contract 1.27.0/catalog
+`nhl-availability-caps-v1`/adapter 0.3.0, with all five evidence sections invocable.
+
+Initial bounded run attempted seven calls: six results and one no-result cap-two
+call without an error body. Preserve that observation as a failure. Separate
+bounded two-call follow-up passed without retries, giving nine total attempts,
+eight results and one unattributed no-result observation.
+
+- Goalies requested page_size=4: all five distinct games in 2/2/1 whole-game
+  pages, truthful byte limiting and no duplicates or remaining games.
+- Cap one: five candidates from five games, ranks 1–5/pool ranks 1/2/6/8/11,
+  69 before cap and 64 excluded by cap.
+- Cap two: 3+3 returned, ranks 1–6/pool ranks 1/2/3/4/6/8, max two per game,
+  four of ten unseen. Unexpired same snapshot, no byte limiting.
+- Exact Carlsson SOG under 2.5 evidence matched 7/10 recent, 17/20 season,
+  quote and matchup. Source/quote clocks and limitations were preserved.
+
+A safe bounded router metadata read counted 17 POST /mcp requests during
+23:30–23:40:59Z (12 HTTP 200, three 202, two 400; max service 2,091 ms). They
+cannot be attributed to one client call; no-result cause remains unknown.
+Readiness returned 200. No authenticated raw logs, bodies or traces were saved.
+
+### Producer capture and current API observations
+
+The normal hourly trigger and one force-gate HTTP run retained cached HTML's
+original clocks. Fresh-capture proof then used the unchanged accepted canonical
+CLI once, scoped to EDM/VAN/FLA and 2026-11-15 with --force --force-refresh.
+It wrote three genuine new injury observations, exit zero, no fetch/store
+failures. Read-only SQL and current connected API checks verified:
+
+- Andersen source 1942 -> NHL 8475883;
+- Demko source 2722 -> NHL 8477967;
+- Gadjovich source 4612 -> NHL 8479981.
+
+Source updates and observations remain separate; all three permanent provider
+columns remain null. The older tomorrow VAN row stayed unchanged/unknown.
+No direct production SQL repair, fixture, canonical provider-ID assignment,
+manufactured timestamp, account/cohort or rollout-flag change occurred.
+Seven post-capture protected connected API reads were made: one brief and two
+rounds of three injury reads (first local comparison used numeric instead of
+serialized string IDs; corrected checks passed). The earlier Claude injury
+unknowns preceded these new observations.
+
+Private production verification SHA256:
+`09836c59bed7a545128aec65f02b4a2357dddb1e7136a08bf725e2bfaf00fc74`.
+Accepted sandbox observation stays unchanged at
+`f92bdb385abbc5e2257d42c591627ef13fedc3071d95561330caf685683693ff`.
+Private proof screenshots and safe aggregate reports were retained separately.
+
+Authorized rollout and bounded checks are complete. Monitoring limit: one
+unattributed production client no-result observation; successful follow-up does
+not erase it. Only six of ten cap-two candidates were inspected in production.
+Unknown/older coverage and historical screening arithmetic retain their caveats.
+The commit containing this section is this branch's final operations checkpoint;
+the final pushed SHA is reported separately. No new product PR or publication.
