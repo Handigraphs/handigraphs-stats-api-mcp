@@ -9,11 +9,34 @@ and bounds. For shots on goal the key is `skater_shots_on_goal`. The tool uses
 account eligibility, Terms and shared quotas.
 
 For broad tonight research, start with the advertised slate brief. It negotiates
-compact_v2, applying the versioned recent/season price gates and preserving named
-injury risks. Read its injury `report_columns` and report references; use date-only
-get_injury_updates for complete flags and bounded paging. Unknown importance,
-stale coverage and omitted flags require review. Qualified candidates are research,
-not probabilities or EV. For a custom shots screen, discover compact skater
+compact_v3 when advertised (otherwise compact_v2/legacy), retaining the existing
+recent/season price gates. V3 defaults to pregame scope with full-slate/excluded
+counts; use `pregame_only=false` for all games. First-page context includes odds,
+goalies and named injury alerts. Follow `next_cursor` with the identical date,
+markets, candidate_limit, prices and pregame_only; omit include_context on those
+calls (default false). Every qualified player-market selection is retrievable;
+candidate_limit is per page, with at most one/player/page. Context-heavy first
+pages can be orientation-only and explicitly continue at offset zero. Do not
+rerun market groups merely to recover omitted candidates.
+
+Use `include_context=false` for an initial context-light read. Snapshots expire
+after 180 seconds or eight newer snapshots for the owner. Expiry/cache loss is an
+explicit restart error; never silently restart or reinterpret it as no candidates.
+Source changes do not shuffle remaining pages. Quotes, starters and injuries are
+frozen observations: retain snapshot.as_of/expires_at, quote ingestion time and
+status_at_read. Started/stale quotes are unusable context. Refresh without a cursor
+for current source inputs and use exact evidence selectors before quoting a bet.
+
+Candidate injury.match is listed/not_listed/unknown in a specific team report;
+flagged is true/false/null accordingly. Freshness is separate; not_listed never
+means medically cleared. Partial reports/unresolved identities remain unknown.
+Bounded named teammate_flags are report facts, not usage impacts. Check omitted
+counts and use the returned drill-down, or date-only get_injury_updates for full
+slate paging. Shared game/player/statistical_outcome_group IDs help compare
+selections across calls; they are not correlation estimates, independence claims,
+or proof of identical bookmaker settlement. Keep distinct market/source families.
+
+Qualified candidates are research, not probabilities or EV. For a custom shots screen, discover compact skater
 definitions once, then compare recent volume and season opponent ranks.
 
 ```json

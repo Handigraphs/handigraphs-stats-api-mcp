@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Negotiate advertised compact_v3 slate pages with context/pregame controls, frozen
+  bounded snapshots, candidate report-match/freshness and shared relationship IDs.
+  Preserve v1/v2 compatibility, current ranking/gates and one protected GET/call.
+
 - Add discovery-gated NHL `get_slate_brief` on both transports, with one protected read, exact-line grouped evidence and a 32 KiB complete-result limit.
 - Expose safe adapter/build/catalog and effective API section diagnostics; validate section names against compatible live discovery.
 - Clarify text-only compact results, partial coverage and batch-size guidance. No activation or publication is implied.

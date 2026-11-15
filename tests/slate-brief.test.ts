@@ -26,7 +26,7 @@ async function connect(t: TestContext, advertised: unknown = descriptor, body: u
     const url = new URL(request.url!, "http://localhost");
     if (![path, "/api/v1/nhl"].includes(url.pathname)) return false;
     response.writeHead(url.pathname === path ? status : 200, { "content-type": "application/json", "retry-after": "15" });
-    response.end(JSON.stringify(url.pathname === path ? body : { slate_brief: advertised }));
+    response.end(JSON.stringify(url.pathname === path ? (typeof body === 'function' ? body(url) : body) : { slate_brief: advertised }));
     return true;
   });
   t.after(() => api.close());
@@ -89,4 +89,78 @@ test("invalid market, wrong response date, oversized payload and 503 fail withou
     assert.equal((await read()).isError, true);
     assert.equal(api.requests.filter(item => item.authorization).length, 1);
   }
+});
+
+const pagedDescriptor = { ...descriptor, formats: ['legacy', 'compact_v2', 'compact_v3'], price_controls: true,
+  pagination: { schema: 'nhl-slate-brief-v3', snapshot_seconds: 180 } };
+function page(offset = 0, count = 12, total = 19, context = offset === 0) {
+  return { ...payload, schema: 'nhl-slate-brief-v3', games: context ? payload.games : [], context_included: context,
+    scope: { pregame_only: true }, snapshot: { as_of: '2026-11-14T17:00:00Z', live_availability_checked: false },
+    groups: [{ market: 'skater_shots_on_goal', eligible: total, remaining: total-offset-count,
+      candidates: Array.from({ length: count }, (_, i) => ({ player_id: String(offset+i+1), candidate_id: 'candidate-'+(offset+i),
+        injury: { match: 'not_listed', flagged: false, source_freshness: 'stale' },
+        relationships: { game_group: 'same-game', player_group: String(offset+i+1), statistical_outcome_group: 'outcome-'+(offset+i) } })) }],
+    next_cursor: offset+count < total ? 'synthetic-page-two' : null,
+    coverage: { eligible: total, returned: count, offset, remaining: total-offset-count, limited: offset+count < total } };
+}
+
+test('fresh official client pages all 19 candidates in two protected reads without repeated context', async t => {
+  const { api, client, read } = await connect(t, pagedDescriptor,
+    (url: URL) => url.searchParams.has('cursor') ? page(12, 7) : page());
+  const tool = (await client.listTools()).tools.find(item => item.name === 'get_slate_brief')!;
+  const properties = tool.inputSchema.properties!;
+  for (const key of ['cursor', 'include_context', 'pregame_only']) assert.ok(properties[key]);
+  const first = await read();
+  assert.equal(first.isError, undefined);
+  assert.deepEqual(first.content, [{ type: 'text', text: JSON.stringify(page()) }]);
+  const second = await read({ cursor: 'synthetic-page-two' });
+  assert.equal(second.isError, undefined);
+  assert.deepEqual(second.content, [{ type: 'text', text: JSON.stringify(page(12, 7)) }]);
+  assert.ok(Buffer.byteLength(JSON.stringify(first)) <= 32768);
+  assert.ok(Buffer.byteLength(JSON.stringify(second)) <= 32768);
+  const protectedCalls = api.requests.filter(item => item.authorization);
+  assert.equal(protectedCalls.length, 2);
+  assert.ok(protectedCalls.every(item => item.method === 'GET' && item.path.includes('format=compact_v3')));
+  assert.ok(!protectedCalls[1]!.path.includes('include_context'));
+  const ids = [...page().groups[0]!.candidates, ...page(12, 7).groups[0]!.candidates].map(item => item.candidate_id);
+  assert.equal(new Set(ids).size, 19);
+});
+
+test('context-light and full-slate controls are forwarded only to advertised v3', async t => {
+  const body = { ...page(0, 12, 19, false), scope: { pregame_only: false } };
+  const { api, read } = await connect(t, pagedDescriptor, body);
+  assert.equal((await read({ include_context: false, pregame_only: false })).isError, undefined);
+  const query = new URL(api.requests.at(-1)!.path, api.baseUrl).searchParams;
+  assert.equal(query.get('include_context'), 'false');
+  assert.equal(query.get('pregame_only'), 'false');
+  for (const controls of [{ cursor: 'x' }, { include_context: false }, { pregame_only: false }]) {
+    const older = await connect(t);
+    assert.equal((await older.read(controls)).isError, true);
+    assert.equal(older.api.requests.filter(item => item.authorization).length, 0);
+  }
+});
+
+test('expired snapshot and malformed pages never trigger retry or a silent first-page restart', async t => {
+  const expired = await connect(t, pagedDescriptor, { code: 'slate_brief_cursor_expired', detail: 'Restart explicitly.' }, 409);
+  assert.equal((await expired.read({ cursor: 'expired' })).isError, true);
+  assert.equal(expired.api.requests.filter(item => item.authorization).length, 1);
+  const malformed = [
+    { ...page(), next_cursor: null }, { ...page(), context_included: false },
+    { ...page(), coverage: { ...page().coverage, remaining: 8 } },
+    { ...page(), groups: [{ ...page().groups[0]!, candidates: [page().groups[0]!.candidates[0], page().groups[0]!.candidates[0]] }],
+      coverage: { eligible: 19, returned: 2, offset: 0, remaining: 17 } },
+  ];
+  for (const body of malformed) {
+    const { api, read } = await connect(t, pagedDescriptor, body);
+    assert.equal((await read()).isError, true);
+    assert.equal(api.requests.filter(item => item.authorization).length, 1);
+  }
+});
+
+test('explicit orientation-only first page can continue at zero; empty context-free loops are rejected', async t => {
+  const orientation = { ...page(0, 0), coverage: { ...page(0, 0).coverage, context_only: true } };
+  const first = await connect(t, pagedDescriptor, orientation);
+  assert.equal((await first.read()).isError, undefined);
+  const loop = await connect(t, pagedDescriptor, page(0, 0, 19, false));
+  assert.equal((await loop.read({ cursor: 'loop' })).isError, true);
 });
