@@ -29,16 +29,31 @@ independent sandbox scrape. Gamecenter current-offers unavailable state passed;
 the selected packet had no published watches, so positive quote joins remain
 covered by fixtures rather than this live run.
 
-Actual Claude remains in progress: user refreshed expired login and confirmed
-API Terms. Their sandbox All Access account is not yet in the API cohort; exact
-account identity is pending for a finite test-only membership. A900s feature-flag
-window has automatic restoration and a private noncredential journal. Stop and
-verify it before handoff. A broad browser-tab inventory was rejected by automatic
-approval review; only the task-owned tab is being used. Do not bypass that denial.
+Actual Claude PASSED: user refreshed expired login, confirmed current API Terms
+and identified their All Access sandbox account for finite test-cohort access.
+Only read permission was selected. Fresh catalog showed ten brief/nine Gamecenter
+inputs. Three protected calls returned the complete top ten from169/63, matching
+exact-line season evidence and explicit unpublished Gamecenter. No payload/catalog
+errors, retries, writes/jobs, other connector or model/value claim. It disclosed
+unknown injury coverage/statistics time and older available history; no independent
+ingestion freshness or positive current-watch price proof is claimed. A broad tab
+inventory was rejected by automatic review, not bypassed; the task-owned tab was
+used. Private screenshot retained without authenticated traces.
 
-Remaining: finish actual Claude read-only checks, restore flags/membership, prepare
-truthful new exact-pair owner record with private safe evidence digest and archive
-the old record unchanged. Run full MCP profile before ready acceptance PR. Owner
+Both finite windows stopped. Immediate cleanup checks were false; a separate
+read-only propagation recheck verified all original flags and temporary membership
+removal, without further mutations. Journals removed. User-authorized Terms and
+read-only connection refresh remain; no personal account or grant was deleted.
+Safe observation SHA256511bde3e57df6fdaf4624d413301e98f691724a1d116cc18d67938b0f9ab017c.
+
+New proposed owner record/docs prepared; prior pagination record archived
+verbatim. Full acceptance-branch MCP profile passed221 tests/2 skips, production
+audit zero, typecheck/build/pack/distributions/unsigned MCPB; operator syntax and
+git diff checks passed. No src/package/lockfile/Procfile/deployment-gate change.
+App operations checkpoint40a368519d81c9151f5b7e268c04eb54d941761e is pushed
+and verified, with normal login smoke passing/authenticated dashboard skipped.
+MCP runtime checkpoint remains0422559; this record/handoff commit is separate.
+Remaining: ready acceptance PR/CI. Owner
 merge/promotion decision and native human production approval still apply. Keep
 historical native-client versions labeled historical; no positive current watch
 price or independently refreshed source-feed claim without observed evidence.

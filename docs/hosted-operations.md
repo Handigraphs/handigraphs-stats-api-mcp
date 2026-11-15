@@ -16,12 +16,16 @@ only by a stray gitlink on app main, removed in `b38cc79e` with no runtime chang
 The owner (cjbuskey) chose a recorded sign-off over another campaign. That record
 is preserved verbatim in [the historical acceptance](owner-acceptance-2026-10-24.json).
 The current candidate record covers completed
-[NHL brief pagination acceptance](nhl-brief-pagination-acceptance.md), spanning app
-`8f2a049b2dda36fef2ab2b583b562e5d084daac6` (contract `1.25.0`) and hosted MCP
-`2c7c80b3794169cc46dfecee950077bdad0ed470`. Its merge requires the owner's
-explicit acceptance and production decision. All current live games had started;
-positive pagination is separately verified with synthetic real-Redis fixtures,
-not claimed as positive current-price hosted evidence. The prior
+[NHL ranked shortlist acceptance](nhl-ranked-shortlist-acceptance.md), spanning app
+`97a8a4c9221238efa79903f56f6b09da9f0c1fec` (contract `1.26.0`) and hosted MCP
+`0422559edf191806ce3854201fa2494af25573ef`. Its merge requires the owner's
+explicit acceptance and production decision. Five fresh OAuth clients retrieved
+all 63 unique players from 169 qualified selections; actual Claude received the
+complete top ten in one brief read. Sandbox used timestamp-preserving production
+lineup mirrors. Positive Gamecenter watch-price joins remain fixture-only evidence;
+source coverage and older history limits are explicit. The prior
+[NHL brief pagination acceptance](nhl-brief-pagination-acceptance.md) is preserved
+in [its dated record](owner-acceptance-2026-11-15-nhl-brief-pagination.json). The prior
 [NHL research v2 acceptance](nhl-research-v2-acceptance.md) is preserved in
 [its dated record](owner-acceptance-2026-11-15-nhl-research-v2.json). The earlier
 [NHL slate/browser OAuth acceptance](slate-brief-acceptance.md) is preserved in
@@ -53,7 +57,7 @@ approval issue, sandbox releases or app main. They require all of:
 4. The native GitHub `production` environment approval, rechecked after the wait.
 
 The candidate runtime is the exact MCP commit verified against live sandbox for
-brief pagination, expanded evidence invocability, real browser OAuth and actual Claude.ai. The
+ranked shortlists, expanded evidence invocability, real browser OAuth and actual Claude.ai. The
 `clients` map carries historical native versions; this incremental test used
 the official SDK/Chromium and Claude.ai Opus 5.5 High. It is not a general load
 campaign or a new acceptance of every native client in that historical map.
