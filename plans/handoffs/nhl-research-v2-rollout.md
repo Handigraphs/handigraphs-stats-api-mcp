@@ -45,3 +45,17 @@ early opened confirmation. Await the stable loaded/error account page before
 opening confirmation. No retries, raised timeouts or weakened denial assertions.
 The early-click panel reset is an existing website UX follow-up, outside this
 MCP change. Next finite fresh cohort must establish cold cache misses again.
+
+Cohort 04 PASSED on app aec596bf / runtime f9d9b4a, API 1.24.1. Five fresh key
+digests; five cold and fifteen warm reads, cold p95 3610 ms, warm p95 1248 ms,
+maximum complete result 31490 bytes; required context/skater-history cache misses
+observed. All five owners passed all evidence sections and exact-line/sample
+parity, two refresh rotations, stable-page browser revocation, completed gateway
+401 and invalid_grant. No unexpected 429/503. Exact cleanup/flag restoration
+succeeded and recovery journal was removed. Safe summary is in
+docs/nhl-research-v2-acceptance.md; private report remains outside worktrees.
+Full current MCP profile passed: 209 tests plus two platform skips, production
+dependency audit zero vulnerabilities, typecheck/build/pack/distributions/MCPB.
+Native final fresh-catalog Claude.ai replay is in progress in a separate finite
+sandbox flag window; do not count the earlier mixed-rollout native observations
+as final-pair acceptance. No owner production decision or activation yet.
