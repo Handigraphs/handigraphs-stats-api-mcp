@@ -138,8 +138,9 @@ async function main() {
   check(briefTool && evidenceTool && evidenceTool.inputSchema.properties.sections.items.type === 'string');
   const sectionSchema = evidenceTool.inputSchema.properties.sections.items;
   check(['enum', 'const', 'oneOf', 'anyOf', 'allOf'].every(key => !(key in sectionSchema)));
-  check(['cursor', 'include_context', 'pregame_only'].every(key => key in briefTool.inputSchema.properties));
-  const briefArguments = { sport: 'nhl', date: input.date, pregame_only: false };
+  check(['cursor', 'include_context', 'pregame_only', 'view'].every(key => key in briefTool.inputSchema.properties));
+  check('include_current_offers' in catalog.find(tool => tool.name === 'get_gamecenter_packet').inputSchema.properties);
+  const briefArguments = { sport: 'nhl', date: input.date, pregame_only: false, view: 'shortlist', candidate_limit: 10 };
   if (input.cohort_barrier === true) {
     check(typeof process.send === 'function');
     await new Promise((resolve, reject) => {
@@ -175,10 +176,10 @@ async function main() {
   }
   const descriptor = unpack(await client.callTool({ name: 'describe_resource', arguments: { sport: 'nhl', resource: 'skaters' } }));
   check(descriptor.prop_evidence.sections.includes('matchup') && descriptor.prop_evidence.sections.includes('opponent_recent'));
-  const expectedContract = process.env.HANDIGRAPHS_EXPECTED_API_CONTRACT ?? '1.25.0';
+  const expectedContract = process.env.HANDIGRAPHS_EXPECTED_API_CONTRACT ?? '1.26.0';
   check(/^\d+\.\d+\.\d+$/.test(expectedContract));
-  check(descriptor.mcp.tool_catalog_revision === 'nhl-brief-pages-v1' && descriptor.mcp.api_contract_version === expectedContract);
-  check(descriptor.slate_brief.formats.includes('compact_v3'));
+  check(descriptor.mcp.tool_catalog_revision === 'nhl-ranked-shortlist-v1' && descriptor.mcp.api_contract_version === expectedContract);
+  check(descriptor.slate_brief.formats.includes('compact_v4'));
   check(descriptor.mcp.prop_evidence_tool && descriptor.mcp.slate_brief_tool);
   check(descriptor.mcp.invocable_prop_evidence_sections.length === 5);
   const expectedBuild = process.env.HANDIGRAPHS_EXPECTED_MCP_SHA;
@@ -188,19 +189,22 @@ async function main() {
     runtime: descriptor.mcp });
   stage = 'full_slate_read';
   const slate = unpack(slateResult), bytes = Buffer.byteLength(JSON.stringify(slateResult));
-  check(slate.schema === 'nhl-slate-brief-v3');
-  check(bytes <= 32768 && slate.games.length === input.game_count && slate.coverage.returned <= 12);
+  check(slate.schema === 'nhl-slate-brief-v4');
+  check(bytes <= 32768 && slate.scope.included_games === input.game_count);
+  check(slate.view === 'shortlist' && !slate.context_included && slate.games.length === 0);
+  check(slate.coverage.returned === Math.min(10, slate.coverage.eligible) && !slate.coverage.byte_limited);
   check(slate.coverage.selection_status !== 'unavailable');
   check(slate.coverage.returned > 0 || slate.coverage.eligible === 0 || slate.next_cursor);
   report('cold_first_mcp_slate', { bytes, latency_ms: firstLatencyMs, coverage: slate.coverage,
-    markets: slate.groups.map(group => ({ market: group.market, returned: group.candidates.length,
-      eligible: group.eligible, exclusions: group.exclusions })) });
+    markets: slate.groups.map(group => ({ market: group.market, returned: group.returned,
+      eligible: group.eligible, pool_eligible: group.pool_eligible, exclusions: group.exclusions })),
+    ranking: slate.ranking });
   stage = 'snapshot_pagination';
   let currentPage = slate, pageCount = 1, maximumPageBytes = bytes;
   const candidateIds = new Set();
   let candidate;
   while (true) {
-    const candidates = currentPage.groups.flatMap(group => group.candidates);
+    const candidates = currentPage.candidates;
     check(candidates.length === currentPage.coverage.returned);
     check(new Set(candidates.map(item => item.player_id)).size === candidates.length);
     for (const item of candidates) {
@@ -208,6 +212,9 @@ async function main() {
       check(['listed', 'not_listed', 'unknown'].includes(item.injury.match));
       check(item.injury.flagged === (item.injury.match === 'listed' ? true : item.injury.match === 'not_listed' ? false : null));
       check(item.relationships.game_group && item.relationships.player_group && item.relationships.statistical_outcome_group);
+      const context = currentPage.team_contexts[item.team_context_ref];
+      check(context && context.league_game_id === item.league_game_id && context.team === item.team);
+      check(item.rank === candidateIds.size);
       candidate ??= item;
     }
     check(candidateIds.size + currentPage.coverage.remaining === slate.coverage.eligible);
@@ -276,6 +283,15 @@ async function main() {
   }
   }
   report('advertised_evidence_sections_invocable', { bytes: Buffer.byteLength(JSON.stringify(evidenceResult)) });
+  if (candidate) {
+    stage = 'gamecenter_current_offers';
+    const priced = unpack(await client.callTool({ name: 'get_gamecenter_packet', arguments: {
+      ...candidate.gamecenter, compact: true, include_current_offers: true } }));
+    check(priced.current_offers?.schema === 'nhl-gamecenter-current-offers-v1');
+    check(priced.current_offers.live_checked === false);
+    report('gamecenter_current_offers', { status: priced.current_offers.status,
+      coverage: priced.current_offers.coverage, reason: priced.current_offers.reason ?? null });
+  }
   stage = 'refresh_rotation';
   const oldRefresh = tokens.refresh_token;
   for (let generation = 0; generation < 2; generation++) {
@@ -289,7 +305,7 @@ async function main() {
     const fresh = await connect(provider);
     const result = await fresh.callTool({ name: 'get_slate_brief', arguments: {
       ...briefArguments, markets: ['skater_shots_on_goal'], candidate_limit: 1 } });
-    check(unpack(result).games.length === input.game_count);
+    check(unpack(result).scope.included_games === input.game_count);
     await fresh.close();
   }
   report('refresh_rotation', { generations: 2, fresh_connections: 2 });

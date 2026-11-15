@@ -164,3 +164,58 @@ test('explicit orientation-only first page can continue at zero; empty context-f
   const loop = await connect(t, pagedDescriptor, page(0, 0, 19, false));
   assert.equal((await loop.read({ cursor: 'loop' })).isError, true);
 });
+
+const rankedDescriptor = { ...pagedDescriptor, formats: [...pagedDescriptor.formats, 'compact_v4'],
+  shortlist: { schema: 'nhl-slate-brief-v4', views: ['research', 'shortlist'] } };
+function rankedPage(offset = 0) {
+  return { ...page(offset, 10, 20, false), schema: 'nhl-slate-brief-v4', view: 'shortlist',
+    groups: [{ market: 'skater_shots_on_goal', eligible: 20, returned: 10, remaining: 10-offset, pool_eligible: 140 }],
+    candidates: Array.from({ length: 10 }, (_, i) => ({ player_id: String(20-offset-i),
+      candidate_id: 'candidate-'+(20-offset-i), rank: offset+i+1, market: 'skater_shots_on_goal',
+      league_game_id: '42', team: 'AAA', team_context_ref: '42:AAA',
+      injury: { match: 'unknown', matched_known_entry: false, flagged: null }, alternative_market_keys: ['skater_points'] })),
+    team_contexts: { '42:AAA': { league_game_id: '42', team: 'AAA', unresolved_identities: 1,
+      unresolved_names: ['Named unresolved player'], reported_players: [{ player_name: 'Named teammate', status: 'out' }] } },
+    ranking: { basis: 'season_minus_break_even_pp', candidate_pool_count: 140, unique_player_count: 20,
+      one_market_per_player: true },
+    coverage: { eligible: 20, eligible_player_markets: 140, returned: 10, offset, remaining: 10-offset } };
+}
+
+test('fresh official client gets ten global distinct ranks from140 with one protected read and shared facts', async t => {
+  const { api, client, read } = await connect(t, rankedDescriptor, rankedPage());
+  const tool = (await client.listTools()).tools.find(item => item.name === 'get_slate_brief')!;
+  assert.ok(tool.inputSchema.properties!.view);
+  const result = await read({ view: 'shortlist', candidate_limit: 10 });
+  assert.equal(result.isError, undefined);
+  assert.ok(Buffer.byteLength(JSON.stringify(result)) <= 32768);
+  assert.deepEqual(result.content, [{ type: 'text', text: JSON.stringify(rankedPage()) }]);
+  const protectedCalls = api.requests.filter(item => item.authorization);
+  assert.equal(protectedCalls.length, 1);
+  const query = new URL(protectedCalls[0]!.path, api.baseUrl).searchParams;
+  assert.equal(query.get('format'), 'compact_v4');
+  assert.equal(query.get('view'), 'shortlist');
+  assert.equal(query.get('candidate_limit'), '10');
+});
+
+test('explicit ranked view refuses older API and malformed ranks, counts or dangling team references', async t => {
+  const old = await connect(t, pagedDescriptor, page());
+  assert.equal((await old.read({ view: 'shortlist' })).isError, true);
+  assert.equal(old.api.requests.filter(item => item.authorization).length, 0);
+  const missingRef = rankedPage();
+  missingRef.team_contexts = {} as typeof missingRef.team_contexts;
+  const badRank = rankedPage();
+  badRank.candidates[0]!.rank = 99;
+  const badPool = rankedPage();
+  badPool.coverage.eligible_player_markets = 139;
+  for (const body of [missingRef, badRank, badPool]) {
+    const { api, read } = await connect(t, rankedDescriptor, body);
+    assert.equal((await read({ view: 'shortlist', candidate_limit: 10 })).isError, true);
+    assert.equal(api.requests.filter(item => item.authorization).length, 1);
+  }
+});
+
+test('ranked continuation retains selectors and global ranks without repeating context', async t => {
+  const { api, read } = await connect(t, rankedDescriptor, rankedPage(10));
+  assert.equal((await read({ view: 'shortlist', candidate_limit: 10, cursor: 'synthetic-page-two' })).isError, undefined);
+  assert.equal(api.requests.filter(item => item.authorization).length, 1);
+});

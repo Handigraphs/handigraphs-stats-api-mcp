@@ -19,6 +19,16 @@ connection does not rotate or revoke a local key.
 
 For broad NHL slate requests, inspect `slate_brief` in fresh resource discovery.
 When enabled, start `get_slate_brief` with an explicit Eastern date and sport `nhl`.
+For a top N request, use advertised compact_v4 view=shortlist and candidate_limit=N.
+It ranks the entire covered eligible pool by season observed-rate minus quoted
+break-even before paging, choosing one market per player globally. Read global
+rank, pool/unique counts and source_coverage; partial sources still limit the pool.
+Shortlist defaults context-light. Flat ordered candidates reference team_contexts
+included on that same page, so no prior response is needed to read team facts.
+matched_known_entry concerns resolved report entries; overall unknown remains
+when identities are unresolved. Neither field establishes medical clearance.
+Research view keeps round-robin browsing and alternative markets. Never describe
+five items from partial unranked research pages as the full-pool top five.
 It supports today and regular season only. Advertised compact_v3 defaults to
 pregame context; follow next_cursor with identical selection controls. Continuations
 omit repeated context by default; include_context=false also supports an initial
@@ -34,7 +44,8 @@ Older APIs retain compact_v2/legacy. V2 and V3 keep odds -250 through +300, at l
 skater games or five goalie starts, recent observed rate at least break-even
 plus 10 percentage points and an overlapping season baseline at least break-even
 (ten skater games/five starts). V2 selects one side and at most one item/player;
-V3 applies that diversity within each page. Current ranking remains unchanged.
+V3 applies that diversity within each page. V4 research retains that order;
+shortlist applies the explicit historical season-gap order described above.
 These are descriptive research gates, never win probabilities or EV. Do not
 loosen price bounds automatically to fill a list. Legacy servers keep their
 sample/matchup ordering. Report fewer picks when coverage is insufficient. Game lines
@@ -52,6 +63,10 @@ Use describe_resource detail=compact (default) for definitions and units;
 detail=full includes benchmark diagnostics. Compact tools intentionally use a
 single text block; absence of duplicate structuredContent is not a data failure.
 Gamecenter format=compact accepts omitted sections or sections=[analysis].
+When advertised, include_current_offers=true attaches separate stored exact-line,
+book, price and ingestion-time annotations to NHL watches. Preserve the published
+reasoning and citation dependencies; a current offer is not evidence that its
+published rationale evaluated that line. Missing/stale/started prices stay explicit.
 Request cited evidence separately; preserve partial/unavailable market reviews.
 opponent_recent describes a broad position cohort including low-volume players;
 it is optional background, not a similar-player forecast or selection score.

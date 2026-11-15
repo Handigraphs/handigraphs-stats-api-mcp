@@ -17,6 +17,44 @@ const rule = { table: "nhl_skaters", split: "season", criteria: [
   { column: "toiPerGame", condition: "gte", value: "18:00", split: "last10", compareColumn: "toiPerGame", compareSplit: "season", orGroup: 1 },
 ], sample_context: { sport: "nhl", season: "20262027", game_type: 2 } };
 
+test('fresh client gets independent priced Gamecenter watches with one protected read and explicit support', async t => {
+  for (const enabled of [true, false]) {
+    const descriptor = agentDescriptor();
+    descriptor.gamecenter = { ...(descriptor.gamecenter as Record<string, unknown>), current_offers: {
+      enabled, parameter: 'include_current_offers', schema: 'nhl-gamecenter-current-offers-v1' } };
+    const props = [{ player_id: 1, player: 'Named watch', market: 'SOG', pick: 'Over', status: 'watch',
+      reasoning: 'Accepted reasoning.', evidence_ids: ['fact:1'] }];
+    const packet = { sport: 'nhl', game_id: 'opaque', analysis: { props },
+      current_offers: { schema: 'nhl-gamecenter-current-offers-v1', as_of: '2026-11-15T11:00:00Z',
+        live_checked: false, status: 'ready', coverage: { requested: 1, returned: 1, omitted: 0 },
+        items: [{ prop_index: 0, player_id: '1', watch_market: 'SOG', market: 'skater_shots_on_goal',
+          side: 'over', status: 'available', line: 4.5, price_american: -110,
+          source_market_key: 'player_shots_on_goal', fetched_at: '2026-11-15T10:55:00Z' }] } };
+    const api = await startAgentMockApi((request, response) => {
+      const path = new URL(request.url!, 'http://localhost').pathname;
+      if (path !== '/api/v1' && !path.startsWith('/api/v1/nhl/gamecenter/')) return false;
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify(path === '/api/v1' ? { sports: [{ id: 'nhl' }], agent: descriptor } : packet));
+      return true;
+    }); t.after(() => api.close());
+    const connection = await connect(api.baseUrl); t.after(() => connection.close());
+    const tool = (await connection.client.listTools()).tools.find(item => item.name === 'get_gamecenter_packet')!;
+    assert.ok(tool.inputSchema.properties!.include_current_offers);
+    const result = await connection.client.callTool({ name: 'get_gamecenter_packet', arguments: {
+      sport: 'nhl', game_id: 'opaque', compact: true, include_current_offers: true } });
+    assert.equal(result.isError === true, !enabled);
+    const calls = api.requests.filter(item => item.authorization);
+    assert.equal(calls.length, enabled ? 1 : 0);
+    if (enabled) {
+      assert.ok(calls[0]!.path.includes('include_current_offers=true'));
+      const body = JSON.parse((result.content as { text: string }[])[0]!.text);
+      assert.equal(body.current_offers.items[0].line, 4.5);
+      assert.equal(body.analysis.props[0].reasoning, props[0]!.reasoning);
+      assert.deepEqual(body.citation_ids, ['fact:1']);
+    }
+  }
+});
+
 test("official client exposes nine focused read tools and preserves native rules and response context", async (t) => {
   const api = await startAgentMockApi(); t.after(() => api.close());
   const connection = await connect(api.baseUrl); t.after(() => connection.close());
