@@ -21,3 +21,12 @@ native human MCP production approval and scrapers-web approval/cooldown remain.
 No production mutation, DDL, new forecasts, package publication or gateway
 implementation is part of this acceptance branch. Source and old-pair evidence
 cannot stand in for new acceptance. Status: validation/deployment underway.
+
+
+Sandbox deployment43765232916 and merge CI43765232828 succeeded at runtime4a42f1a.
+First new cohort failed before goalie requests due to a harness TypeError: resource
+metadata does not include the availability descriptor. All five owners retrieved
+all73 players/eight pages (max29884 bytes); five cold/fifteen warm reads completed.
+Cleanup passed. Corrected the harness to read the public pinned NHL discovery
+for adaptive goalie support. No product/runtime change. That failed attempt stays
+failed; a second fresh-owner run will establish remaining acceptance.

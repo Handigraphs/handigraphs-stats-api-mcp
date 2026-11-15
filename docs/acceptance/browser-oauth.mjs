@@ -34,7 +34,7 @@ async function safeFetch(input, init) {
   const url = new URL(input instanceof Request ? input.url : input);
   check([ISSUER, new URL(RESOURCE).origin].includes(url.origin));
   const response = await fetch(input, { ...init, redirect: 'error', signal: AbortSignal.timeout(20000) });
-  statuses.push({ kind: url.pathname.startsWith('/oauth/') ? 'oauth' : 'mcp', status: response.status });
+  statuses.push({ kind: url.pathname.startsWith('/oauth/') ? 'oauth' : url.pathname.startsWith('/api/v1/') ? 'public_discovery' : 'mcp', status: response.status });
   return response;
 }
 function unpack(result) {
@@ -250,7 +250,8 @@ async function main() {
     } else report('cross_owner_cursor_no_live_witness', { eligible: slate.coverage.eligible });
   }
   stage = 'adaptive_goalie_pages';
-  check(descriptor.goalie_status.adaptive_pages === true);
+  const availabilityDiscovery = await (await safeFetch(ISSUER + '/api/v1/nhl')).json();
+  check(availabilityDiscovery.goalie_status.adaptive_pages === true);
   let goalieCursor, goaliePages = 0;
   const goalieGames = new Set();
   do {
