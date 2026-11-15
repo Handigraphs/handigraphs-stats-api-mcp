@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const children = [], ready = new Set();
+const children = [], ready = new Set(), pagingCursors = new Map();
 let readyTimer, stage = 'input', observations = [], measurements = {};
 function percentile(values, p) { return [...values].sort((a,b) => a-b)[Math.ceil(values.length*p)-1]; }
 async function main() {
@@ -30,6 +30,19 @@ async function main() {
     child.stderr.resume();
     child.once('error', reject);
     child.on('message', message => {
+      if (message?.event === 'paging_cursor') {
+        if (!(message.cursor === null || typeof message.cursor === 'string' && message.cursor.length <= 2048)) {
+          rejectAll(new Error('invalid_paging_cursor')); return;
+        }
+        pagingCursors.set(child.pid, message.cursor);
+        if (pagingCursors.size === 5) {
+          for (let i = 0; i < children.length; i++) {
+            children[i].send({ event: 'foreign_cursor', cursor: pagingCursors.get(children[(i+1)%children.length].pid) });
+          }
+          pagingCursors.clear(); // Opaque private page tokens never enter reports.
+        }
+        return;
+      }
       if (message?.event !== 'ready') return;
       ready.add(child.pid);
       if (ready.size === 5) { clearTimeout(readyTimer); startAll(); }

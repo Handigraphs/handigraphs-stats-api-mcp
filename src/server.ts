@@ -75,7 +75,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
   const agent = new AgentReadClient(http, discovery, secrets);
   const actions = new AgentActionClient(http, discovery);
   const revision = process.env.HEROKU_SLUG_COMMIT ?? process.env.SOURCE_VERSION;
-  const runtime = { adapter_version: SERVER_VERSION, tool_catalog_revision: "nhl-research-v2",
+  const runtime = { adapter_version: SERVER_VERSION, tool_catalog_revision: "nhl-brief-pages-v1",
     build_sha: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null,
     prop_evidence_tool: dependencies.enablePropEvidence === true, slate_brief_tool: true,
     catalog_refresh: "If discovery advertises sections missing from your tool schema, refresh tools or reconnect this same connection." };
@@ -238,7 +238,7 @@ export function createServer(config: Config, dependencies: ServerDependencies = 
     const payload = redactCredentialEchoes(await readSlateBrief(http, discovery, input), secrets);
     const result = { content: [{ type: "text" as const, text: JSON.stringify(payload) }] };
     if (Buffer.byteLength(JSON.stringify(result), "utf8") > SLATE_BRIEF_BYTES) {
-      throw new UpstreamError({ status: 413, code: "slate_brief_too_large", detail: "Request fewer candidates or markets. No content was truncated." });
+      throw new UpstreamError({ status: 413, code: "slate_brief_too_large", detail: "With advertised v3 use include_context=false or fewer candidates per page, then follow next_cursor. Older servers support fewer candidates or markets. No content was truncated or retried." });
     }
     return result;
   }));

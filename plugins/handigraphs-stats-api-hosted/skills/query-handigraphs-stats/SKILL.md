@@ -77,12 +77,23 @@ and goalie saves follow the same shortlist workflow.
 ## Shared business workflow
 
 For broad NHL slate requests, inspect `slate_brief` in fresh resource discovery.
-When enabled, call `get_slate_brief` once with an explicit Eastern date and
-sport `nhl`. It supports today and regular season only. The adapter negotiates
-advertised compact_v2. V2 keeps odds -250 through +300, at least 8/10 graded
+When enabled, start `get_slate_brief` with an explicit Eastern date and sport `nhl`.
+It supports today and regular season only. Advertised compact_v3 defaults to
+pregame context; follow next_cursor with identical selection controls. Continuations
+omit repeated context by default; include_context=false also supports an initial
+context-light read. pregame_only=false includes the full slate with scope counts.
+Every eligible player-market selection is pageable, with one/player/page. Snapshots
+expire180s/eight newer owner snapshots; restart explicitly after expiry/cache loss.
+Injury listed/not_listed/unknown is a report match with separate freshness, never
+medical clearance. Named teammate flags are facts, not usage-impact estimates.
+Shared game/player/statistical-outcome IDs help compare pages/calls, without
+correlation estimates or bookmaker settlement equivalence. Retain status_at_read
+for started/stale snapshot quotes; refresh source evidence before using a price.
+Older APIs retain compact_v2/legacy. V2 and V3 keep odds -250 through +300, at least 8/10 graded
 skater games or five goalie starts, recent observed rate at least break-even
 plus 10 percentage points and an overlapping season baseline at least break-even
-(ten skater games/five starts). It selects one side and at most one item/player.
+(ten skater games/five starts). V2 selects one side and at most one item/player;
+V3 applies that diversity within each page. Current ranking remains unchanged.
 These are descriptive research gates, never win probabilities or EV. Do not
 loosen price bounds automatically to fill a list. Legacy servers keep their
 sample/matchup ordering. Report fewer picks when coverage is insufficient. Game lines
